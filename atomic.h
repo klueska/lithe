@@ -1,6 +1,6 @@
 /**
  * Memory consistency issues will vary between machines ... here are
- * a few helpful guarantees for x86_64 machines:
+ * a few helpful guarantees for x86 machines:
  *
  *  - Loads are _not_ reordered with other loads.
  *  - Stores are _not_ reordered with other stores.
@@ -30,7 +30,9 @@
 extern "C" {
 #endif
 
-#ifdef __x86_64__
+
+#define atomic_delay() ({ asm volatile ("rep; nop"); })
+
 
 #define mfence() ({ asm volatile ("mfence" : : :"memory"); })
 
@@ -349,12 +351,6 @@ extern "C" {
 			 : "m" (*mem), "ir" (bit));			      \
      __result; })
 
-
-#define atomic_delay() ({ asm volatile ("rep; nop"); })
-
-#else /* __x86_64__ */
-#error "missing atomics implementation for your architecture"
-#endif
 
 #ifdef __cplusplus
 }
