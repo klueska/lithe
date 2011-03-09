@@ -82,7 +82,7 @@ extern "C" {
 #define coherent_read(v)                          \
 ({                                                \
   rdfence();                                      \
-  *(&(v));                                        \
+  *((unsigned int *)&(v));                        \
 })
 
 

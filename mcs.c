@@ -47,7 +47,7 @@ void mcs_unlock(mcs_lock_t *L, struct qnode *I)
 /* 	printf("mcs_unlock: %ld\n", elapsed); */
       return;
     }
-    while (coherent_read(I->next) == NULL);
+    while (coherent_read(I->next) == (unsigned int)NULL);
   }
   I->next->locked = 0;
 /*   printf("(%d) slow mcs_unlock(0x%x, 0x%x)\n", ht_id(), L, I); */
