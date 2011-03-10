@@ -17,10 +17,10 @@ void entry()
   struct qnode q;
   mcs_lock(&lock, &q);
   {
-    if (i < strlen("hello world\n")) {
+    if (i < strlen("hell\n")) {
       int j = i;
       for (; j < 100000000; j++);
-      printf("%c", "hello world\n"[i++]);
+      printf("%c", "hell\n"[i++]);
       fflush(stdout);
     } else {
       done = 1;

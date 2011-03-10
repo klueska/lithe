@@ -11,7 +11,7 @@ endif
 
 CC = gcc
 
-CFLAGS = -g -O2 -Wall
+CFLAGS = -g -O2 -Wall -fno-strict-aliasing -DUSE_FUTEX
 LDFLAGS =
 
 ALL_CFLAGS = $(CFLAGS) -std=gnu99 -ftls-model="initial-exec" -MMD -MP
@@ -28,7 +28,7 @@ LIB_OBJ = $(LIB_C_OBJ) $(LIB_ASM_OBJ)
 #     (b) we want our library constructor to run on the main thread
 LIB = libht.a
 
-default: all
+all: $(LIB)
 
 -include $(patsubst %.o, %.d, $(LIB_OBJ))
 
@@ -40,6 +40,9 @@ $(LIB_ASM_OBJ): %.o: %.S
 
 $(LIB): $(LIB_OBJ)
 	$(AR) rcs $@ $^
+
+tests: all
+	$(MAKE) -C tests
 
 install-lib:
 	@echo "---------------------------------------------------------------"
@@ -85,9 +88,8 @@ uninstall:
 dist:
 	$(error unimplemented)
 
-all: $(LIB)
-
 clean:
+	$(MAKE) -C tests clean
 	rm -f $(LIB) $(LIB_OBJ) $(patsubst %.o, %.d, $(LIB_OBJ))
 
 .PHONY: default install-lib install-hdr install uninstall dist all clean
