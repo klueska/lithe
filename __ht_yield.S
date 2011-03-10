@@ -34,17 +34,13 @@ __ht_yield:
 # endif
 #elif __i386__
 # ifdef __PIC__
-	mov	__ht_stack@GOTTPOFF(%eip), %eax
-	mov	%gs:(%eax), %esp
-	mov	__ht_context@GOTTPOFF(%eip), %edi
-	add	%gs:0, %edi
-	jmp	setcontext@PLT
-	hlt
+#   error do not yet support ht_yield on __i386__ with PIC!
 # else
-	mov	%gs:__ht_stack@TPOFF, %esp
-	mov	%gs:0, %edi
-	add	$__ht_context@TPOFF, %edi
-	jmp	setcontext
+	mov %gs:__ht_stack@TPOFF, %esp
+	mov %gs:0x0, %edx
+	sub $__ht_context@TPOFF, %edx
+	mov %edx, (%esp)
+	call setcontext
 	hlt
 # endif
 #else
