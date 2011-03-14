@@ -11,13 +11,13 @@ endif
 
 CC = gcc
 
-CFLAGS = -g -O2 -Wall -fno-strict-aliasing -DUSE_FUTEX
+CFLAGS = -g -O2 -Wall -fno-strict-aliasing -DUSE_FUTEX -I.
 LDFLAGS =
 
-ALL_CFLAGS = $(CFLAGS) -std=gnu99 -ftls-model="initial-exec" -MMD -MP
+ALL_CFLAGS = $(CFLAGS) -std=gnu99 -MMD -MP #-ftls-model="initial-exec" 
 ALL_LDFLAGS = $(LDFLAGS)
 
-LIB_C_OBJ = ht.o spinlock.o mcs.o
+LIB_C_OBJ = ht.o tls.o
 
 LIB_ASM_OBJ = __ht_yield.o
 

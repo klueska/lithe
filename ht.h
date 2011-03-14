@@ -20,7 +20,7 @@ extern "C" {
 #endif
 
 /* Used to request maximum number of allocatable hard threads. */
-const int HT_REQUEST_MAX = -1;
+static const int HT_REQUEST_MAX = -1;
 
 /**
  * Requests k additional hard threads. Returns -1 if the request is

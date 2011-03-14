@@ -25,6 +25,8 @@
 #include <stdlib.h>
 #include <ucontext.h>
 #include <unistd.h>
+#include <htinternal.h>
+#include <tls.h>
 
 #include <sys/sysinfo.h>
 #include <sys/wait.h>
@@ -37,19 +39,14 @@
 /* Applications hard thread entry. */
 extern void entry(void);
 
+/* Array of hard threads using pthreads to masquerade. */
+struct hard_thread *__ht_threads = NULL;
+
 /* Mutex used to provide mutually exclusive access to our globals. */
 static pthread_mutex_t __ht_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* Condition variable to be used for asynchronous hard thread requests. */
 static pthread_cond_t __ht_condition = PTHREAD_COND_INITIALIZER;
-
-/* Array of hard threads using pthreads to masquerade. */
-static struct hard_thread {
-  bool created __attribute__((aligned (64)));
-  bool allocated;
-  bool running __attribute__((aligned (64)));
-  pthread_t thread;
-} *__ht_threads = NULL;
 
 /* Number of currently allocated hard threads. */
 static int __ht_num_hard_threads = 0;
@@ -122,6 +119,12 @@ void __ht_entry_gate()
 void * __ht_entry_trampoline(void *arg)
 {
   assert(sizeof(void *) == sizeof(long int));
+
+  int htid = (int) (long int) arg;
+  /* Set up a new TLS region for this hard thread and switch to it */
+  init_tls(htid);
+
+  /* Assign the id to the tls variable */
   __ht_id = (int) (long int) arg;
 
   /*
