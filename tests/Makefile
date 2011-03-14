@@ -1,14 +1,14 @@
 # Makefile for hard threads tests
 
 SHELL = '/bin/sh'
-EXECS = test spinlock_test mcs_test
+EXECS = test
 
 CC = gcc
 
 CFLAGS = -Wall -I..
 LDFLAGS = -L.. -lht -lpthread
 
-ALL_CFLAGS = $(CFLAGS) -std=gnu99 -ftls-model="initial-exec" -MMD -MP
+ALL_CFLAGS = $(CFLAGS) -std=gnu99 -MMD -MP
 ALL_LDFLAGS = $(LDFLAGS)
 
 all: htlib $(EXECS)
