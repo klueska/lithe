@@ -69,7 +69,7 @@ __thread ucontext_t __ht_context = { 0 };
 __thread void *__ht_stack = NULL;
 
 /* Current context running on an ht, used when swapping contexts onto an ht */
-__thread ucontext_t *current_ht_context = NULL;
+__thread ucontext_t *current_ucontext = NULL;
 
 void __ht_entry_gate()
 {
@@ -131,10 +131,10 @@ void * __ht_entry_trampoline(void *arg)
   /* Assign the id to the tls variable */
   __ht_id = htid;
 
-  /* If this is the first ht, set current_ht_context to the main_context in
+  /* If this is the first ht, set current_ucontext to the main_context in
    * this guys TLS region */
   if(__ht_id == 0)
-    current_ht_context = &__main_context;
+    current_ucontext = &__main_context;
 
   /*
    * We create stack space for the function 'setcontext' jumped to

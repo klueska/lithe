@@ -21,12 +21,12 @@ extern "C" {
 #endif
 
 /**
- * Current context running on each hard thread, used when interrupting a user
- * context because of async I/O or signal handling. Hard Thread 0's
+ * Current user context running on each hard thread, used when interrupting a
+ * user context because of async I/O or signal handling. Hard Thread 0's
  * current_ht_context is initialized to the continuation of the main thread's
  * context the first time it's ht_entry() function is invoked.
  */
-extern __thread ucontext_t *current_ht_context;
+extern __thread ucontext_t *current_ucontext;
 
 /**
  * User defined entry point for each hard thread.  If current_user_context is
