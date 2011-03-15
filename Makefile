@@ -19,9 +19,7 @@ ALL_LDFLAGS = $(LDFLAGS)
 
 LIB_C_OBJ = ht.o tls.o
 
-LIB_ASM_OBJ = __ht_yield.o
-
-LIB_OBJ = $(LIB_C_OBJ) $(LIB_ASM_OBJ)
+LIB_OBJ = $(LIB_C_OBJ) 
 
 # IMPORTANT: We build a static library because
 #     (a) we need TLS loads to be done without the stack
@@ -33,9 +31,6 @@ all: $(LIB)
 -include $(patsubst %.o, %.d, $(LIB_OBJ))
 
 $(LIB_C_OBJ): %.o: %.c
-	$(CC) -c $(ALL_CFLAGS) -o $@ $<
-
-$(LIB_ASM_OBJ): %.o: %.S
 	$(CC) -c $(ALL_CFLAGS) -o $@ $<
 
 $(LIB): $(LIB_OBJ)

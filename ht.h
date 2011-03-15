@@ -14,6 +14,7 @@
 #define HT_H
 
 #include "htmain.h"
+#include <ucontext.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,6 +22,9 @@ extern "C" {
 
 /* Used to request maximum number of allocatable hard threads. */
 static const int HT_REQUEST_MAX = -1;
+
+/* Current context running on an ht, used when swapping contexts onto an ht */
+extern __thread ucontext_t *current_ht_context;
 
 /**
  * Requests k additional hard threads. Returns -1 if the request is
@@ -41,20 +45,7 @@ int ht_request_async(int k);
 /**
  * Relinquishes the calling hard thread.
 */
-#ifdef __PIC__
-#define ht_yield()                                                    \
-({                                                                    \
-  asm volatile ("jmp __ht_yield@PLT");                                \
-  -1;                                                                 \
-})
-#else
-#define ht_yield()                                                    \
-({                                                                    \
-  asm volatile ("jmp __ht_yield");                                    \
-  -1;                                                                 \
-})
-#endif /* __PIC__ */
-
+void ht_yield();
 
 /**
  * Returns the id of the calling hard thread.

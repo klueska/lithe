@@ -1,7 +1,7 @@
 #include <tlsinternal.h>
 
 
-static struct user_desc main_ud;
+static tcbhead_t *main_tcbhead;
 
 /* Get a TLS, returns 0 on failure.  Any thread created by a user-level
  * scheduler needs to create a TLS. */
@@ -15,7 +15,7 @@ void *allocate_tls(void)
 	 * Keep this in sync with sysdeps/ros/XXX/tls.h.  For whatever reason,
 	 * dynamically linked programs do not need this to be redone, but statics
 	 * do. */
-	memcpy(tcb, (void*)main_ud.base_addr, sizeof(tcbhead_t));
+	memcpy(tcb, main_tcbhead, sizeof(tcbhead_t));
 	tcbhead_t *head = (tcbhead_t*)tcb;
 	head->tcb = tcb;
 	head->self = tcb;
@@ -34,19 +34,25 @@ void free_tls(void *tcb)
 static void __attribute((constructor)) __tls_ctor()
 {
 	/* Get a reference to the main program's TLS descriptor */
-	main_ud.entry_number = DEFAULT_TLS_GDT_ENTRY;
-	int ret = syscall(SYS_get_thread_area, &main_ud);
+    struct user_desc ud;
+	ud.entry_number = DEFAULT_TLS_GDT_ENTRY;
+	int ret = syscall(SYS_get_thread_area, &ud);
+    main_tcbhead = (tcbhead_t*)ud.base_addr;
 	assert(ret == 0);
 }
 
 /* Initialize tls for use in this ht */
 void init_tls(uint32_t htid)
 {
-	/* Allocate a new tls region for this ht */
-	void *tcb = allocate_tls();
+	/* Get a reference to the current TLS region in the GDT */
+    struct user_desc cud;
+	cud.entry_number = DEFAULT_TLS_GDT_ENTRY;
+	int ret = syscall(SYS_get_thread_area, &cud);
+	assert(ret == 0);
+	void *tcb = (void*)cud.base_addr;
 	assert(tcb);
 
-	/* Set up the the new TLS region as an entry in the LDT */
+	/* Set up the TLS region as an entry in the LDT */
 	struct user_desc *ud = &(__ht_threads[htid].ldt_entry);
 	memset(ud, 0, sizeof(struct user_desc));
 	ud->entry_number = htid;

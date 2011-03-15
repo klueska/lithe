@@ -13,9 +13,9 @@
 
 #define _GNU_SOURCE
 
-/* #define USE_ASYNC_REQUEST_THREAD */
-/* #define USE_FUTEX */
-/* #define LAZILY_CREATE_THREADS */
+//#define USE_ASYNC_REQUEST_THREAD
+//#define USE_FUTEX
+//#define LAZILY_CREATE_THREADS
 
 #include <assert.h>
 #include <errno.h>
@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <htinternal.h>
 #include <tls.h>
+#include <atomic.h>
 
 #include <sys/sysinfo.h>
 #include <sys/wait.h>
@@ -58,18 +59,23 @@ static int __ht_max_hard_threads = 0;
 static int __ht_limit_hard_threads = 0;
 
 /* Id of the currently running hard thread. */
-__thread int __ht_id = -1;
+static __thread int __ht_id = -1;
 
-/* Context we should return to before we invoke pthread_exit. */
+/* Global context associated with the main thread.  Used when swapping this
+ * context over to ht0 */
+static ucontext_t __main_context = { 0 };
+
+/* Per thread context we should return to before we invoke pthread_exit. */
 __thread ucontext_t __ht_context = { 0 };
 
 /* Stack space to use when a hard thread yields without a stack. */
 __thread void *__ht_stack = NULL;
 
+/* Current context running on an ht, used when swapping contexts onto an ht */
+__thread ucontext_t *current_ht_context = NULL;
 
 void __ht_entry_gate()
 {
-/*   printf("%d yielded\n", __ht_id); */
   pthread_mutex_lock(&__ht_mutex);
   {
     /* Check and see if we should wait at the gate. */
@@ -95,11 +101,12 @@ void __ht_entry_gate()
   futex_wait(&(__ht_threads[__ht_id].running), false);
 #else
   while (__ht_threads[__ht_id].running == false) {
-    asm volatile ("rep; nop; mfence" : : : "memory");
+    atomic_delay();
+    mfence();
   }
 #endif /* USE_FUTEX */
   
- entry:
+entry:
   assert(__ht_threads[__ht_id].running == true);
   entry();
 
@@ -115,17 +122,22 @@ void __ht_entry_gate()
   exit(1);
 }
 
-
 void * __ht_entry_trampoline(void *arg)
 {
   assert(sizeof(void *) == sizeof(long int));
 
   int htid = (int) (long int) arg;
+
   /* Set up a new TLS region for this hard thread and switch to it */
   init_tls(htid);
 
   /* Assign the id to the tls variable */
   __ht_id = htid;
+
+  /* If this is the first ht, set current_ht_context to the main_context in
+   * this guys TLS region */
+  if(__ht_id == 0)
+    current_ht_context = &__main_context;
 
   /*
    * We create stack space for the function 'setcontext' jumped to
@@ -178,112 +190,141 @@ void * __ht_entry_trampoline(void *arg)
   exit(1);
 }
 
+static void __create_hard_thread(int i)
+{
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+  cpu_set_t c;
+  CPU_ZERO(&c);
+  CPU_SET(i, &c);
+  if ((errno = pthread_attr_setaffinity_np(&attr,
+  				     sizeof(cpu_set_t),
+  				     &c)) != 0) {
+    fprintf(stderr, "ht: could not set affinity of underlying pthread\n");
+    exit(1);
+  }
+  
+  /* Set the created flag for the thread we are about to spawn off */
+  __ht_threads[i].created = true;
 
-int __ht_allocate(int k)
+  /* Also up the thread counts and set the flags for allocated and running
+   * until we get a chance to stop the thread and deallocate it in its entry
+   * gate */
+  __ht_threads[i].allocated = true;
+  __ht_threads[i].running = true;
+  __ht_num_hard_threads++;
+  __ht_max_hard_threads++;
+
+  if ((errno = pthread_create(&__ht_threads[i].thread,
+  			&attr,
+  			__ht_entry_trampoline,
+  			(void *) (long int) i)) != 0) {
+    fprintf(stderr, "ht: could not allocate underlying pthread\n");
+    exit(1);
+  }
+}
+
+static int __ht_allocate(int k)
 {
   int j = 0;
   for (; k > 0; k--) {
     for (int i = 0; i < __ht_limit_hard_threads; i++) {
 #ifdef LAZILY_CREATE_THREADS
       if (!__ht_threads[i].created) {
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	cpu_set_t c;
-	CPU_ZERO(&c);
-	CPU_SET(i, &c);
-	if ((errno = pthread_attr_setaffinity_np(&attr,
-						 sizeof(cpu_set_t),
-						 &c)) != 0) {
-	  fprintf(stderr, "ht: could not set affinity of underlying pthread\n");
-	  exit(1);
-	}
-
-	__ht_threads[i].created = true;
-	__ht_threads[i].allocated = true;
-	__ht_threads[i].running = true;
-
-	if ((errno = pthread_create(&__ht_threads[i].thread,
-				    &attr,
-				    __ht_entry_trampoline,
-				    (void *) (long int) i)) != 0) {
-	  fprintf(stderr, "ht: could not allocate underlying pthread\n");
-	  exit(1);
-	}
-
-	j++;
-	break;
+        __create_hard_thread(i);
+        j++;
+        break;
       } else if (!__ht_threads[i].allocated) {
 #else
       assert(__ht_threads[i].created);
       if (!__ht_threads[i].allocated) {
 #endif /* LAZILY_CREATE_THREADS */
-	assert(__ht_threads[i].running == false);
-	__ht_threads[i].allocated = true;
-	__ht_threads[i].running = true;
+        assert(__ht_threads[i].running == false);
+        __ht_threads[i].allocated = true;
+        __ht_threads[i].running = true;
 #ifdef USE_FUTEX
-	futex_wakeup_one(&(__ht_threads[i].running));
+        futex_wakeup_one(&(__ht_threads[i].running));
 #else
-	asm volatile ("" : : : "memory");
+        wrfence();
 #endif /* USE_FUTEX */
-	j++;
-	break;
+        j++;
+        break;
       }
     }
   }
   return j;
 }
 
-
 int ht_request(int k)
 {
   return -1;
 }
 
+static int __ht_request_async(int k)
+{
+  /* Determine how many hard threads we can allocate. */
+  int available = __ht_limit_hard_threads - __ht_max_hard_threads;
+  k = available >= k ? k : available;
+
+  /* Update hard thread counts. */
+  __ht_max_hard_threads += k;
+
+#ifdef USE_ASYNC_REQUEST_THREAD
+  /* Signal async request thread. */
+  if (pthread_cond_signal(&__ht_condition) != 0) {
+    return -1;
+  }
+#else
+  /* Allocate as many as known available. */
+  k = __ht_max_hard_threads - __ht_num_hard_threads;
+  int j = __ht_allocate(k);
+
+  assert(k == j);
+
+  /* Update hard thread counts. */
+  __ht_num_hard_threads += j;
+#endif /*  USE_ASYNC_REQUEST_THREAD */
+
+  return __ht_max_hard_threads;
+}
 
 int ht_request_async(int k)
 {
+  int hts = -1;
   pthread_mutex_lock(&__ht_mutex);
   {
     if (k < 0) {
       fprintf(stderr, "ht: decrementing requests is unimplemented\n");
       exit(1);
-      __ht_max_hard_threads = __ht_max_hard_threads + k;
-      if (__ht_max_hard_threads < __ht_num_hard_threads) {
-	__ht_max_hard_threads = __ht_num_hard_threads;
-      }
     } else {
-      /* Determine how many hard threads we can allocate. */
-      int available = __ht_limit_hard_threads - __ht_max_hard_threads;
-      k = available >= k ? k : available;
-
-      /* Update hard thread counts. */
-      __ht_max_hard_threads += k;
-
-/*       printf("request async can allocate %d and max is %d\n", k, __ht_max_hard_threads); */
-
-#ifdef USE_ASYNC_REQUEST_THREAD
-      /* Signal async request thread. */
-      if (pthread_cond_signal(&__ht_condition) != 0) {
-	pthread_mutex_unlock(&__ht_mutex);
-	return -1;
+      /* If this is the first ht requested, do something special */
+      if(__ht_max_hard_threads == 0) {
+        static bool firstht = true;
+        getcontext(&__main_context);
+        wrfence();
+        if(firstht) {
+          int ret;
+          firstht = false;
+          __ht_request_async(1);
+          pthread_mutex_unlock(&__ht_mutex);
+          pthread_join(__ht_threads[0].thread, (void*)&ret);
+          exit(ret);
+        }
+        k -=1;
       }
-#else
-      /* Allocate as many as known available. */
-      k = __ht_max_hard_threads - __ht_num_hard_threads;
-      int j = __ht_allocate(k);
-
-      assert(k == j);
-
-      /* Update hard thread counts. */
-      __ht_num_hard_threads += j;
-#endif /*  USE_ASYNC_REQUEST_THREAD */
+      /* Put in the rest of the request as normal */
+      hts = __ht_request_async(k);
     }
   }
   pthread_mutex_unlock(&__ht_mutex);
-
-  return __ht_max_hard_threads;
+  return hts;
 }
 
+void ht_yield()
+{
+  set_stack_pointer(__ht_stack);
+  setcontext(&__ht_context);
+}
 
 int ht_id()
 {
@@ -293,19 +334,28 @@ int ht_id()
 
 int ht_num_hard_threads()
 {
-  return __ht_num_hard_threads;
+  pthread_mutex_lock(&__ht_mutex);
+  int c = __ht_num_hard_threads;
+  pthread_mutex_unlock(&__ht_mutex);
+  return c;
 }
 
 
 int ht_max_hard_threads()
 {
-  return __ht_max_hard_threads;
+  pthread_mutex_lock(&__ht_mutex);
+  int c = __ht_max_hard_threads;
+  pthread_mutex_unlock(&__ht_mutex);
+  return c;
 }
 
 
 int ht_limit_hard_threads()
 {
-  return __ht_limit_hard_threads;
+  pthread_mutex_lock(&__ht_mutex);
+  int c = __ht_limit_hard_threads;
+  pthread_mutex_unlock(&__ht_mutex);
+  return c;
 }
 
 
@@ -364,83 +414,9 @@ static void __attribute__((constructor)) __ht_init()
 #endif /* USE_ASYNC_REQUEST_THREAD */
 
 #ifndef LAZILY_CREATE_THREADS
-  for (int i = 1; i < __ht_limit_hard_threads; i++) {
-    pthread_attr_t attr;
-    pthread_attr_init(&attr);
-    cpu_set_t c;
-    CPU_ZERO(&c);
-    CPU_SET(i, &c);
-    if ((errno = pthread_attr_setaffinity_np(&attr,
-					     sizeof(cpu_set_t),
-					     &c)) != 0) {
-      fprintf(stderr, "ht: could not set affinity of underlying pthread\n");
-      exit(1);
-    }
-
-    __ht_threads[i].created = true;
-    __ht_threads[i].allocated = true;
-    __ht_threads[i].running = true;
-
-    __ht_num_hard_threads++;
-    __ht_max_hard_threads++;
-
-    if ((errno = pthread_create(&__ht_threads[i].thread,
-				&attr,
-				__ht_entry_trampoline,
-				(void *) (long int) i)) != 0) {
-      fprintf(stderr, "ht: could not allocate underlying pthread\n");
-      exit(1);
-    }
+  for (int i = 0; i < __ht_limit_hard_threads; i++) {
+    __create_hard_thread(i);
   }
 #endif /* LAZILY_CREATE_THREADS */
-
-  /* Initialize the main thread. Assumes that this is the main thread ... */
-  cpu_set_t c;
-  CPU_ZERO(&c);
-  CPU_SET(0, &c);
-
-  if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &c) != 0) {
-    fprintf(stderr, "ht: could not set affinity of underlying pthread\n");
-    exit(1);
-  }
-
-  __ht_id = 0;
-
-  /*
-   * We create stack space for the function 'setcontext' jumped to
-   * after an invocation of ht_yield.
-   */
-  if ((__ht_stack = malloc(getpagesize()*4)) == NULL) {
-    fprintf(stderr, "ht: could not allocate memory\n");
-    exit(1);
-  }
-
-  __ht_stack = (void *)
-    (((size_t) __ht_stack) + (getpagesize()*4 - __alignof__(long double)));
-
-  /* Initialize the context for launching into __ht_entry_gate. */
-  if (getcontext(&__ht_context) < 0) {
-    fprintf(stderr, "ht: could not get context\n");
-    exit(1);
-  }
-
-  if ((__ht_context.uc_stack.ss_sp = malloc(getpagesize()*4)) == NULL) {
-    fprintf(stderr, "ht: could not allocate memory\n");
-    exit(1);
-  }
-
-  __ht_context.uc_stack.ss_size = getpagesize()*4;
-  __ht_context.uc_link = 0;
-    
-  makecontext(&__ht_context, (void (*) ()) __ht_entry_gate, 0);
-
-  __ht_threads[0].created = true;
-  __ht_threads[0].allocated = true;
-  __ht_threads[0].running = true;
-
-  /* Update hard thread counts. */
-  __ht_num_hard_threads += 1;
-  __ht_max_hard_threads += 1;
-
-  /* TODO(benh): Make sure async request thread is ready. */
 }
+
