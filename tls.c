@@ -1,5 +1,8 @@
 #include <tlsinternal.h>
 
+
+static struct user_desc main_ud;
+
 /* Get a TLS, returns 0 on failure.  Any thread created by a user-level
  * scheduler needs to create a TLS. */
 void *allocate_tls(void)
@@ -12,6 +15,7 @@ void *allocate_tls(void)
 	 * Keep this in sync with sysdeps/ros/XXX/tls.h.  For whatever reason,
 	 * dynamically linked programs do not need this to be redone, but statics
 	 * do. */
+	memcpy(tcb, (void*)main_ud.base_addr, sizeof(tcbhead_t));
 	tcbhead_t *head = (tcbhead_t*)tcb;
 	head->tcb = tcb;
 	head->self = tcb;
@@ -26,13 +30,34 @@ void free_tls(void *tcb)
 	_dl_deallocate_tls(tcb, 1);
 }
 
-/* Get the tls descriptor currently set for a given hard thread. This should
- * only ever be called once the hard thread has been initialized */
-void *get_tls_desc(uint32_t htid)
+/* Constructor to get a reference to the main thread's TLS descriptor */
+static void __attribute((constructor)) __tls_ctor()
 {
+	/* Get a reference to the main program's TLS descriptor */
+	main_ud.entry_number = DEFAULT_TLS_GDT_ENTRY;
+	int ret = syscall(SYS_get_thread_area, &main_ud);
+	assert(ret == 0);
+}
+
+/* Initialize tls for use in this ht */
+void init_tls(uint32_t htid)
+{
+	/* Allocate a new tls region for this ht */
+	void *tcb = allocate_tls();
+	assert(tcb);
+
+	/* Set up the the new TLS region as an entry in the LDT */
 	struct user_desc *ud = &(__ht_threads[htid].ldt_entry);
-	assert(ud->base_addr != 0);
-	return (void *)ud->base_addr;
+	memset(ud, 0, sizeof(struct user_desc));
+	ud->entry_number = htid;
+	ud->limit = 0xffffffff;
+	ud->seg_32bit = 1;
+	ud->limit_in_pages = 1;
+	ud->useable = 1;
+
+	/* Switch to this new TLS region */
+	__ht_threads[htid].tls_desc = tcb;
+	set_tls_desc(tcb, htid);
 }
 
 /* Passing in the htid, since it'll be in TLS of the caller */
@@ -47,37 +72,12 @@ void set_tls_desc(void *tls_desc, uint32_t htid)
   TLS_SET_GS(htid, 1);
 }
 
-/* Initialize tls for use in this ht */
-void init_tls(uint32_t htid)
+/* Get the tls descriptor currently set for a given hard thread. This should
+ * only ever be called once the hard thread has been initialized */
+void *get_tls_desc(uint32_t htid)
 {
-	/* Get a reference to the current TLS descriptor */
-	struct user_desc cud;
-	cud.entry_number = DEFAULT_TLS_GDT_ENTRY;
-	int ret = syscall(SYS_get_thread_area, &cud);
-	assert(ret == 0);
-
-	/* Allocate a new tls region for this ht */
-	void *tcb = allocate_tls();
-	assert(tcb);
-
-	/* Set up the tcbheader of the new TLS region to match the old one, and
-	 * then patch up the reference pointers */
-	memcpy(tcb, (void*)cud.base_addr, sizeof(tcbhead_t));
-	tcbhead_t *head = (tcbhead_t*)tcb;
-	head->tcb = tcb;
-	head->self = tcb;
-
-	/* Set up the the new TLS region as an entry in the LDT */
 	struct user_desc *ud = &(__ht_threads[htid].ldt_entry);
-	memset(ud, 0, sizeof(struct user_desc));
-	ud->entry_number = htid;
-	ud->limit = 0xffffffff;
-	ud->seg_32bit = 1;
-	ud->limit_in_pages = 1;
-	ud->useable = 1;
-
-	/* Switch to this new TLS region */
-	__ht_threads[htid].tls_desc = tcb;
-	set_tls_desc(tcb, htid);
+	assert(ud->base_addr != 0);
+	return (void *)ud->base_addr;
 }
 

@@ -125,7 +125,7 @@ void * __ht_entry_trampoline(void *arg)
   init_tls(htid);
 
   /* Assign the id to the tls variable */
-  __ht_id = (int) (long int) arg;
+  __ht_id = htid;
 
   /*
    * We create stack space for the function 'setcontext' jumped to
