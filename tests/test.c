@@ -5,7 +5,7 @@
 
 #include <ht.h>
 
-void entry()
+void ht_entry()
 {
   printf("entry %d, num_hts: %d\n", ht_id(), ht_num_hard_threads());
   if(current_ht_context) {

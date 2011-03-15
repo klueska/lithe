@@ -20,11 +20,20 @@
 extern "C" {
 #endif
 
-/* Used to request maximum number of allocatable hard threads. */
-static const int HT_REQUEST_MAX = -1;
-
-/* Current context running on an ht, used when swapping contexts onto an ht */
+/**
+ * Current context running on each hard thread, used when interrupting a user
+ * context because of async I/O or signal handling. Hard Thread 0's
+ * current_ht_context is initialized to the continuation of the main thread's
+ * context the first time it's ht_entry() function is invoked.
+ */
 extern __thread ucontext_t *current_ht_context;
+
+/**
+ * User defined entry point for each hard thread.  If current_user_context is
+ * set, this function should most likely just restor it, otherwise, go on from
+ * there.
+ */
+extern void ht_entry();
 
 /**
  * Requests k additional hard threads. Returns -1 if the request is

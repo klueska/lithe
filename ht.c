@@ -37,9 +37,6 @@
 #endif /* USE_FUTEX */
 
 
-/* Applications hard thread entry. */
-extern void entry(void);
-
 /* Array of hard threads using pthreads to masquerade. */
 struct hard_thread *__ht_threads = NULL;
 
@@ -108,7 +105,7 @@ void __ht_entry_gate()
   
 entry:
   assert(__ht_threads[__ht_id].running == true);
-  entry();
+  ht_entry();
 
   fprintf(stderr, "ht: failed to invoke ht_yield\n");
 
@@ -173,7 +170,7 @@ void * __ht_entry_trampoline(void *arg)
   makecontext(&__ht_context, (void (*) ()) __ht_entry_gate, 0);
 
 #ifdef LAZILY_CREATE_THREADS
-  entry();
+  ht_entry();
 #else
   setcontext(&__ht_context);
 #endif /* LAZILY_CREATE_THREADS */
