@@ -307,6 +307,7 @@ int ht_request_async(int k)
           pthread_join(__ht_threads[0].thread, (void*)&ret);
           exit(ret);
         }
+        pthread_mutex_lock(&__ht_mutex);
         k -=1;
       }
       /* Put in the rest of the request as normal */
