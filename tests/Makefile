@@ -5,7 +5,7 @@ EXECS = test
 
 CC = gcc
 
-CFLAGS = -O0 -Wall -I..
+CFLAGS = -g -O2 -Wall -I..
 LDFLAGS = -L.. -lht -lpthread
 
 ALL_CFLAGS = $(CFLAGS) -std=gnu99 -MMD -MP
