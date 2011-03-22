@@ -4,11 +4,14 @@
 #include <assert.h>
 
 #include <ht.h>
+#include <atomic.h>
+#include <tls.h>
 
 void ht_entry()
 {
   printf("entry %d, num_hts: %d\n", ht_id(), ht_num_hard_threads());
   if(current_ucontext) {
+    set_tls_desc(current_tls_desc, ht_id());
     setcontext(current_ucontext);
     assert(0);
   }

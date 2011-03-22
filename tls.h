@@ -10,9 +10,6 @@ void *allocate_tls(void);
 /* Free a previously allocated TLS region */
 void free_tls(void *tcb);
 
-/* Initialize tls for use by a ht */
-void init_tls(uint32_t htid);
-
 /* Passing in the htid, since it'll be in TLS of the caller */
 void set_tls_desc(void *tls_desc, uint32_t htid);
 

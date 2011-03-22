@@ -40,6 +40,24 @@
 /* Array of hard threads using pthreads to masquerade. */
 struct hard_thread *__ht_threads = NULL;
 
+/* Array of TLS descriptors to use for each hard thread. Separate from the hard
+ * thread array so that we can access it transparently, as an array, outside of
+ * the hard thread library. */
+void **ht_tls_descs = NULL;
+
+/* Per hard thread context with its own stack and TLS region */
+__thread ucontext_t ht_context = { 0 };
+
+/* Current context running on an ht, used when swapping contexts onto an ht */
+__thread ucontext_t *current_ucontext = NULL;
+
+/* Current tls_desc for the running ht, used when swapping contexts onto an ht */
+__thread void *current_tls_desc = NULL;
+
+/* Delineates whether the current context running on the ht is the ht context
+ * itself */
+__thread bool __in_ht_context = false;
+
 /* Mutex used to provide mutually exclusive access to our globals. */
 static pthread_mutex_t __ht_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -62,49 +80,56 @@ static __thread int __ht_id = -1;
  * context over to ht0 */
 static ucontext_t __main_context = { 0 };
 
-/* Per thread context we should return to before we invoke pthread_exit. */
-__thread ucontext_t __ht_context = { 0 };
-
 /* Stack space to use when a hard thread yields without a stack. */
-__thread void *__ht_stack = NULL;
-
-/* Current context running on an ht, used when swapping contexts onto an ht */
-__thread ucontext_t *current_ucontext = NULL;
+static __thread void *__ht_stack = NULL;
 
 void __ht_entry_gate()
 {
+  /* Cache a copy of htid so we don't lose track of it over system call
+   * invocations in which TLS might change out from under us. */
+  int htid = __ht_id;
   pthread_mutex_lock(&__ht_mutex);
   {
     /* Check and see if we should wait at the gate. */
     if (__ht_max_hard_threads > __ht_num_hard_threads) {
-      printf("%d not waiting at gate\n", __ht_id);
+      printf("%d not waiting at gate\n", htid);
       pthread_mutex_unlock(&__ht_mutex);
       goto entry;
     }
 
     /* Deallocate the thread. */
-    __ht_threads[__ht_id].allocated = false;
+    __ht_threads[htid].allocated = false;
 
     /* Update hard thread counts. */
     __ht_num_hard_threads--;
     __ht_max_hard_threads--;
 
+    /* Set it that we are in ht_context */
+    __in_ht_context = true;
+
     /* Signal that we are about to wait on the futex. */
-    __ht_threads[__ht_id].running = false;
+    __ht_threads[htid].running = false;
   }
   pthread_mutex_unlock(&__ht_mutex);
 
+  /* Wait for this hard thread to get woken up. */
 #ifdef USE_FUTEX
-  futex_wait(&(__ht_threads[__ht_id].running), false);
+  futex_wait(&(__ht_threads[htid].running), false);
 #else
-  while (__ht_threads[__ht_id].running == false) {
+  while (__ht_threads[htid].running == false) {
     atomic_delay();
     mfence();
   }
 #endif /* USE_FUTEX */
   
+  /* Hard thread is awake. */
 entry:
-  assert(__ht_threads[__ht_id].running == true);
+  /* Use cached value of htid in case TLS changed out from under us while
+   * waiting for this hard thread to get woken up. */
+  assert(__ht_threads[htid].running == true);
+  /* Restore the TLS associated with this hard thread's context */
+  set_tls_desc(ht_tls_descs[htid], htid);
+  /* Jump to the hard thread's entry point */
   ht_entry();
 
   fprintf(stderr, "ht: failed to invoke ht_yield\n");
@@ -125,16 +150,19 @@ void * __ht_entry_trampoline(void *arg)
 
   int htid = (int) (long int) arg;
 
-  /* Set up a new TLS region for this hard thread and switch to it */
+  /* Initialize the tls region to be used by this ht */
   init_tls(htid);
+  set_tls_desc(ht_tls_descs[htid], htid);
+
+  /* If this is the first ht, set current_ucontext to the main_context in
+   * this guys TLS region. MUST be done here, so in proper TLS */
+  if(htid == 0) {
+    current_tls_desc = __ht_main_tls_desc;
+    current_ucontext = &__main_context;
+  }
 
   /* Assign the id to the tls variable */
   __ht_id = htid;
-
-  /* If this is the first ht, set current_ucontext to the main_context in
-   * this guys TLS region */
-  if(__ht_id == 0)
-    current_ucontext = &__main_context;
 
   /*
    * We create stack space for the function 'setcontext' jumped to
@@ -154,25 +182,25 @@ void * __ht_entry_trampoline(void *arg)
    * stack other than the original stack (maybe because pthread has
    * placed certain things on the stack like cleanup functions).
    */
-  if (getcontext(&__ht_context) < 0) {
+  if (getcontext(&ht_context) < 0) {
     fprintf(stderr, "ht: could not get context\n");
     exit(1);
   }
 
-  if ((__ht_context.uc_stack.ss_sp = alloca(getpagesize()*4)) == NULL) {
+  if ((ht_context.uc_stack.ss_sp = alloca(getpagesize()*4)) == NULL) {
     fprintf(stderr, "ht: could not allocate space on the stack\n");
     exit(1);
   }
 
-  __ht_context.uc_stack.ss_size = getpagesize()*4;
-  __ht_context.uc_link = 0;
+  ht_context.uc_stack.ss_size = getpagesize()*4;
+  ht_context.uc_link = 0;
 
-  makecontext(&__ht_context, (void (*) ()) __ht_entry_gate, 0);
+  makecontext(&ht_context, (void (*) ()) __ht_entry_gate, 0);
 
 #ifdef LAZILY_CREATE_THREADS
   ht_entry();
 #else
-  setcontext(&__ht_context);
+  setcontext(&ht_context);
 #endif /* LAZILY_CREATE_THREADS */
 
   fprintf(stderr, "ht: failed to invoke ht_yield\n");
@@ -198,6 +226,10 @@ static void __create_hard_thread(int i)
   				     sizeof(cpu_set_t),
   				     &c)) != 0) {
     fprintf(stderr, "ht: could not set affinity of underlying pthread\n");
+    exit(1);
+  }
+  if ((errno = pthread_attr_setstacksize(&attr, 4*PTHREAD_STACK_MIN)) != 0) {
+    fprintf(stderr, "ht: could not set stack size of underlying pthread\n");
     exit(1);
   }
   
@@ -308,6 +340,7 @@ int ht_request_async(int k)
           exit(ret);
         }
         pthread_mutex_lock(&__ht_mutex);
+        hts = 1;
         k -=1;
       }
       /* Put in the rest of the request as normal */
@@ -321,7 +354,7 @@ int ht_request_async(int k)
 void ht_yield()
 {
   set_stack_pointer(__ht_stack);
-  setcontext(&__ht_context);
+  setcontext(&ht_context);
 }
 
 int ht_id()
@@ -389,8 +422,9 @@ static void __attribute__((constructor)) __ht_init()
   }
 
   __ht_threads = malloc(sizeof(struct hard_thread) * __ht_limit_hard_threads);
+  ht_tls_descs = malloc(sizeof(uintptr_t) * __ht_limit_hard_threads);
 
-  if (__ht_threads == NULL) {
+  if (__ht_threads == NULL || ht_tls_descs == NULL) {
     fprintf(stderr, "ht: failed to initialize hard threads\n");
     exit(1);
   }
@@ -401,6 +435,8 @@ static void __attribute__((constructor)) __ht_init()
     __ht_threads[i].allocated = false;
     __ht_threads[i].running = false;
   }
+  current_tls_desc = __ht_main_tls_desc;
+  current_ucontext = &__main_context;
 
   /* Allocate asynchronous request thread. */
 #ifdef USE_ASYNC_REQUEST_THREAD
@@ -413,7 +449,15 @@ static void __attribute__((constructor)) __ht_init()
 
 #ifndef LAZILY_CREATE_THREADS
   for (int i = 0; i < __ht_limit_hard_threads; i++) {
+    /* Create all the hard threads */
     __create_hard_thread(i);
+
+	/* Make sure the threads have all started and are ready to be allocated
+     * before moving on */
+    while (__ht_threads[i].running == true) {
+      atomic_delay();
+      mfence();
+    }
   }
 #endif /* LAZILY_CREATE_THREADS */
 }

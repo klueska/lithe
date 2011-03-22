@@ -15,10 +15,23 @@
 
 #include "htmain.h"
 #include <ucontext.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ *  Array of pointers to TLS descriptors for each hard thread.
+ */
+extern void **ht_tls_descs;
+
+/**
+ * Context associated with each hard thread. Serves as the entry point to this
+ * hard thread whenever the hard thread is first brough up, a usercontext
+ * yields on it, or a signal / async I/O notification is to be handled.
+ */
+extern __thread ucontext_t ht_context;
 
 /**
  * Current user context running on each hard thread, used when interrupting a
@@ -27,6 +40,14 @@ extern "C" {
  * context the first time it's ht_entry() function is invoked.
  */
 extern __thread ucontext_t *current_ucontext;
+
+/**
+ * Current TLS descriptor running on each hard thread, used when interrupting a
+ * user context because of async I/O or signal handling. Hard Thread 0's
+ * current_tls_desc is initialized to the TLS descriptor of the main thread's
+ * context the first time it's ht_entry() function is invoked.
+ */
+extern __thread void *current_tls_desc;
 
 /**
  * User defined entry point for each hard thread.  If current_user_context is
@@ -76,6 +97,13 @@ int ht_max_hard_threads();
  */
 int ht_limit_hard_threads();
 
+/**
+ * Returns whether you are currently running in ht context or not.
+ */
+static inline bool in_ht_context() {
+	extern __thread bool __in_ht_context;
+	return __in_ht_context;
+}
 
 #ifdef __cplusplus
 }
