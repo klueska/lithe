@@ -6,6 +6,7 @@
 
 #define internal_function   __attribute ((regparm (3), stdcall))
 
+#define PGSIZE (1 << 12)
 #define ARCH_CL_SIZE 64
 
 /* Make sure you subtract off/save enough space at the top of the stack for
