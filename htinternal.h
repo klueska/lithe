@@ -21,6 +21,9 @@ struct hard_thread {
 /* Array of hard threads */
 extern struct hard_thread *__ht_threads;
  
+/* Id of the currently running hard thread. */
+extern __thread int __ht_id;
+
 /**
  * Pointer to the main thread's tls descriptor (needed for bootstrapping).
  */

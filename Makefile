@@ -11,7 +11,7 @@ endif
 
 CC = gcc
 
-CFLAGS = -g -O2 -Wall -fno-strict-aliasing -DUSE_FUTEX -I.
+CFLAGS = -g -O2 -Wall -fno-strict-aliasing -I. -DUSE_FUTEX
 LDFLAGS =
 
 ALL_CFLAGS = $(CFLAGS) -std=gnu99 -MMD -MP #-ftls-model="initial-exec" 

@@ -13,14 +13,17 @@ void *allocate_tls(void)
 	void *tcb = _dl_allocate_tls(NULL);
 	if (!tcb)
 		return 0;
-	/* Make sure the TLS is set up properly - its tcb pointer points to itself.
-	 * Keep this in sync with sysdeps/ros/XXX/tls.h.  For whatever reason,
-	 * dynamically linked programs do not need this to be redone, but statics
-	 * do. */
-	memcpy(tcb, __ht_main_tls_desc, sizeof(tcbhead_t));
+	/* Make sure the TLS is set up properly - its tcb pointer 
+	 * points to itself. */
+	tcbhead_t *main_head = (tcbhead_t*)__ht_main_tls_desc;
 	tcbhead_t *head = (tcbhead_t*)tcb;
+
+	/* These three fields need to be set up for linux to work properly with
+	 * TLS. Take a look at how things are done in libc in the nptl code for
+ 	 * reference. */
 	head->tcb = tcb;
 	head->self = tcb;
+	head->sysinfo = main_head->sysinfo;
 	return tcb;
 }
 
@@ -39,8 +42,9 @@ static void __attribute((constructor)) __tls_ctor()
     struct user_desc ud;
 	ud.entry_number = DEFAULT_TLS_GDT_ENTRY;
 	int ret = syscall(SYS_get_thread_area, &ud);
-    __ht_main_tls_desc = (tcbhead_t*)ud.base_addr;
 	assert(ret == 0);
+	assert(ud.base_addr);
+    __ht_main_tls_desc = (tcbhead_t*)ud.base_addr;
 }
 
 /* Initialize tls for use in this ht */
@@ -77,6 +81,7 @@ void set_tls_desc(void *tls_desc, uint32_t htid)
   int ret = syscall(SYS_modify_ldt, 1, ud, sizeof(struct user_desc));
   assert(ret == 0);
   TLS_SET_GS(ud->entry_number, 1);
+  __ht_id = htid;
 }
 
 /* Get the tls descriptor currently set for a given hard thread. This should
