@@ -1,90 +1,45 @@
-# Makefile for hard threads library.
-# TODO(benh): Add a configure file which checks for necessary __thread support.
+# Makefile for hard threads library
 
-SHELL = '/bin/sh'
+LIBNAME = ht
+CFLAGS = -g -O2 -Wall -std=gnu99 -MMD -MP
+V ?= @
 
-ifndef prefix
-PREFIX = /usr/local
-else
-PREFIX = $(prefix)
-endif
+GCCPREFIX := 
+CC := $(GCCPREFIX)gcc
+GCC_ROOT := $(shell which $(CC) | xargs dirname)/../
 
-CC = gcc
+SRCDIR := 
+OBJDIR := $(SRCDIR)obj
+INCDIR = .
 
-CFLAGS = -g -O2 -Wall -fno-strict-aliasing -I. -DUSE_FUTEX
-LDFLAGS =
+INCS = -I. -I$(INCDIR) 
+FINALLIB = $(OBJDIR)/lib$(LIBNAME).a
 
-ALL_CFLAGS = $(CFLAGS) -std=gnu99 -MMD -MP #-ftls-model="initial-exec" 
-ALL_LDFLAGS = $(LDFLAGS)
+uc = $(shell echo $(1) | tr a-z A-Z)
 
-LIB_C_OBJ = ht.o tls.o
+LIBUCNAME := $(call uc, $(LIBNAME))
+HEADERS := $(shell find . $(INCDIR) -name "*.h")
+CFILES  := $(wildcard $(SRCDIR)*.c)
+OBJS    := $(patsubst %.c, $(OBJDIR)/%.o, $(CFILES))
 
-LIB_OBJ = $(LIB_C_OBJ) 
+all: $(FINALLIB)
 
-# IMPORTANT: We build a static library because
-#     (a) we need TLS loads to be done without the stack
-#     (b) we want our library constructor to run on the main thread
-LIB = libht.a
+$(OBJDIR)/%.o: $(SRCDIR)%.c $(HEADERS)
+	@echo + cc [$(LIBUCNAME)] $<
+	@mkdir -p $(@D)
+	$(V)$(CC) $(CFLAGS) $(INCS) -o $@ -c $<
 
-all: $(LIB)
-
--include $(patsubst %.o, %.d, $(LIB_OBJ))
-
-$(LIB_C_OBJ): %.o: %.c
-	$(CC) -c $(ALL_CFLAGS) -o $@ $<
-
-$(LIB): $(LIB_OBJ)
-	$(AR) rcs $@ $^
+$(FINALLIB): $(OBJS)
+	@echo + ar [$(LIBUCNAME)] $@
+	@mkdir -p $(@D)
+	$(V)$(AR) rc $@ $(OBJS)
 
 tests: all
 	$(MAKE) -C tests
 
-install-lib:
-	@echo "---------------------------------------------------------------"
-	@install -m 755 -d $(PREFIX)/lib
-	@install -m 755 $(LIB) $(PREFIX)/lib
-	@echo 
-	@echo "Libraries have been installed in:"
-	@echo "  $(PREFIX)/lib    (LIBDIR)"
-	@echo 
-	@echo "Use -LLIBDIR to link against these libraries."
-	@echo 
-	@echo "You may also need to do one of the following:"
-	@echo "  - add LIBDIR to 'LD_LIBRARY_PATH' environment variable"
-	@echo "    during execution"
-	@echo "  - add LIBDIR to 'LD_RUN_PATH' environment variable"
-	@echo "    during linking"
-	@echo "  - use the '-RLIBDIR' linker flag"
-	@echo 
-	@echo "If you have super-user permissions you can add LIBDIR to"
-	@echo "/etc/ld.so.conf (if it isn't there already), and run ldconfig."
-	@echo 
-
-install-hdr:
-	@echo "---------------------------------------------------------------"
-	@install -m 755 -d $(PREFIX)/include/ht
-	@install -m 644 htmain.h $(PREFIX)/include/ht
-	@install -m 644 ht.h $(PREFIX)/include/ht
-	@install -m 644 atomic.h $(PREFIX)/include/ht
-	@install -m 644 spinlock.h $(PREFIX)/include/ht
-	@install -m 644 mcs.h $(PREFIX)/include/ht
-	@echo 
-	@echo "Header files have been installed in:"
-	@echo "  $(PREFIX)/include/ht    (INCLUDEDIR)"
-	@echo 
-	@echo "Use -IINCLUDEDIR to use these headers."
-	@echo 
-
-install: $(LIB) install-hdr install-lib
-
-uninstall:
-	$(error unimplemented)
-
-dist:
-	$(error unimplemented)
-
-clean:
+clean: 
+	@echo + clean [$(LIBUCNAME)]
 	$(MAKE) -C tests clean
-	rm -f $(LIB) $(LIB_OBJ) $(patsubst %.o, %.d, $(LIB_OBJ))
-
-.PHONY: default install-lib install-hdr install uninstall dist all clean
+	$(V)rm -rf $(FINALLIB)
+	$(V)rm -rf $(OBJDIR)
+	

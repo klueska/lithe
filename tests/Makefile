@@ -1,28 +1,38 @@
 # Makefile for hard threads tests
-
-SHELL = '/bin/sh'
+TESTSNAME = ht_tests
 EXECS = test
+CFLAGS = -O2 -Wall -std=gnu99 -MMD -MP
+LDFLAGS = -L../obj -lpthread -lht 
+V ?= @
 
-CC = gcc
+GCCPREFIX := 
+CC := $(GCCPREFIX)gcc
+GCC_ROOT := $(shell which $(CC) | xargs dirname)/../
 
-CFLAGS = -g -O2 -Wall -I..
-LDFLAGS = -L.. -lht -lpthread
+SRCDIR := 
+OBJDIR := $(SRCDIR)../obj
+INCDIRS := .. .
 
-ALL_CFLAGS = $(CFLAGS) -std=gnu99 -MMD -MP
-ALL_LDFLAGS = $(LDFLAGS)
+INCS = $(patsubst %, -I%, $(INCDIRS))
+EXECS := $(patsubst %, $(OBJDIR)/%, $(EXECS))
 
-all: htlib $(EXECS)
+uc = $(shell echo $(1) | tr a-z A-Z)
 
-htlib:
-	@$(MAKE) -C ..
+HEADERS := $(shell find $(INCDIRS) -name "*.h")
+CFILES  := $(wildcard $(SRCDIR)*.c)
+
+all: $(EXECS)
 
 DEPS = $(patsubst %, %.d, $(EXECS))
 -include $(DEPS)
 
-%: %.c 
-	$(CC) -o $@ $< $(ALL_CFLAGS) $(ALL_LDFLAGS)
+$(OBJDIR)/%: $(SRCDIR)%.c  $(HEADERS)
+	@echo + cc [$(call uc, $(TESTSNAME))] $<
+	@mkdir -p $(@D)
+	$(V)$(CC) -o $@ $< $(CFLAGS) $(INCS) $(LDFLAGS)
 
 clean:
-	rm -rf $(EXECS) $(DEPS)
+	@echo + clean [$(call uc, $(TESTSNAME))]
+	$(V)rm -rf $(EXECS) $(DEPS)
 
-.PHONY: all htlib clean
+.PHONY: all clean
