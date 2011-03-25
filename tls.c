@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <sys/syscall.h>
 #include <ht/atomic.h>
 #include <ht/htinternal.h>
@@ -15,15 +16,15 @@ void *allocate_tls(void)
 		return 0;
 	/* Make sure the TLS is set up properly - its tcb pointer 
 	 * points to itself. */
-	tcbhead_t *main_head = (tcbhead_t*)__ht_main_tls_desc;
 	tcbhead_t *head = (tcbhead_t*)tcb;
+	size_t offset = offsetof(tcbhead_t, multiple_threads);
 
-	/* These three fields need to be set up for linux to work properly with
-	 * TLS. Take a look at how things are done in libc in the nptl code for
- 	 * reference. */
+	/* These fields in the tls_desc need to be set up for linux to work
+	 * properly with TLS. Take a look at how things are done in libc in the
+	 * nptl code for reference. */
+	memcpy(tcb+offset, __ht_main_tls_desc+offset, sizeof(tcbhead_t)-offset);
 	head->tcb = tcb;
 	head->self = tcb;
-	head->sysinfo = main_head->sysinfo;
 	return tcb;
 }
 
