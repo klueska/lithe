@@ -1,12 +1,13 @@
 #ifndef HT_TLS_INTERNAL_H
 #define HT_TLS_INTERNAL_H
 
-#include <arch.h>
 #include <stdio.h>
 #include <assert.h>
-#include <glibc-tls.h>
 #include <unistd.h>
-#include <htinternal.h>
+
+#include <ht/arch.h>
+#include <ht/glibc-tls.h>
+#include <ht/htinternal.h>
 
 /* This is the default entry number of the TLS segment in the GDT when a
  * process first starts up. */
@@ -48,7 +49,7 @@ void init_tls(uint32_t htid);
   printf("gs: entry:%d, ldt?:%d, perms:%d\n", (gs>>3), (0x1&(gs>>2)), (gs&0x3)); \
 })
 
-#include <tls.h>
+#include <ht/tls.h>
 
 #endif /* HT_TLS_INTERNAL_H */
 

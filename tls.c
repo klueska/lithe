@@ -1,7 +1,7 @@
-#include <atomic.h>
-#include <tlsinternal.h>
 #include <sys/syscall.h>
-#include <htinternal.h>
+#include <ht/atomic.h>
+#include <ht/htinternal.h>
+#include <ht/tlsinternal.h>
 
 void *__ht_main_tls_desc;
 

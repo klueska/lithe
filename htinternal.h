@@ -4,11 +4,11 @@
 /* #include this file for all internal modules so they get access to the type
  * definitions and externed variables below */
 
-#include <arch.h>
 #include <stdbool.h>
 #include <pthread.h>
 #include <asm/ldt.h>
 #include <bits/local_lim.h>
+#include <ht/arch.h>
 
 struct hard_thread {
   bool created __attribute__((aligned (ARCH_CL_SIZE)));
@@ -31,6 +31,6 @@ extern void *__ht_main_tls_desc;
 
 /* Now #include the externally exposed ht interface header so that internal
  * files only need to #include this header */
-#include <ht.h>
+#include <ht/ht.h>
 
 #endif // HT_INTERNAL_H

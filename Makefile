@@ -10,15 +10,15 @@ GCC_ROOT := $(shell which $(CC) | xargs dirname)/../
 
 SRCDIR := 
 OBJDIR := $(SRCDIR)obj
-INCDIR = .
+INCDIRS = ..
 
-INCS = -I. -I$(INCDIR) 
+INCS = $(patsubst %, -I%, $(INCDIRS))
 FINALLIB = $(OBJDIR)/lib$(LIBNAME).a
 
 uc = $(shell echo $(1) | tr a-z A-Z)
 
 LIBUCNAME := $(call uc, $(LIBNAME))
-HEADERS := $(shell find . $(INCDIR) -name "*.h")
+HEADERS := $(shell find . $(INCDIRS)/$(LIBNAME) -name "*.h")
 CFILES  := $(wildcard $(SRCDIR)*.c)
 OBJS    := $(patsubst %.c, $(OBJDIR)/%.o, $(CFILES))
 

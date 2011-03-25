@@ -13,13 +13,16 @@
 #ifndef HT_H
 #define HT_H
 
-#include "htmain.h"
 #include <ucontext.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define LOG2_MAX_HTS 6
+#define MAX_HTS (1 << LOG2_MAX_HTS)
 
 /**
  *  Array of pointers to TLS descriptors for each hard thread.
@@ -104,6 +107,21 @@ static inline bool in_ht_context() {
 	extern __thread bool __in_ht_context;
 	return __in_ht_context;
 }
+
+/**
+ * Clears the flag for pending notifications
+ */
+void clear_notif_pending(uint32_t htid);
+
+/**
+ * Enable Notifications
+ */
+void enable_notifs(uint32_t htid);
+
+/**
+ * Disable Notifications
+ */
+void disable_notifs(uint32_t htid);
 
 #ifdef __cplusplus
 }
