@@ -3,7 +3,7 @@
 TESTSNAME = parlib_tests
 EXECS = ht_test generic_test bthread_test
 CFLAGS = -O2 -Wall -std=gnu99 -MMD -MP
-LDFLAGS = -L../obj -L../ht/obj -lpthread -lht -lparlib
+LDFLAGS = -L../obj -L../ht/obj -lpthread -lparlib -lht 
 V ?= @
 
 GCCPREFIX := 

@@ -1,7 +1,6 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <vcore.h>
-#include <mcs.h>
 #include <sys/param.h>
 #include <parlib.h>
 #include <unistd.h>
@@ -9,6 +8,7 @@
 #include <sys/mman.h>
 #include <uthread.h>
 #include <ht/ht.h>
+#include <ht/mcs.h>
 
 void vcore_entry()
 {
@@ -42,24 +42,5 @@ int vcore_request(size_t k)
 void vcore_yield()
 {
 	ht_yield();
-}
-
-/* Clear pending, and try to handle events that came in between a previous call
- * to handle_events() and the clearing of pending.  While it's not a big deal,
- * we'll loop in case we catch any.  Will break out of this once there are no
- * events, and we will have send pending to 0. 
- *
- * Note that this won't catch every race/case of an incoming event.  Future
- * events will get caught in pop_ros_tf() */
-void clear_notif_pending(uint32_t vcoreid)
-{
-//	printf("Figure out how to properly implement %s on linux!\n", __FUNCTION__);
-}
-
-/* Enables notifs, and deals with missed notifs by self notifying.  This should
- * be rare, so the syscall overhead isn't a big deal. */
-void enable_notifs(uint32_t vcoreid)
-{
-//	printf("Figure out how to properly implement %s on linux!\n", __FUNCTION__);
 }
 

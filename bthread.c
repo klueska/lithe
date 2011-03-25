@@ -1,6 +1,5 @@
 #include <bthread.h>
 #include <vcore.h>
-#include <mcs.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -8,6 +7,7 @@
 #include <parlib.h>
 #include <ht/atomic.h>
 #include <ht/arch.h>
+#include <ht/mcs.h>
 #include <sys/queue.h>
 #include <sys/mman.h>
 #include <assert.h>

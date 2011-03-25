@@ -12,11 +12,8 @@ extern "C" {
 #include <stdbool.h>
 #include <assert.h>
 
-#define LOG2_MAX_VCORES 6
+#define LOG2_MAX_VCORES LOG2_MAX_HTS
 #define MAX_VCORES (1 << LOG2_MAX_VCORES)
-
-#define TRANSITION_STACK_PAGES 2
-#define TRANSITION_STACK_SIZE (TRANSITION_STACK_PAGES*PGSIZE)
 
 extern void vcore_entry();
 
@@ -59,17 +56,6 @@ init_user_context(struct ucontext *uc, uint32_t entry_pt, uint32_t stack_top)
 	assert(ret == 0);
 	uc->uc_stack.ss_sp = (void*)stack_top;
 	makecontext(uc, (void*)entry_pt, 0);
-}
-
-/* Only call this if you know what you are doing. */
-static inline void __enable_notifs(uint32_t vcoreid)
-{
-//	printf("Figure out how to properly implement %s on linux!\n", __FUNCTION__);
-}
-
-static inline void disable_notifs(uint32_t vcoreid)
-{
-//	printf("Figure out how to properly implement %s on linux!\n", __FUNCTION__);
 }
 
 #ifdef __cplusplus
