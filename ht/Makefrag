@@ -1,0 +1,30 @@
+# Makefile for hard threads library
+
+HT_LIBNAME = ht
+HT_CFLAGS = $(CFLAGS)
+
+HT_SRCDIR := ht
+HT_OBJDIR := $(OBJDIR)/$(HT_SRCDIR)
+HT_INCDIRS = .
+
+HT_INCS = $(patsubst %, -I%, $(HT_INCDIRS))
+HT_FINALLIB = $(HT_OBJDIR)/lib$(HT_LIBNAME).a
+
+HT_LIBUCNAME := $(call uc, $(HT_LIBNAME))
+HT_HEADERS := $(shell find . $(HT_INCDIRS)/$(HT_LIBNAME) -name "*.h")
+HT_CFILES  := $(notdir $(wildcard $(HT_SRCDIR)/*.c))
+HT_OBJS    := $(patsubst %.c, $(HT_OBJDIR)/%.o, $(HT_CFILES))
+OBJS += $(HT_OBJS)
+
+$(HT_LIBNAME): $(HT_FINALLIB)
+
+$(HT_OBJDIR)/%.o: $(HT_SRCDIR)/%.c $(HT_HEADERS)
+	@echo + cc [$(HT_LIBUCNAME)] $<
+	@mkdir -p $(@D)
+	$(V)$(CC) $(HT_CFLAGS) $(HT_INCS) -o $@ -c $<
+
+$(HT_FINALLIB): $(HT_OBJS)
+	@echo + ar [$(HT_LIBUCNAME)] $@
+	@mkdir -p $(@D)
+	$(V)$(AR) rc $@ $(HT_OBJS)
+

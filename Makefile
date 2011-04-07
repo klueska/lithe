@@ -23,7 +23,9 @@ HEADERS := $(shell find $(INCDIRS) -name "*.h")
 CFILES  := $(wildcard $(SRCDIR)*.c)
 OBJS    := $(patsubst %.c, $(OBJDIR)/%.o, $(CFILES))
 
-all: $(FINALLIB)
+all: ht $(FINALLIB)
+
+include ht/Makefrag
 
 $(OBJDIR)/%.o: $(SRCDIR)%.c $(HEADERS)
 	@echo + cc [$(LIBUCNAME)] $<
@@ -36,7 +38,6 @@ $(FINALLIB): $(OBJS)
 	$(V)$(AR) rc $@ $(OBJS)
 
 tests: all
-	$(MAKE) -C ht
 	$(MAKE) -C tests
 
 clean: 
