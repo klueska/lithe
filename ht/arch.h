@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2011 The Regents of the University of California
+ * Barret Rhoden <brho@cs.berkeley.edu>
+ * Kevin Klues <klueska@cs.berkeley.edu>
+ * See LICENSE for details.
+ */
+
 #ifndef HT_ARCH_H
 #define HT_ARCH_H
 

@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2011 The Regents of the University of California
+ * Andrew Waterman <waterman@cs.berkeley.edu>
+ * Kevin Klues <klueska@cs.berkeley.edu>
+ * See LICENSE for details.
+ */
+
 #include <string.h>
 #include <stdlib.h>
 

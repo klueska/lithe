@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2011 The Regents of the University of California
+ * Kevin Klues <klueska@cs.berkeley.edu>
+ * See LICENSE for details.
+ */
+
 #include <stddef.h>
 #include <sys/syscall.h>
 #include <ht/atomic.h>

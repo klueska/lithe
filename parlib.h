@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2011 The Regents of the University of California
+ * Barret Rhoden <brho@cs.berkeley.edu>
+ * Kevin Klues <klueska@cs.berkeley.edu>
+ * See LICENSE for details.
+ */
+
 // Main public header file for our user-land support library,
 // whose code lives in the lib directory.
 // This library is roughly our OS's version of a standard C library,

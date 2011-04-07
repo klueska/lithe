@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2011 The Regents of the University of California
+ * Kevin Klues <klueska@cs.berkeley.edu>
+ * See LICENSE for details.
+ */
+
 #ifndef HT_INTERNAL_H
 #define HT_INTERNAL_H
 

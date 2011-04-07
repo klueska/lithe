@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2011 The Regents of the University of California
+ * Barret Rhoden <brho@cs.berkeley.edu>
+ * See LICENSE for details.
+ */
+
 /* This is just a convenient place to drop some structs needed in
  * allocate_tls(), since we need to know where tcb and self are, without
  * cluttering up the main ROS code */

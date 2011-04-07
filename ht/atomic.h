@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2011 The Regents of the University of California
+ * Benjamin Hindman <benh@cs.berkeley.edu>
+ * Barret Rhoden <brho@cs.berkeley.edu>
+ * Kevin Klues <klueska@cs.berkeley.edu>
+ * See LICENSE for details.
+ */
+
 /**
  * Memory consistency issues will vary between machines ... here are
  * a few helpful guarantees for x86 machines:
