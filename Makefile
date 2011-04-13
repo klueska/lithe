@@ -48,7 +48,7 @@ $(SCHEDULERS):
 	$(V)$(MAKE) -C schedulers/$@
 	$(V)mkdir -p $(OBJDIR)/schedulers
 	$(V)rm -rf $(OBJDIR)/schedulers/$@
-	$(V)ln -s ../schedulers/$@/obj $(OBJDIR)/schedulers/$@
+	$(V)ln -s ../../schedulers/$@/obj $(OBJDIR)/schedulers/$@
 
 $(patsubst %, %_tests, $(SCHEDULERS)): all 
 	$(V)$(MAKE) $(subst _tests,,$@)
