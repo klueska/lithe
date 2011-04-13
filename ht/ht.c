@@ -20,10 +20,6 @@
 
 #define _GNU_SOURCE
 
-//#define USE_ASYNC_REQUEST_THREAD
-//#define USE_FUTEX
-//#define LAZILY_CREATE_THREADS
-
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
@@ -38,9 +34,7 @@
 #include <ht/atomic.h>
 #include <ht/htinternal.h>
 #include <ht/tlsinternal.h>
-#ifdef USE_FUTEX
 #include <ht/futex.h>
-#endif /* USE_FUTEX */
 
 /* Array of hard threads using pthreads to masquerade. */
 struct hard_thread *__ht_threads = NULL;
@@ -122,14 +116,7 @@ void __ht_entry_gate()
   pthread_mutex_unlock(&__ht_mutex);
 
   /* Wait for this hard thread to get woken up. */
-#ifdef USE_FUTEX
   futex_wait(&(__ht_threads[htid].running), false);
-#else
-  while (__ht_threads[htid].running == false) {
-    atomic_delay();
-    mfence();
-  }
-#endif /* USE_FUTEX */
   
   /* Hard thread is awake. */
 entry:
@@ -217,11 +204,7 @@ void * __ht_entry_trampoline(void *arg)
 
   makecontext(&ht_context, (void (*) ()) __ht_entry_gate, 0);
 
-#ifdef LAZILY_CREATE_THREADS
-  ht_entry();
-#else
   setcontext(&ht_context);
-#endif /* LAZILY_CREATE_THREADS */
 
   fprintf(stderr, "ht: failed to invoke ht_yield\n");
 
@@ -282,24 +265,12 @@ static int __ht_allocate(int k)
   int j = 0;
   for (; k > 0; k--) {
     for (int i = 0; i < __ht_limit_hard_threads; i++) {
-#ifdef LAZILY_CREATE_THREADS
-      if (!__ht_threads[i].created) {
-        __create_hard_thread(i);
-        j++;
-        break;
-      } else if (!__ht_threads[i].allocated) {
-#else
       assert(__ht_threads[i].created);
       if (!__ht_threads[i].allocated) {
-#endif /* LAZILY_CREATE_THREADS */
         assert(__ht_threads[i].running == false);
         __ht_threads[i].allocated = true;
         __ht_threads[i].running = true;
-#ifdef USE_FUTEX
         futex_wakeup_one(&(__ht_threads[i].running));
-#else
-        wrfence();
-#endif /* USE_FUTEX */
         j++;
         break;
       }
@@ -322,12 +293,6 @@ static int __ht_request_async(int k)
   /* Update hard thread counts. */
   __ht_max_hard_threads += k;
 
-#ifdef USE_ASYNC_REQUEST_THREAD
-  /* Signal async request thread. */
-  if (pthread_cond_signal(&__ht_condition) != 0) {
-    return -1;
-  }
-#else
   /* Allocate as many as known available. */
   k = __ht_max_hard_threads - __ht_num_hard_threads;
   int j = __ht_allocate(k);
@@ -339,7 +304,6 @@ static int __ht_request_async(int k)
 
   /* Update hard thread counts. */
   __ht_num_hard_threads += j;
-#endif /*  USE_ASYNC_REQUEST_THREAD */
 
   return __ht_max_hard_threads;
 }
@@ -365,14 +329,7 @@ int ht_request_async(int k)
           /* Don't use the stack anymore! */
           original_main_done = true;
           /* Futex calls are forced inline */
-          #ifdef USE_FUTEX
-            futex_wait(&original_main_done, true);
-          #else
-            while (original_main_done) {
-              atomic_delay();
-              mfence();
-            }
-          #endif /* USE_FUTEX */
+          futex_wait(&original_main_done, true);
           assert(0);
         }
         pthread_mutex_lock(&__ht_mutex);
@@ -467,15 +424,6 @@ static void __attribute__((constructor)) __ht_init()
     exit(1);
   }
 
-  /* Allocate asynchronous request thread. */
-#ifdef USE_ASYNC_REQUEST_THREAD
-  pthread_t thread;
-  if (pthread_create(&thread, NULL, __ht_async_handler, NULL) != 0) {
-    fprintf(stderr, "ht: could not allocate underlying pthread\n");
-    exit(1);
-  }
-#endif /* USE_ASYNC_REQUEST_THREAD */
-
   /* Initialize. */
   for (int i = 0; i < __ht_limit_hard_threads; i++) {
     __ht_threads[i].created = true;
@@ -485,7 +433,7 @@ static void __attribute__((constructor)) __ht_init()
   current_tls_desc = __ht_main_tls_desc;
   current_ucontext = &__main_context;
 
-#ifndef LAZILY_CREATE_THREADS
+  /* Create all the hard threads up front */
   for (int i = 0; i < __ht_limit_hard_threads; i++) {
     /* Create all the hard threads */
     __create_hard_thread(i);
@@ -497,7 +445,6 @@ static void __attribute__((constructor)) __ht_init()
       wrfence();
     }
   }
-#endif /* LAZILY_CREATE_THREADS */
 }
 
 /* Clear pending, and try to handle events that came in between a previous call

@@ -1,0 +1,3 @@
+PARLIB_INCDIR := /home/klueska/parlab/lithe/linux_parlib/
+PARLIB_LDDIR := /home/klueska/parlab/lithe/linux_parlib/obj/
+PARLIB_LDLIBS := -lpthread -lparlib

@@ -1,35 +1,33 @@
-# Makefile for parlib library
+# Makefile for bthread library
 
-MAKE := $(MAKE) -s
 CFLAGS = -O2 -std=gnu99 -static -fomit-frame-pointer 
-LIBNAME = parlib
+LIBNAME = bthread
 CFLAGS = -g -O0 -Wall -std=gnu99 -MMD -MP
 V ?= @
-
-SCHEDULERS := bthread
 
 GCCPREFIX := 
 CC := $(GCCPREFIX)gcc
 GCC_ROOT := $(shell which $(CC) | xargs dirname)/../
 
+# Needed to point to installation of $(PARLIB_*) in case this library is not
+# already installed in the cross compiler standard locations.
+-include Makelocal
+
 SRCDIR := 
 OBJDIR := $(SRCDIR)obj
-INCDIRS := .. .
+INCDIRS := . $(PARLIB_INCDIR)
 
 INCS = $(patsubst %, -I%, $(INCDIRS))
 FINALLIB = $(OBJDIR)/lib$(LIBNAME).a
 
 uc = $(shell echo $(1) | tr a-z A-Z)
-strip_tests = $(subst _tests,,$(1))
 
 LIBUCNAME := $(call uc, $(LIBNAME))
 HEADERS := $(shell find $(INCDIRS) -name "*.h")
 CFILES  := $(wildcard $(SRCDIR)*.c)
 OBJS    := $(patsubst %.c, $(OBJDIR)/%.o, $(CFILES))
 
-all: ht $(FINALLIB)
-
-include ht/Makefrag
+all: $(FINALLIB)
 
 $(OBJDIR)/%.o: $(SRCDIR)%.c $(HEADERS)
 	@echo + cc [$(LIBUCNAME)] $<
@@ -42,23 +40,9 @@ $(FINALLIB): $(OBJS)
 	$(V)$(AR) rc $@ $(OBJS)
 
 tests: all
-	$(V)$(MAKE) -C tests
+	make -C tests
 
-$(SCHEDULERS): 
-	$(V)$(MAKE) -C schedulers/$@
-	$(V)mkdir -p $(OBJDIR)/schedulers
-	$(V)rm -rf $(OBJDIR)/schedulers/$@
-	$(V)ln -s ../schedulers/$@/obj $(OBJDIR)/schedulers/$@
-
-$(patsubst %, %_tests, $(SCHEDULERS)): all 
-	$(V)$(MAKE) $(subst _tests,,$@)
-	$(V)$(MAKE) -C schedulers/$(subst _tests,,$@)/tests
-
-$(patsubst %, %_clean, $(SCHEDULERS)):
-	$(V)$(MAKE) -C schedulers/$(subst _clean,,$@) clean
-
-clean: $(patsubst %, %_clean, $(SCHEDULERS))
-	@echo + clean [$(HT_LIBUCNAME)]
+clean: 
 	@echo + clean [$(LIBUCNAME)]
 	$(V)rm -rf $(OBJDIR)
 	

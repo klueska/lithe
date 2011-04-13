@@ -14,8 +14,8 @@ bthread_mutex_t lock = BTHREAD_MUTEX_INITIALIZER;
 	printf(__VA_ARGS__); \
 	bthread_mutex_unlock(&lock);
 
-#define NUM_TEST_THREADS 10000
-#define NUM_YIELDS 100
+#define NUM_TEST_THREADS 1000000
+#define NUM_YIELDS 1000
 
 bthread_t my_threads[NUM_TEST_THREADS];
 void *my_retvals[NUM_TEST_THREADS];

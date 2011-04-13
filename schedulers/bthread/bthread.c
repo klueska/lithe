@@ -67,19 +67,6 @@ static int __bthread_allocate_stack(struct bthread_tcb *pt);
 struct uthread *pth_init(void)
 {
 	struct mcs_lock_qnode local_qn = {0};
-	/* Tell the kernel where and how we want to receive events.  This is just an
-	 * example of what to do to have a notification turned on.  We're turning on
-	 * USER_IPIs, posting events to vcore 0's vcpd, and telling the kernel to
-	 * send to vcore 0.  Note sys_self_notify will ignore the vcoreid pref.
-	 * Also note that enable_kevent() is just an example, and you probably want
-	 * to use parts of event.c to do what you want. */
-	//enable_kevent(EV_USER_IPI, 0, EVENT_IPI);
-
-	/* Create a bthread_tcb for the main thread */
-//	bthread_t t = mmap(0, sizeof(struct bthread_tcb),
-//	                   PROT_READ|PROT_WRITE|PROT_EXEC,
-//	                   MAP_SHARED|MAP_POPULATE|MAP_ANONYMOUS, -1, 0);
-//	memset(t, 0, sizeof(struct bthread_tcb));
 	bthread_t t = (bthread_t)calloc(1, sizeof(struct bthread_tcb));
 	assert(t);
 	t->id = get_next_pid();
@@ -139,10 +126,6 @@ struct uthread *pth_thread_create(void (*func)(void), void *udata)
 {
 	struct bthread_tcb *bthread;
 	bthread_attr_t *attr = (bthread_attr_t*)udata;
-//	bthread = mmap(0, sizeof(struct bthread_tcb),
-//	               PROT_READ|PROT_WRITE|PROT_EXEC,
-//	               MAP_SHARED|MAP_POPULATE|MAP_ANONYMOUS, -1, 0);
-//	memset(bthread, 0, sizeof(struct bthread_tcb));
 	bthread = (bthread_t)calloc(1, sizeof(struct bthread_tcb));
 	assert(bthread);
 	bthread->stacksize = BTHREAD_STACK_SIZE;	/* default */
@@ -214,7 +197,6 @@ void pth_thread_exit(struct uthread *uthread)
 	/* TODO: race on detach state */
 	if (bthread->detached) {
 		free(bthread);
-//		assert(!munmap(bthread, sizeof(struct bthread_tcb)));
 	}
 	else {
 		/* Once we do this, our joiner can free us.  He won't free us if we're
@@ -255,14 +237,12 @@ int bthread_attr_destroy(bthread_attr_t *a)
 
 static void __bthread_free_stack(struct bthread_tcb *pt)
 {
-//	free(pt->stacktop - pt->stacksize);
 	assert(!munmap(pt->stacktop - pt->stacksize, pt->stacksize));
 }
 
 static int __bthread_allocate_stack(struct bthread_tcb *pt)
 {
 	assert(pt->stacksize);
-//	void *stackbot = calloc(1, pt->stacksize);
 	void* stackbot = mmap(0, pt->stacksize,
 	                      PROT_READ|PROT_WRITE|PROT_EXEC,
 	                      MAP_SHARED|MAP_POPULATE|MAP_ANONYMOUS, -1, 0);
@@ -317,7 +297,6 @@ int bthread_join(bthread_t thread, void** retval)
 		bthread_yield();
 	if (retval)
 		*retval = thread->retval;
-//	assert(!munmap(thread, sizeof(struct bthread_tcb)));
 	free(thread);
 	return 0;
 }
@@ -559,3 +538,4 @@ int bthread_detach(bthread_t thread)
 	thread->detached = TRUE;
 	return 0;
 }
+

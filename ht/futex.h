@@ -19,7 +19,7 @@
 #include <sys/syscall.h>
 
 
-inline void futex_wait(void *futex, int comparand)
+inline static void futex_wait(void *futex, int comparand)
 {
   int r = syscall(SYS_futex, futex, FUTEX_WAIT, comparand, NULL, NULL, 0);
   if (!(r == 0 || r == EWOULDBLOCK ||
@@ -30,7 +30,7 @@ inline void futex_wait(void *futex, int comparand)
 }
 
 
-inline void futex_wakeup_one(void *futex)
+inline static void futex_wakeup_one(void *futex)
 {
   int r = syscall(SYS_futex, futex, FUTEX_WAKE, 1, NULL, NULL, 0);
   if (!(r == 0 || r == 1)) {
@@ -40,7 +40,7 @@ inline void futex_wakeup_one(void *futex)
 }
 
 
-inline void futex_wakeup_all(void *futex)
+inline static void futex_wakeup_all(void *futex)
 {
   int r = syscall(SYS_futex, futex, FUTEX_WAKE, INT_MAX, NULL, NULL, 0);
   if (!(r >= 0)) {
