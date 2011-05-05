@@ -8,14 +8,14 @@
 #include <parlib.h>
 
 bthread_mutex_t lock = BTHREAD_MUTEX_INITIALIZER;
-#define printf_safe(...) {}
-//#define printf_safe(...) \
+//#define printf_safe(...) {}
+#define printf_safe(...) \
 	bthread_mutex_lock(&lock); \
 	printf(__VA_ARGS__); \
 	bthread_mutex_unlock(&lock);
 
-#define NUM_TEST_THREADS 1000000
-#define NUM_YIELDS 1000
+#define NUM_TEST_THREADS 150000
+#define NUM_YIELDS 10000
 
 bthread_t my_threads[NUM_TEST_THREADS];
 void *my_retvals[NUM_TEST_THREADS];
@@ -25,7 +25,7 @@ void *yield_thread(void* arg)
 {	
 	assert(!in_vcore_context());
 	for (int i = 0; i < NUM_YIELDS; i++) {
-		printf_safe("[A] bthread %d on vcore %d\n", bthread_self()->id, vcore_id());
+		printf_safe("[A] bthread %d yielding on vcore %d\n", bthread_self()->id, vcore_id());
 		bthread_yield();
 		printf_safe("[A] bthread %d returned from yield on vcore %d\n",
 		            bthread_self()->id, vcore_id());
@@ -39,7 +39,7 @@ int main(int argc, char** argv)
 	int itr = 0;
 	while (1) {
 		for (int i = 0; i < NUM_TEST_THREADS; i++) {
-			printf_safe("[A] About to create thread %d\n", i);
+			printf_safe("[A] About to create thread %d, vcoreid: %d\n", i, vcore_id());
 			bthread_create(&my_threads[i], NULL, &yield_thread, NULL);
 		}
 		for (int i = 0; i < NUM_TEST_THREADS; i++) {

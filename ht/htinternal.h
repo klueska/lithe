@@ -11,17 +11,30 @@
  * definitions and externed variables below */
 
 #include <stdbool.h>
-#include <pthread.h>
 #include <asm/ldt.h>
+#include <sched.h>
 #include <bits/local_lim.h>
 #include <ht/arch.h>
 
+//#define HT_MIN_STACK_SIZE (4*16384)
+#define HT_MIN_STACK_SIZE (3*PGSIZE)
+
 struct hard_thread {
+  /* For bookkeeping */
   bool created __attribute__((aligned (ARCH_CL_SIZE)));
-  bool allocated;
+  bool allocated __attribute__((aligned (ARCH_CL_SIZE)));
   bool running __attribute__((aligned (ARCH_CL_SIZE)));
+  bool yielding __attribute__((aligned (ARCH_CL_SIZE)));
+
+  /* The ldt entry associated with this hard thread. Used for manging TLS in
+   * user space. */
   struct user_desc ldt_entry;
-  pthread_t thread;
+  
+  /* Thread properties when running in ht context: stack + TLS stuff */
+  pid_t ptid;
+  void *stack_top;
+  size_t stack_size;
+  void *tls_desc;
 };
 
 /* Array of hard threads */

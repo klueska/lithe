@@ -22,12 +22,12 @@ uc = $(shell echo $(1) | tr a-z A-Z)
 HEADERS := $(shell find $(INCDIRS) -name "*.h")
 CFILES  := $(wildcard $(SRCDIR)*.c)
 
-all: $(EXECS)
+all: $(EXECS) 
 
 DEPS = $(patsubst %, %.d, $(EXECS))
 -include $(DEPS)
 
-$(OBJDIR)/%: %.c  $(HEADERS)
+$(OBJDIR)/%: %.c  $(HEADERS) $(OBJDIR)/libparlib.a
 	@echo + cc [$(call uc, $(TESTSNAME))] $<
 	@mkdir -p $(@D)
 	$(V)$(CC) -o $@ $< $(CFLAGS) $(INCS) $(LDFLAGS)

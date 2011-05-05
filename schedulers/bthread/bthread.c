@@ -237,16 +237,19 @@ int bthread_attr_destroy(bthread_attr_t *a)
 
 static void __bthread_free_stack(struct bthread_tcb *pt)
 {
-	assert(!munmap(pt->stacktop - pt->stacksize, pt->stacksize));
+//	assert(!munmap(pt->stacktop - pt->stacksize, pt->stacksize));
+	free(pt->stacktop - pt->stacksize);
 }
 
 static int __bthread_allocate_stack(struct bthread_tcb *pt)
 {
 	assert(pt->stacksize);
-	void* stackbot = mmap(0, pt->stacksize,
-	                      PROT_READ|PROT_WRITE|PROT_EXEC,
-	                      MAP_SHARED|MAP_POPULATE|MAP_ANONYMOUS, -1, 0);
-	if (stackbot == MAP_FAILED)
+//	void* stackbot = mmap(0, pt->stacksize,
+//	                      PROT_READ|PROT_WRITE|PROT_EXEC,
+//	                      MAP_SHARED|MAP_POPULATE|MAP_ANONYMOUS, -1, 0);
+//	if (stackbot == MAP_FAILED)
+	void *stackbot = malloc(pt->stacksize);
+	if (stackbot == NULL)
 		return -1; // errno set by mmap
 	pt->stacktop = stackbot + pt->stacksize;
 	return 0;

@@ -1,8 +1,7 @@
 # Makefile for bthread library
 
-CFLAGS = -O2 -std=gnu99 -static -fomit-frame-pointer 
 LIBNAME = bthread
-CFLAGS = -g -O0 -Wall -std=gnu99 -MMD -MP
+CFLAGS = -g -O2 -Wall -std=gnu99 -MMD -MP
 V ?= @
 
 GCCPREFIX := 
@@ -40,7 +39,7 @@ $(FINALLIB): $(OBJS)
 	$(V)$(AR) rc $@ $(OBJS)
 
 tests: all
-	make -C tests
+	$(V)V=$(V) make -C tests
 
 clean: 
 	@echo + clean [$(LIBUCNAME)]

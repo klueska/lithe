@@ -31,15 +31,13 @@ static int uthread_init(void)
 {
 	/* Make sure we are NOT in vcore context */
 	assert(!in_vcore_context());
-	/* Make sure that current_tls_desc is set (will be done by ht library) */
-	assert(current_tls_desc); 
 
 	/* Bug if vcore init was called with no 2LS */
 	assert(sched_ops->sched_init);
 	/* Get thread 0's thread struct (2LS allocs it) */
 	struct uthread *uthread = sched_ops->sched_init();
 	/* Grab the main thread's tls_desc from the ht library. */
-	uthread->tls_desc = current_tls_desc;
+	uthread->tls_desc = __ht_main_tls_desc;
 	/* Save a pointer to the uthread in the current TLS (i.e. main's TLS)*/
 	current_uthread = uthread;
     /* Change temporarily to vcore0s tls region so we can save the newly created

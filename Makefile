@@ -1,9 +1,8 @@
 # Makefile for parlib library
 
 MAKE := $(MAKE) -s
-CFLAGS = -O2 -std=gnu99 -static -fomit-frame-pointer 
 LIBNAME = parlib
-CFLAGS = -g -O0 -Wall -std=gnu99 -MMD -MP
+CFLAGS = -g -O2 -Wall -std=gnu99 -MMD -MP
 V ?= @
 
 SCHEDULERS := bthread
@@ -45,17 +44,17 @@ tests: all
 	$(V)$(MAKE) -C tests
 
 $(SCHEDULERS): 
-	$(V)$(MAKE) -C schedulers/$@
+	$(V)V=$(V) $(MAKE) -C schedulers/$@
 	$(V)mkdir -p $(OBJDIR)/schedulers
 	$(V)rm -rf $(OBJDIR)/schedulers/$@
 	$(V)ln -s ../../schedulers/$@/obj $(OBJDIR)/schedulers/$@
 
 $(patsubst %, %_tests, $(SCHEDULERS)): all 
-	$(V)$(MAKE) $(subst _tests,,$@)
-	$(V)$(MAKE) -C schedulers/$(subst _tests,,$@)/tests
+	$(V)V=$(V) $(MAKE) $(subst _tests,,$@)
+	$(V)V=$(V) $(MAKE) -C schedulers/$(subst _tests,,$@)/tests
 
 $(patsubst %, %_clean, $(SCHEDULERS)):
-	$(V)$(MAKE) -C schedulers/$(subst _clean,,$@) clean
+	$(V)V=$(V) $(MAKE) -C schedulers/$(subst _clean,,$@) clean
 
 clean: $(patsubst %, %_clean, $(SCHEDULERS))
 	@echo + clean [$(HT_LIBUCNAME)]

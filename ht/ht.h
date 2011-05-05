@@ -20,16 +20,17 @@
 #ifndef HT_H
 #define HT_H
 
+#define LOG2_MAX_HTS 6
+#define MAX_HTS (1 << LOG2_MAX_HTS)
+
 #include <ucontext.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <ht/mcs.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define LOG2_MAX_HTS 6
-#define MAX_HTS (1 << LOG2_MAX_HTS)
 
 /**
  *  Array of pointers to TLS descriptors for each hard thread.
@@ -50,6 +51,13 @@ extern __thread ucontext_t ht_context;
  * context the first time it's ht_entry() function is invoked.
  */
 extern __thread ucontext_t *current_ucontext;
+
+/* MCS lock required to be held when yielding an ht.  This variable stores a
+ * reference to that value as it is passed in via a call to ht_yield */
+extern mcs_lock_t ht_yield_lock;
+
+/* Reference to the qnode used for the mcs lock required when yielding an ht */
+extern __thread mcs_lock_qnode_t ht_yield_qnode;
 
 /**
  * Current TLS descriptor running on each hard thread, used when interrupting a

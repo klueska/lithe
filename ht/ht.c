@@ -22,21 +22,22 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ucontext.h>
 #include <unistd.h>
+#include <sched.h>
 #include <sys/sysinfo.h>
 #include <sys/wait.h>
 
 #include <ht/atomic.h>
+#include <ht/mcs.h>
 #include <ht/htinternal.h>
 #include <ht/tlsinternal.h>
 #include <ht/futex.h>
 
-/* Array of hard threads using pthreads to masquerade. */
+/* Array of hard threads using clone to masquerade. */
 struct hard_thread *__ht_threads = NULL;
 
 /* Array of TLS descriptors to use for each hard thread. Separate from the hard
@@ -53,6 +54,13 @@ __thread ucontext_t ht_context = { 0 };
 /* Current context running on an ht, used when swapping contexts onto an ht */
 __thread ucontext_t *current_ucontext = NULL;
 
+/* MCS lock required to be held when yielding an ht.  This variable stores a
+ * reference to that value as it is passed in via a call to ht_yield */
+mcs_lock_t ht_yield_lock = MCS_LOCK_INIT;
+
+/* Reference to the qnode used for the mcs lock required when yielding an ht */
+__thread mcs_lock_qnode_t ht_yield_qnode = { 0 };
+
 /* Current tls_desc for the running ht, used when swapping contexts onto an ht */
 __thread void *current_tls_desc = NULL;
 
@@ -61,10 +69,7 @@ __thread void *current_tls_desc = NULL;
 __thread bool __in_ht_context = false;
 
 /* Mutex used to provide mutually exclusive access to our globals. */
-static pthread_mutex_t __ht_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-/* Condition variable to be used for asynchronous hard thread requests. */
-static pthread_cond_t __ht_condition = PTHREAD_COND_INITIALIZER;
+static mcs_lock_t __ht_mutex = MCS_LOCK_INIT;
 
 /* Number of currently allocated hard threads. */
 static int __ht_num_hard_threads = 0;
@@ -94,12 +99,13 @@ void __ht_entry_gate()
   /* Cache a copy of htid so we don't lose track of it over system call
    * invocations in which TLS might change out from under us. */
   int htid = __ht_id;
-  pthread_mutex_lock(&__ht_mutex);
+  struct mcs_lock_qnode local_qnode = {0};
+  mcs_lock_lock(&__ht_mutex, &local_qnode);
   {
     /* Check and see if we should wait at the gate. */
     if (__ht_max_hard_threads > __ht_num_hard_threads) {
       printf("%d not waiting at gate\n", htid);
-      pthread_mutex_unlock(&__ht_mutex);
+      mcs_lock_unlock(&__ht_mutex, &local_qnode);
       goto entry;
     }
 
@@ -112,17 +118,23 @@ void __ht_entry_gate()
 
     /* Signal that we are about to wait on the futex. */
     __ht_threads[htid].running = false;
+
+    /* Unlock the application lock associated with a yield if there is one */ 
+	if(__ht_threads[htid].yielding) {
+      mcs_lock_unlock(&ht_yield_lock, &ht_yield_qnode);
+      memset(&ht_yield_qnode, 0, sizeof(ht_yield_qnode));
+    }
   }
-  pthread_mutex_unlock(&__ht_mutex);
+  mcs_lock_unlock(&__ht_mutex, &local_qnode);
 
   /* Wait for this hard thread to get woken up. */
   futex_wait(&(__ht_threads[htid].running), false);
-  
+
   /* Hard thread is awake. */
 entry:
   /* Wait for the original main to reach the point of not requiring its stack
    * anymore.  TODO: Think of a better way to this.  Required for now because
-   * we need to call pthread_mutex_unlock() in this thread, which causes a race
+   * we need to call mcs_lock_unlock() in this thread, which causes a race
    * for using the main threads stack with the hard thread restarting it in
    * ht_entry(). */
   while(!original_main_done) wrfence();
@@ -136,21 +148,31 @@ entry:
 
   fprintf(stderr, "ht: failed to invoke ht_yield\n");
 
-  /* We never exit a pthread ... we always park pthreads and therefore
+  /* We never exit a hard thread ... we always park them and therefore
    * we never exit them. If we did we would need to take care not to
-   * exit the main pthread (experience shows that exits the
-   * application) and we should probably detach any created pthreads
+   * exit the main hard thread (experience shows that exits the
+   * application) and we should probably detach any created hard threads
    * (but this may be debatable because of our implementation of
    * htls).
    */
   exit(1);
 }
 
-void * __ht_entry_trampoline(void *arg)
+int __ht_entry_trampoline(void *arg)
 {
   assert(sizeof(void *) == sizeof(long int));
 
   int htid = (int) (long int) arg;
+
+  /* Set the proper affinity for this hard thread */
+  cpu_set_t c;
+  CPU_ZERO(&c);
+  CPU_SET(htid, &c);
+  if((sched_setaffinity(0, sizeof(cpu_set_t), &c)) != 0) {
+    fprintf(stderr, "ht: could not set affinity of underlying pthread\n");
+    exit(1);
+  }
+  sched_yield();
 
   /* Initialize the tls region to be used by this ht */
   init_tls(htid);
@@ -172,46 +194,47 @@ void * __ht_entry_trampoline(void *arg)
   }
 
   /*
-   * We create stack space for the function 'setcontext' jumped to
+   * We create stack space for the function 'etcontext' jumped to
    * after an invocation of ht_yield.
    */
-  if ((__ht_stack = alloca(getpagesize()*4)) == NULL) {
+  if ((__ht_stack = alloca(getpagesize())) == NULL) {
     fprintf(stderr, "ht: could not allocate space on the stack\n");
     exit(1);
   }
 
   __ht_stack = (void *)
-    (((size_t) __ht_stack) + (getpagesize()*4 - __alignof__(long double)));
+    (((size_t) __ht_stack) + (getpagesize() - __alignof__(long double)));
 
   /*
-   * We need to save a context because experience shows that we seg
-   * fault if we clean up this pthread (i.e. call pthread_exit) on a
-   * stack other than the original stack (maybe because pthread has
-   * placed certain things on the stack like cleanup functions).
+   * We need to save a context because experience shows that we seg fault if we
+   * clean up this hard thread (i.e. call exit) on a stack other than the
+   * original stack (maybe because certain things are placed on the stack like
+   * cleanup functions).
    */
   if (getcontext(&ht_context) < 0) {
     fprintf(stderr, "ht: could not get context\n");
     exit(1);
   }
 
-  if ((ht_context.uc_stack.ss_sp = alloca(getpagesize()*4)) == NULL) {
+  if ((ht_context.uc_stack.ss_sp = alloca(getpagesize())) == NULL) {
     fprintf(stderr, "ht: could not allocate space on the stack\n");
     exit(1);
   }
 
-  ht_context.uc_stack.ss_size = getpagesize()*4;
+  ht_context.uc_stack.ss_size = getpagesize();
   ht_context.uc_link = 0;
 
   makecontext(&ht_context, (void (*) ()) __ht_entry_gate, 0);
 
+  printf("starting ht: %d\n", __ht_id);
   setcontext(&ht_context);
 
   fprintf(stderr, "ht: failed to invoke ht_yield\n");
 
-  /* We never exit a pthread ... we always park pthreads and therefore
+  /* We never exit a hard thread ... we always park them and therefore
    * we never exit them. If we did we would need to take care not to
-   * exit the main pthread (experience shows that exits the
-   * application) and we should probably detach any created pthreads
+   * exit the main thread (experience shows that exits the
+   * application) and we should probably detach any created hard threads
    * (but this may be debatable because of our implementation of
    * htls).
    */
@@ -220,43 +243,44 @@ void * __ht_entry_trampoline(void *arg)
 
 static void __create_hard_thread(int i)
 {
-  pthread_attr_t attr;
-  pthread_attr_init(&attr);
-  cpu_set_t c;
-  CPU_ZERO(&c);
-  CPU_SET(i, &c);
-  if ((errno = pthread_attr_setaffinity_np(&attr,
-  				     sizeof(cpu_set_t),
-  				     &c)) != 0) {
-    fprintf(stderr, "ht: could not set affinity of underlying pthread\n");
+  struct hard_thread *cht = &__ht_threads[i];
+  cht->stack_size = HT_MIN_STACK_SIZE;
+  if((cht->stack_top = malloc(cht->stack_size)) == NULL) {
+    fprintf(stderr, "ht: could not set stack size of underlying hard thread\n");
     exit(1);
   }
-  if ((errno = pthread_attr_setstacksize(&attr, 4*PTHREAD_STACK_MIN)) != 0) {
-    fprintf(stderr, "ht: could not set stack size of underlying pthread\n");
+  if((cht->tls_desc = allocate_tls()) == NULL) {
+    fprintf(stderr, "ht: could not allocate tls for underlying hard thread\n");
     exit(1);
   }
-  if ((errno = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED)) != 0) {
-    fprintf(stderr, "ht: could not set stack size of underlying pthread\n");
-    exit(1);
-  }
+  init_tls(i);
+  cht->ldt_entry.entry_number = 6;
+  cht->ldt_entry.base_addr = (uintptr_t)cht->tls_desc;
   
   /* Set the created flag for the thread we are about to spawn off */
-  __ht_threads[i].created = true;
+  cht->created = true;
 
   /* Also up the thread counts and set the flags for allocated and running
    * until we get a chance to stop the thread and deallocate it in its entry
    * gate */
-  __ht_threads[i].allocated = true;
-  __ht_threads[i].running = true;
+  cht->allocated = true;
+  cht->running = true;
   __ht_num_hard_threads++;
   __ht_max_hard_threads++;
 
-  if ((errno = pthread_create(&__ht_threads[i].thread,
-  			&attr,
-  			__ht_entry_trampoline,
-  			(void *) (long int) i)) != 0) {
-    fprintf(stderr, "ht: could not allocate underlying pthread\n");
-    exit(1);
+  int clone_flags = (CLONE_VM | CLONE_FS | CLONE_FILES 
+                     | CLONE_SIGHAND | CLONE_THREAD
+                     | CLONE_SETTLS | CLONE_PARENT_SETTID
+                     | CLONE_CHILD_CLEARTID | CLONE_SYSVSEM
+                     | CLONE_DETACHED
+                     | 0);
+
+  if(clone(__ht_entry_trampoline, cht->stack_top+cht->stack_size, 
+           clone_flags, (void *)((long int)i), 
+           &cht->ptid, &cht->ldt_entry, &cht->ptid) == -1) {
+    perror("Error");
+    //fprintf(stderr, "ht: could not allocate underlying hard thread\n");
+    exit(2);
   }
 }
 
@@ -311,7 +335,8 @@ static int __ht_request_async(int k)
 int ht_request_async(int k)
 {
   int hts = -1;
-  pthread_mutex_lock(&__ht_mutex);
+  struct mcs_lock_qnode local_qnode = {0};
+  mcs_lock_lock(&__ht_mutex, &local_qnode);
   {
     if (k < 0) {
       fprintf(stderr, "ht: decrementing requests is unimplemented\n");
@@ -325,14 +350,14 @@ int ht_request_async(int k)
         if(once) {
           once = false;
           __ht_request_async(1);
-          pthread_mutex_unlock(&__ht_mutex);
+          mcs_lock_unlock(&__ht_mutex, &local_qnode);
           /* Don't use the stack anymore! */
           original_main_done = true;
           /* Futex calls are forced inline */
           futex_wait(&original_main_done, true);
           assert(0);
         }
-        pthread_mutex_lock(&__ht_mutex);
+        mcs_lock_lock(&__ht_mutex, &local_qnode);
         hts = 1;
         k -=1;
       }
@@ -340,14 +365,19 @@ int ht_request_async(int k)
       hts = __ht_request_async(k);
     }
   }
-  pthread_mutex_unlock(&__ht_mutex);
+  mcs_lock_unlock(&__ht_mutex, &local_qnode);
   return hts;
 }
 
 void ht_yield()
 {
+  /* Make sure that the application has grabbed the yield lock before calling
+   * yield */
+  assert(ht_yield_lock.lock);
+  /* Let the rest of the code know we are in the process of yielding */
+  __ht_threads[__ht_id].yielding = true;
   /* Jump to the transition stack allocated on this hard thread's underlying
-   * pthread's stack */
+   * stack. This is only used very quickly so we can run the setcontext code */
   set_stack_pointer(__ht_stack);
   /* Go back to the ht entry gate */
   setcontext(&ht_context);
@@ -360,52 +390,32 @@ int ht_id()
 
 int ht_num_hard_threads()
 {
-  pthread_mutex_lock(&__ht_mutex);
+  struct mcs_lock_qnode local_qnode = {0};
+  mcs_lock_lock(&__ht_mutex, &local_qnode);
   int c = __ht_num_hard_threads;
-  pthread_mutex_unlock(&__ht_mutex);
+  mcs_lock_unlock(&__ht_mutex, &local_qnode);
   return c;
 }
 
 
 int ht_max_hard_threads()
 {
-  pthread_mutex_lock(&__ht_mutex);
+  struct mcs_lock_qnode local_qnode = {0};
+  mcs_lock_lock(&__ht_mutex, &local_qnode);
   int c = __ht_max_hard_threads;
-  pthread_mutex_unlock(&__ht_mutex);
+  mcs_lock_unlock(&__ht_mutex, &local_qnode);
   return c;
 }
 
 
 int ht_limit_hard_threads()
 {
-  pthread_mutex_lock(&__ht_mutex);
+  struct mcs_lock_qnode local_qnode = {0};
+  mcs_lock_lock(&__ht_mutex, &local_qnode);
   int c = __ht_limit_hard_threads;
-  pthread_mutex_unlock(&__ht_mutex);
+  mcs_lock_unlock(&__ht_mutex, &local_qnode);
   return c;
 }
-
-
-void * __ht_async_handler(void *arg)
-{
-  pthread_mutex_lock(&__ht_mutex);
-  {
-    /* Wait on condition variable for an asynchronous request. */
-    do {
-      pthread_cond_wait(&__ht_condition, &__ht_mutex);
-
-      /* Allocate as many as known available. */
-      int k = __ht_max_hard_threads - __ht_num_hard_threads;
-      int j = __ht_allocate(k);
-
-      assert(k == j);
-
-      /* Update hard thread counts. */
-      __ht_num_hard_threads += j;
-    } while (true);
-  }
-  pthread_mutex_unlock(&__ht_mutex);
-}
-
 
 static void __attribute__((constructor)) __ht_init()
 {
@@ -416,6 +426,8 @@ static void __attribute__((constructor)) __ht_init()
     __ht_limit_hard_threads = get_nprocs();  
   }
 
+  /* Never freed.  Just freed automatically when the program dies since hard
+   * threads should be alive for the entire lifetime of the program. */
   __ht_threads = malloc(sizeof(struct hard_thread) * __ht_limit_hard_threads);
   ht_tls_descs = malloc(sizeof(uintptr_t) * __ht_limit_hard_threads);
 
@@ -430,8 +442,6 @@ static void __attribute__((constructor)) __ht_init()
     __ht_threads[i].allocated = true;
     __ht_threads[i].running = true;
   }
-  current_tls_desc = __ht_main_tls_desc;
-  current_ucontext = &__main_context;
 
   /* Create all the hard threads up front */
   for (int i = 0; i < __ht_limit_hard_threads; i++) {

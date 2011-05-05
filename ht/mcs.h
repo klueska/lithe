@@ -12,9 +12,6 @@
 extern "C" {
 #endif
 
-#include <ht/arch.h>
-#include <ht/ht.h>
-
 #define MCS_LOCK_INIT {0}
 
 typedef struct mcs_lock_qnode
@@ -27,6 +24,9 @@ typedef struct mcs_lock
 {
 	mcs_lock_qnode_t* lock;
 } mcs_lock_t;
+
+#include <ht/ht.h>
+#include <ht/arch.h>
 
 typedef struct
 {

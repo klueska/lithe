@@ -31,6 +31,7 @@ void *allocate_tls(void)
 	memcpy(tcb+offset, __ht_main_tls_desc+offset, sizeof(tcbhead_t)-offset);
 	head->tcb = tcb;
 	head->self = tcb;
+	head->multiple_threads = true;
 	return tcb;
 }
 

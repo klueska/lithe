@@ -7,6 +7,8 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <assert.h>
 
 #include <ht/atomic.h>
 #include <ht/arch.h>

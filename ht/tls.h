@@ -9,6 +9,9 @@
 
 #include <stdint.h>
 
+/* The main thread's tls descriptor */
+extern void *__ht_main_tls_desc;
+
 /* Get a TLS, returns 0 on failure.  Any thread created by a user-level
  * scheduler needs to create a TLS. */
 void *allocate_tls(void);

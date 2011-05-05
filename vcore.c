@@ -16,6 +16,8 @@
 #include <ht/ht.h>
 #include <ht/mcs.h>
 
+static mcs_lock_t __ht_mutex = MCS_LOCK_INIT;
+
 void vcore_entry()
 {
 	/* Just call up into the uthread library */
@@ -47,6 +49,8 @@ int vcore_request(size_t k)
 
 void vcore_yield()
 {
-	ht_yield();
+	struct mcs_lock_qnode local_qn = {0};
+	mcs_lock_lock(&__ht_mutex, &local_qn);
+	ht_yield(&__ht_mutex, &local_qn);
 }
 
