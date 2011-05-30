@@ -225,11 +225,7 @@ int __ht_entry_trampoline(void *arg)
   ht_context.uc_link = 0;
 
   makecontext(&ht_context, (void (*) ()) __ht_entry_gate, 0);
-
-  printf("starting ht: %d\n", __ht_id);
   setcontext(&ht_context);
-
-  fprintf(stderr, "ht: failed to invoke ht_yield\n");
 
   /* We never exit a hard thread ... we always park them and therefore
    * we never exit them. If we did we would need to take care not to
@@ -238,6 +234,7 @@ int __ht_entry_trampoline(void *arg)
    * (but this may be debatable because of our implementation of
    * htls).
    */
+  fprintf(stderr, "ht: failed to invoke ht_yield\n");
   exit(1);
 }
 
@@ -278,8 +275,7 @@ static void __create_hard_thread(int i)
   if(clone(__ht_entry_trampoline, cht->stack_top+cht->stack_size, 
            clone_flags, (void *)((long int)i), 
            &cht->ptid, &cht->ldt_entry, &cht->ptid) == -1) {
-    perror("Error");
-    //fprintf(stderr, "ht: could not allocate underlying hard thread\n");
+    fprintf(stderr, "ht: could not allocate underlying hard thread\n");
     exit(2);
   }
 }

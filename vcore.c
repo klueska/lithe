@@ -16,14 +16,6 @@
 #include <ht/ht.h>
 #include <ht/mcs.h>
 
-static mcs_lock_t __ht_mutex = MCS_LOCK_INIT;
-
-void vcore_entry()
-{
-	/* Just call up into the uthread library */
-	uthread_vcore_entry();
-}
-
 /* Entry point from an underlying hard thread */
 void ht_entry()
 {
@@ -33,7 +25,7 @@ void ht_entry()
 		current_tls_desc = NULL;
 		current_ucontext = NULL;
 	}
-	vcore_entry();
+	uthread_vcore_entry();
 }
 
 /* Returns -1 with errno set on error, or 0 on success.  This does not return
@@ -49,8 +41,7 @@ int vcore_request(size_t k)
 
 void vcore_yield()
 {
-	struct mcs_lock_qnode local_qn = {0};
-	mcs_lock_lock(&__ht_mutex, &local_qn);
-	ht_yield(&__ht_mutex, &local_qn);
+	mcs_lock_lock(&ht_yield_lock, &ht_yield_qnode);
+	ht_yield();
 }
 

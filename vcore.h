@@ -22,8 +22,6 @@ extern "C" {
 #define LOG2_MAX_VCORES LOG2_MAX_HTS
 #define MAX_VCORES (1 << LOG2_MAX_VCORES)
 
-extern void vcore_entry();
-
 /* Vcore API functions */
 static inline size_t max_vcores(void);
 static inline size_t num_vcores(void);

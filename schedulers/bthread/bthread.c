@@ -73,10 +73,10 @@ struct uthread *pth_init(void)
 	assert(t->id == 0);
 
 	/* Put the new bthread on the active queue */
-	mcs_lock_notifsafe(&queue_lock, &local_qn);
+	mcs_lock_lock(&queue_lock, &local_qn);
 	threads_active++;
 	TAILQ_INSERT_TAIL(&active_queue, t, next);
-	mcs_unlock_notifsafe(&queue_lock, &local_qn);
+	mcs_lock_unlock(&queue_lock, &local_qn);
 	return (struct uthread*)t;
 }
 
@@ -92,7 +92,7 @@ void __attribute__((noreturn)) pth_sched_entry(void)
 	/* no one currently running, so lets get someone from the ready queue */
 	struct bthread_tcb *new_thread = NULL;
 	struct mcs_lock_qnode local_qn = {0};
-	mcs_lock_notifsafe(&queue_lock, &local_qn);
+	mcs_lock_lock(&queue_lock, &local_qn);
 	new_thread = TAILQ_FIRST(&ready_queue);
 	if (new_thread) {
 		TAILQ_REMOVE(&ready_queue, new_thread, next);
@@ -100,9 +100,9 @@ void __attribute__((noreturn)) pth_sched_entry(void)
 		threads_active++;
 		threads_ready--;
 	}
-	mcs_unlock_notifsafe(&queue_lock, &local_qn);
+	mcs_lock_unlock(&queue_lock, &local_qn);
 	/* Instead of yielding, you could spin, turn off the core, set an alarm,
-	 * whatever.  You want some logic to decide this.  Uthread code wil have
+	 * whatever.  You want some logic to decide this.  Uthread code will have
 	 * helpers for this (like how we provide run_uthread()) */
 	if (!new_thread) {
 		/* TODO: consider doing something more intelligent here */
@@ -156,10 +156,10 @@ void pth_thread_runnable(struct uthread *uthread)
 	struct mcs_lock_qnode local_qn = {0};
 	/* Insert the newly created thread into the ready queue of threads.
 	 * It will be removed from this queue later when vcore_entry() comes up */
-	mcs_lock_notifsafe(&queue_lock, &local_qn);
+	mcs_lock_lock(&queue_lock, &local_qn);
 	TAILQ_INSERT_TAIL(&ready_queue, bthread, next);
 	threads_ready++;
-	mcs_unlock_notifsafe(&queue_lock, &local_qn);
+	mcs_lock_unlock(&queue_lock, &local_qn);
 }
 
 /* The calling thread is yielding.  Do what you need to do to restart (like put
@@ -172,12 +172,12 @@ void pth_thread_yield(struct uthread *uthread)
 	/* Take from the active list, and put on the ready list (tail).  Don't do
 	 * this until we are done completely with the thread, since it can be
 	 * restarted somewhere else. */
-	mcs_lock_notifsafe(&queue_lock, &local_qn);
+	mcs_lock_lock(&queue_lock, &local_qn);
 	threads_active--;
 	TAILQ_REMOVE(&active_queue, bthread, next);
 	threads_ready++;
 	TAILQ_INSERT_TAIL(&ready_queue, bthread, next);
-	mcs_unlock_notifsafe(&queue_lock, &local_qn);
+	mcs_lock_unlock(&queue_lock, &local_qn);
 }
 
 /* Thread is exiting, do your 2LS specific stuff.  You're in vcore context.
@@ -187,12 +187,12 @@ void pth_thread_exit(struct uthread *uthread)
 	struct bthread_tcb *bthread = (struct bthread_tcb*)uthread;
 	struct mcs_lock_qnode local_qn = {0};
 	/* Remove from the active runqueue */
-	mcs_lock_notifsafe(&queue_lock, &local_qn);
+	mcs_lock_lock(&queue_lock, &local_qn);
 	threads_active--;
 	TAILQ_REMOVE(&active_queue, bthread, next);
 	/* Cleanup, mirroring pth_thread_create() */
 	__bthread_free_stack(bthread);
-	mcs_unlock_notifsafe(&queue_lock, &local_qn);
+	mcs_lock_unlock(&queue_lock, &local_qn);
 
 	/* TODO: race on detach state */
 	if (bthread->detached) {
@@ -248,7 +248,7 @@ static int __bthread_allocate_stack(struct bthread_tcb *pt)
 //	                      PROT_READ|PROT_WRITE|PROT_EXEC,
 //	                      MAP_SHARED|MAP_POPULATE|MAP_ANONYMOUS, -1, 0);
 //	if (stackbot == MAP_FAILED)
-	void *stackbot = malloc(pt->stacksize);
+	void *stackbot = calloc(1, pt->stacksize);
 	if (stackbot == NULL)
 		return -1; // errno set by mmap
 	pt->stacktop = stackbot + pt->stacksize;
