@@ -12,7 +12,7 @@
 
 #include <stdbool.h>
 #include <asm/ldt.h>
-#include <sched.h>
+#include <pthread.h>
 #include <bits/local_lim.h>
 #include <ht/arch.h>
 
@@ -30,11 +30,8 @@ struct hard_thread {
    * user space. */
   struct user_desc ldt_entry;
   
-  /* Thread properties when running in ht context: stack + TLS stuff */
-  pid_t ptid;
-  void *stack_top;
-  size_t stack_size;
-  void *tls_desc;
+  /* Thread properties when running in ht context */
+  pthread_t thread;
 };
 
 /* Array of hard threads */

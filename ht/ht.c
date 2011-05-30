@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <ucontext.h>
 #include <unistd.h>
-#include <sched.h>
+#include <pthread.h>
 #include <sys/sysinfo.h>
 #include <sys/wait.h>
 
@@ -158,21 +158,11 @@ entry:
   exit(1);
 }
 
-int __ht_entry_trampoline(void *arg)
+void *__ht_entry_trampoline(void *arg)
 {
   assert(sizeof(void *) == sizeof(long int));
 
   int htid = (int) (long int) arg;
-
-  /* Set the proper affinity for this hard thread */
-  cpu_set_t c;
-  CPU_ZERO(&c);
-  CPU_SET(htid, &c);
-  if((sched_setaffinity(0, sizeof(cpu_set_t), &c)) != 0) {
-    fprintf(stderr, "ht: could not set affinity of underlying pthread\n");
-    exit(1);
-  }
-  sched_yield();
 
   /* Initialize the tls region to be used by this ht */
   init_tls(htid);
@@ -241,18 +231,25 @@ int __ht_entry_trampoline(void *arg)
 static void __create_hard_thread(int i)
 {
   struct hard_thread *cht = &__ht_threads[i];
-  cht->stack_size = HT_MIN_STACK_SIZE;
-  if((cht->stack_top = malloc(cht->stack_size)) == NULL) {
-    fprintf(stderr, "ht: could not set stack size of underlying hard thread\n");
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+  cpu_set_t c;
+  CPU_ZERO(&c);
+  CPU_SET(i, &c);
+  if ((errno = pthread_attr_setaffinity_np(&attr,
+                                    sizeof(cpu_set_t),
+                                    &c)) != 0) {
+    fprintf(stderr, "ht: could not set affinity of underlying pthread\n");
     exit(1);
   }
-  if((cht->tls_desc = allocate_tls()) == NULL) {
-    fprintf(stderr, "ht: could not allocate tls for underlying hard thread\n");
+  if ((errno = pthread_attr_setstacksize(&attr, 4*PTHREAD_STACK_MIN)) != 0) {
+    fprintf(stderr, "ht: could not set stack size of underlying pthread\n");
     exit(1);
   }
-  init_tls(i);
-  cht->ldt_entry.entry_number = 6;
-  cht->ldt_entry.base_addr = (uintptr_t)cht->tls_desc;
+  if ((errno = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED)) != 0) {
+    fprintf(stderr, "ht: could not set stack size of underlying pthread\n");
+    exit(1);
+  }
   
   /* Set the created flag for the thread we are about to spawn off */
   cht->created = true;
@@ -265,16 +262,10 @@ static void __create_hard_thread(int i)
   __ht_num_hard_threads++;
   __ht_max_hard_threads++;
 
-  int clone_flags = (CLONE_VM | CLONE_FS | CLONE_FILES 
-                     | CLONE_SIGHAND | CLONE_THREAD
-                     | CLONE_SETTLS | CLONE_PARENT_SETTID
-                     | CLONE_CHILD_CLEARTID | CLONE_SYSVSEM
-                     | CLONE_DETACHED
-                     | 0);
-
-  if(clone(__ht_entry_trampoline, cht->stack_top+cht->stack_size, 
-           clone_flags, (void *)((long int)i), 
-           &cht->ptid, &cht->ldt_entry, &cht->ptid) == -1) {
+  if ((errno = pthread_create(&cht->thread,
+                              &attr,
+                              __ht_entry_trampoline,
+                              (void *) (long int) i)) != 0) {
     fprintf(stderr, "ht: could not allocate underlying hard thread\n");
     exit(2);
   }
