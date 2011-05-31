@@ -6,7 +6,6 @@
 #include <ht/ht.h>
 #include <ht/tls.h>
 #include <ht/atomic.h>
-#include <ht/mcs.h>
 
 #define NUM_HTS \
   ht_limit_hard_threads()
@@ -22,7 +21,7 @@ void ht_entry()
   }
 
   printf("entry %d, num_hts: %d\n", ht_id(), ht_num_hard_threads());
-  mcs_lock_lock(&ht_yield_lock, &ht_yield_qnode);
+  ht_lock(&ht_yield_lock);
   ht_request_async(NUM_HTS);
   ht_yield();
 }

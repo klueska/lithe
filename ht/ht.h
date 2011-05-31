@@ -26,11 +26,16 @@
 #include <ucontext.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <ht/mcs.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * Wrapper around mutex types for locking an ht
+ * Must be cast to real underlying type when used
+ */
+typedef void ht_mutex_t;
 
 /**
  *  Array of pointers to TLS descriptors for each hard thread.
@@ -54,10 +59,7 @@ extern __thread ucontext_t *current_ucontext;
 
 /* MCS lock required to be held when yielding an ht.  This variable stores a
  * reference to that value as it is passed in via a call to ht_yield */
-extern mcs_lock_t ht_yield_lock;
-
-/* Reference to the qnode used for the mcs lock required when yielding an ht */
-extern __thread mcs_lock_qnode_t ht_yield_qnode;
+extern pthread_mutex_t ht_yield_lock;
 
 /**
  * Current TLS descriptor running on each hard thread, used when interrupting a
@@ -122,6 +124,21 @@ static inline bool in_ht_context() {
 	extern __thread bool __in_ht_context;
 	return __in_ht_context;
 }
+
+/**
+ * Wrapper for locking hard threads 
+ */
+int ht_lock(ht_mutex_t *mutex);
+
+/** 
+ * Wrapper for trylocking hard threads 
+ */
+int ht_trylock(ht_mutex_t *mutex);
+
+/**
+ * Wrapper for unlocking hard threads 
+ */
+int ht_unlock(ht_mutex_t *mutex);
 
 /**
  * Clears the flag for pending notifications

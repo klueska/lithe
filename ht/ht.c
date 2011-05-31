@@ -32,7 +32,6 @@
 #include <sys/wait.h>
 
 #include <ht/atomic.h>
-#include <ht/mcs.h>
 #include <ht/htinternal.h>
 #include <ht/tlsinternal.h>
 #include <ht/futex.h>
@@ -56,10 +55,7 @@ __thread ucontext_t *current_ucontext = NULL;
 
 /* MCS lock required to be held when yielding an ht.  This variable stores a
  * reference to that value as it is passed in via a call to ht_yield */
-mcs_lock_t ht_yield_lock = MCS_LOCK_INIT;
-
-/* Reference to the qnode used for the mcs lock required when yielding an ht */
-__thread mcs_lock_qnode_t ht_yield_qnode = { 0 };
+pthread_mutex_t ht_yield_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* Current tls_desc for the running ht, used when swapping contexts onto an ht */
 __thread void *current_tls_desc = NULL;
@@ -69,7 +65,7 @@ __thread void *current_tls_desc = NULL;
 __thread bool __in_ht_context = false;
 
 /* Mutex used to provide mutually exclusive access to our globals. */
-static mcs_lock_t __ht_mutex = MCS_LOCK_INIT;
+static pthread_mutex_t __ht_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* Number of currently allocated hard threads. */
 static int __ht_num_hard_threads = 0;
@@ -99,13 +95,12 @@ void __ht_entry_gate()
   /* Cache a copy of htid so we don't lose track of it over system call
    * invocations in which TLS might change out from under us. */
   int htid = __ht_id;
-  struct mcs_lock_qnode local_qnode = {0};
-  mcs_lock_lock(&__ht_mutex, &local_qnode);
+  pthread_mutex_lock(&__ht_mutex);
   {
     /* Check and see if we should wait at the gate. */
     if (__ht_max_hard_threads > __ht_num_hard_threads) {
       printf("%d not waiting at gate\n", htid);
-      mcs_lock_unlock(&__ht_mutex, &local_qnode);
+      pthread_mutex_unlock(&__ht_mutex);
       goto entry;
     }
 
@@ -121,11 +116,10 @@ void __ht_entry_gate()
 
     /* Unlock the application lock associated with a yield if there is one */ 
 	if(__ht_threads[htid].yielding) {
-      mcs_lock_unlock(&ht_yield_lock, &ht_yield_qnode);
-      memset(&ht_yield_qnode, 0, sizeof(ht_yield_qnode));
+      pthread_mutex_unlock(&ht_yield_lock);
     }
   }
-  mcs_lock_unlock(&__ht_mutex, &local_qnode);
+  pthread_mutex_unlock(&__ht_mutex);
 
   /* Wait for this hard thread to get woken up. */
   futex_wait(&(__ht_threads[htid].running), false);
@@ -134,7 +128,7 @@ void __ht_entry_gate()
 entry:
   /* Wait for the original main to reach the point of not requiring its stack
    * anymore.  TODO: Think of a better way to this.  Required for now because
-   * we need to call mcs_lock_unlock() in this thread, which causes a race
+   * we need to call pthread_mutex_unlock() in this thread, which causes a race
    * for using the main threads stack with the hard thread restarting it in
    * ht_entry(). */
   while(!original_main_done) wrfence();
@@ -322,8 +316,7 @@ static int __ht_request_async(int k)
 int ht_request_async(int k)
 {
   int hts = -1;
-  struct mcs_lock_qnode local_qnode = {0};
-  mcs_lock_lock(&__ht_mutex, &local_qnode);
+  pthread_mutex_lock(&__ht_mutex);
   {
     if (k < 0) {
       fprintf(stderr, "ht: decrementing requests is unimplemented\n");
@@ -337,14 +330,14 @@ int ht_request_async(int k)
         if(once) {
           once = false;
           __ht_request_async(1);
-          mcs_lock_unlock(&__ht_mutex, &local_qnode);
+          pthread_mutex_unlock(&__ht_mutex);
           /* Don't use the stack anymore! */
           original_main_done = true;
           /* Futex calls are forced inline */
           futex_wait(&original_main_done, true);
           assert(0);
         }
-        mcs_lock_lock(&__ht_mutex, &local_qnode);
+        pthread_mutex_lock(&__ht_mutex);
         hts = 1;
         k -=1;
       }
@@ -352,7 +345,7 @@ int ht_request_async(int k)
       hts = __ht_request_async(k);
     }
   }
-  mcs_lock_unlock(&__ht_mutex, &local_qnode);
+  pthread_mutex_unlock(&__ht_mutex);
   return hts;
 }
 
@@ -360,7 +353,7 @@ void ht_yield()
 {
   /* Make sure that the application has grabbed the yield lock before calling
    * yield */
-  assert(ht_yield_lock.lock);
+  pthread_mutex_trylock(&ht_yield_lock);
   /* Let the rest of the code know we are in the process of yielding */
   __ht_threads[__ht_id].yielding = true;
   /* Jump to the transition stack allocated on this hard thread's underlying
@@ -377,30 +370,27 @@ int ht_id()
 
 int ht_num_hard_threads()
 {
-  struct mcs_lock_qnode local_qnode = {0};
-  mcs_lock_lock(&__ht_mutex, &local_qnode);
+  pthread_mutex_lock(&__ht_mutex);
   int c = __ht_num_hard_threads;
-  mcs_lock_unlock(&__ht_mutex, &local_qnode);
+  pthread_mutex_unlock(&__ht_mutex);
   return c;
 }
 
 
 int ht_max_hard_threads()
 {
-  struct mcs_lock_qnode local_qnode = {0};
-  mcs_lock_lock(&__ht_mutex, &local_qnode);
+  pthread_mutex_lock(&__ht_mutex);
   int c = __ht_max_hard_threads;
-  mcs_lock_unlock(&__ht_mutex, &local_qnode);
+  pthread_mutex_unlock(&__ht_mutex);
   return c;
 }
 
 
 int ht_limit_hard_threads()
 {
-  struct mcs_lock_qnode local_qnode = {0};
-  mcs_lock_lock(&__ht_mutex, &local_qnode);
+  pthread_mutex_lock(&__ht_mutex);
   int c = __ht_limit_hard_threads;
-  mcs_lock_unlock(&__ht_mutex, &local_qnode);
+  pthread_mutex_unlock(&__ht_mutex);
   return c;
 }
 
@@ -442,6 +432,22 @@ static void __attribute__((constructor)) __ht_init()
       wrfence();
     }
   }
+}
+
+/* Wrapper for locking hard threads */
+int ht_lock(ht_mutex_t *mutex)
+{
+  return pthread_mutex_lock((pthread_mutex_t*)mutex);
+}
+/* Wrapper for trylocking hard threads */
+int ht_trylock(ht_mutex_t *mutex)
+{
+  return pthread_mutex_trylock((pthread_mutex_t*)mutex);
+}
+/* Wrapper for unlocking hard threads */
+int ht_unlock(ht_mutex_t *mutex) 
+{
+  return pthread_mutex_unlock((pthread_mutex_t*)mutex);
 }
 
 /* Clear pending, and try to handle events that came in between a previous call

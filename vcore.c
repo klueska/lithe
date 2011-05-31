@@ -41,7 +41,7 @@ int vcore_request(size_t k)
 
 void vcore_yield()
 {
-	mcs_lock_lock(&ht_yield_lock, &ht_yield_qnode);
+	ht_lock(&ht_yield_lock);
 	ht_yield();
 }
 
