@@ -5,7 +5,7 @@ LIBNAME = parlib
 CFLAGS = -g -O2 -Wall -std=gnu99 -MMD -MP
 V ?= @
 
-SCHEDULERS := bthread
+SCHEDULERS := rrthread
 
 GCCPREFIX := 
 CC := $(GCCPREFIX)gcc
@@ -51,7 +51,7 @@ $(SCHEDULERS):
 
 $(patsubst %, %_tests, $(SCHEDULERS)): all 
 	$(V)V=$(V) $(MAKE) $(subst _tests,,$@)
-	$(V)V=$(V) $(MAKE) -C schedulers/$(subst _tests,,$@)/tests
+	$(V)V=$(V) $(MAKE) -C schedulers/$(subst _tests,,$@) tests
 
 $(patsubst %, %_clean, $(SCHEDULERS)):
 	$(V)V=$(V) $(MAKE) -C schedulers/$(subst _clean,,$@) clean

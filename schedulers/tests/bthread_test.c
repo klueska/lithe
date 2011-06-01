@@ -2,10 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-
-#include <ht/ht.h>
-#include <ht/atomic.h>
-#include <parlib.h>
 #include <bthread.h>
 
 bthread_mutex_t lock = BTHREAD_MUTEX_INITIALIZER;

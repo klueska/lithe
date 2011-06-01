@@ -542,3 +542,12 @@ int bthread_detach(bthread_t thread)
 	return 0;
 }
 
+#define bthread_rwlock_t bthread_mutex_t
+#define bthread_rwlockattr_t bthread_mutexattr_t
+#define bthread_rwlock_destroy bthread_mutex_destroy
+#define bthread_rwlock_init bthread_mutex_init
+#define bthread_rwlock_unlock bthread_mutex_unlock
+#define bthread_rwlock_rdlock bthread_mutex_lock
+#define bthread_rwlock_wrlock bthread_mutex_lock
+#define bthread_rwlock_tryrdlock bthread_mutex_trylock
+#define bthread_rwlock_trywrlock bthread_mutex_trylock
