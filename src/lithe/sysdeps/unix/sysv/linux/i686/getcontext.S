@@ -73,3 +73,5 @@ getcontext:
 
 	/* All done, return 0 for success.  */
 	xorl	%eax, %eax
+	ret
+
