@@ -1,39 +1,40 @@
 # Makefile for parlib tests
 
-TESTSNAME = parlib_tests
-EXECS = ht_test generic_test 
-CFLAGS = -O2 -Wall -std=gnu99 -MMD -MP
-LDFLAGS = -L../obj -lpthread -lparlib
+MAKE = $(MAKE) -s
 V ?= @
 
-GCCPREFIX := 
-CC := $(GCCPREFIX)gcc
-GCC_ROOT := $(shell which $(CC) | xargs dirname)/../
+TESTSNAME = parlib_tests
+EXECS = ht_test generic_test 
 
-SRCDIR := 
-OBJDIR := $(SRCDIR)../obj
-INCDIRS := . ..
+SRCDIR ?= $(PWD)
+OBJDIR ?= $(PWD)/obj
+PARLIB_DIR ?= $(PWD)/../src
+PARLIB_LDDIR ?= $(PWD)/../obj
 
+CFLAGS += -O2 -Wall -std=gnu99 -MMD -MP
+LDFLAGS += -L$(PARLIB_LDDIR) -lpthread -lparlib
+
+INCDIRS := $(SRCDIR) $(PARLIB_DIR)
 INCS = $(patsubst %, -I%, $(INCDIRS))
 EXECS := $(patsubst %, $(OBJDIR)/%, $(EXECS))
 
 uc = $(shell echo $(1) | tr a-z A-Z)
-
-HEADERS := $(shell find $(INCDIRS) -name "*.h")
-CFILES  := $(wildcard $(SRCDIR)*.c)
 
 all: $(EXECS) 
 
 DEPS = $(patsubst %, %.d, $(EXECS))
 -include $(DEPS)
 
-$(OBJDIR)/%: %.c  $(HEADERS) $(OBJDIR)/libparlib.a
-	@echo + cc [$(call uc, $(TESTSNAME))] $<
+$(OBJDIR)/%: $(SRCDIR)/%.c 
+	@echo + cc [$(call uc, $(TESTSNAME))] $(<F)
 	@mkdir -p $(@D)
 	$(V)$(CC) -o $@ $< $(CFLAGS) $(INCS) $(LDFLAGS)
 
 clean:
 	@echo + clean [$(call uc, $(TESTSNAME))]
 	$(V)rm -rf $(EXECS) $(DEPS)
+	$(V)if [ -d $(OBJDIR) ]; then \
+	  [ -z $$(ls $(OBJDIR)) ] && rm -rf $(OBJDIR) || echo "" > /dev/null; \
+	fi
 
 .PHONY: all clean

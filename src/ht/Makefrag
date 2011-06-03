@@ -1,0 +1,46 @@
+# Makefile for hard threads library
+
+HT_LIBNAME = ht
+HT_CFLAGS = $(CFLAGS)
+
+HT_SRCDIR := $(SRCDIR)/$(HT_LIBNAME)
+HT_OBJDIR := $(OBJDIR)/$(HT_LIBNAME)
+HT_SYSDEPDIR := $(HT_SRCDIR)/sysdeps/$(SYSDEP)
+HT_INCDIRS = $(SRCDIR)
+
+HT_INCS = $(patsubst %, -I%, $(HT_INCDIRS))
+HT_FINALLIB = $(HT_OBJDIR)/lib$(HT_LIBNAME).a
+
+HT_LIBUCNAME := $(call uc, $(HT_LIBNAME))
+HT_CFILES  := $(notdir $(wildcard $(HT_SRCDIR)/*.c))
+HT_CFILES  += $(notdir $(wildcard $(HT_SYSDEPDIR)/*.c))
+HT_SFILES  := $(notdir $(wildcard $(HT_SRCDIR)/*.S))
+HT_SFILES  += $(notdir $(wildcard $(HT_SYSDEPDIR)/*.S))
+HT_OBJS    := $(patsubst %.c, $(HT_OBJDIR)/%.o, $(HT_CFILES))
+HT_OBJS    += $(patsubst %.S, $(HT_OBJDIR)/%.o, $(HT_SFILES))
+HT_DEPS    := $(patsubst %.o, %.d, $(HT_OBJS))
+OBJS += $(HT_OBJS)
+
+-include $(HT_DEPS)
+
+$(HT_LIBNAME): $(HT_FINALLIB)
+
+$(HT_OBJDIR)/%.o: $(HT_SRCDIR)/%.c
+	@echo + cc [$(HT_LIBUCNAME)] $(<F)
+	@mkdir -p $(@D)
+	$(V)$(CC) $(HT_CFLAGS) $(HT_INCS) -o $@ -c $<
+
+$(HT_OBJDIR)/%.o: $(HT_SYSDEPDIR)/%.S
+	@echo + cc [$(HT_LIBUCNAME)] $(<F)
+	@mkdir -p $(@D)
+	$(V)$(CC) $(HT_CFLAGS) -D__ASSEMBLER__ -c -o $@ $<
+
+$(HT_FINALLIB): $(HT_OBJS)
+	@echo + ar [$(HT_LIBUCNAME)] $(@F)
+	@mkdir -p $(@D)
+	$(V)$(AR) rc $@ $(HT_OBJS)
+
+$(HT_LIBNAME)_clean:
+	@echo + clean [$(HT_LIBUCNAME)]
+	$(V)rm -rf $(HT_OBJDIR)
+

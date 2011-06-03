@@ -11,16 +11,18 @@ FINALLIB   := $(OBJDIR)/lib$(LIBNAME).a
 LIBUCNAME  := $(call uc, $(LIBNAME))
 
 # These variables are specific just to the compilation of the library itself.
-LIB_CFLAGS  := -g -O2 -Wall -std=gnu99 -MMD -MP
+LIB_CFLAGS  += -g -O2 -Wall -std=gnu99 -MMD -MP
 LIB_INCDIRS := . $(PARLIB_DIR) $(SCHEDS_DIR)
 LIB_INCS    := $(patsubst %, -I%, $(LIB_INCDIRS))
-LIB_HEADERS := $(shell find $(LIB_INCDIRS) -name "*.h")
 LIB_CFILES  := $(notdir $(wildcard $(LIB_SRCDIR)/*.c))
 LIB_OBJS    := $(patsubst %.c, $(OBJDIR)/%.o, $(LIB_CFILES))
+LIB_DEPS    := $(patsubst %.o, %.d, $(LIB_OBJS))
 
 all: $(FINALLIB)
 
-$(OBJDIR)/%.o: $(LIB_SRCDIR)/%.c $(LIB_HEADERS)
+-include $(LIB_DEPS)
+
+$(OBJDIR)/%.o: $(LIB_SRCDIR)/%.c 
 	@echo + cc [$(LIBUCNAME)] $(<F)
 	@mkdir -p $(@D)
 	$(V)$(CC) $(LIB_CFLAGS) $(LIB_INCS) -o $@ -c $<
@@ -32,7 +34,7 @@ $(FINALLIB): $(LIB_OBJS)
 
 tests-clean:
 
-clean: tests-clean
+clean: tests_clean
 	@echo + clean [$(LIBUCNAME)]
 	$(V)rm -rf $(OBJDIR)
 	

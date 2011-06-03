@@ -44,7 +44,7 @@ void free_tls(void *tcb)
 }
 
 /* Constructor to get a reference to the main thread's TLS descriptor */
-static void __attribute((constructor)) __tls_ctor()
+static void __attribute__((constructor)) __tls_ctor()
 {
 	/* Get a reference to the main program's TLS descriptor */
     struct user_desc ud;

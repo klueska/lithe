@@ -4,30 +4,27 @@ TESTS_EXECS = bthread_test
 
 TESTSNAME = $(LIBNAME)_bthread_tests
 TESTS_SRCDIR := $(SCHEDS_DIR)/tests
+TESTS_OBJDIR := $(OBJDIR)/tests
 
 TESTS_CFLAGS = -O2 -Wall -std=gnu99 -MMD -MP
 TESTS_LDFLAGS = -L$(OBJDIR) -L$(PARLIB_LDDIR) $(TESTS_LDLIBS)
 
 TESTS_INCDIRS := . $(PARLIB_DIR) $(SCHEDS_DIR)
 TESTS_INCS    := $(patsubst %, -I%, $(TESTS_INCDIRS))
-TESTS_HEADERS := $(shell find $(TESTS_INCDIRS) -name "*.h")
 TESTS_CFILES  := $(notdir $(wildcard $(TESTS_SRCDIR)/*.c))
-TESTS_EXECS   := $(patsubst %, $(OBJDIR)/%, $(TESTS_EXECS))
+TESTS_EXECS   := $(patsubst %, $(TESTS_OBJDIR)/%, $(TESTS_EXECS))
 
-TESTS_HEADERS := $(shell find $(TESTS_INCDIRS) -name "*.h")
-TESTS_CFILES  := $(wildcard $(TESTS_SRCDIR)/*.c)
-
-DEPS = $(patsubst %, %.d, $(TESTS_EXECS))
--include $(DEPS)
+TESTS_DEPS = $(patsubst %, %.d, $(TESTS_EXECS))
+-include $(TESTS_DEPS)
 
 tests: all $(TESTS_EXECS)
 
-$(OBJDIR)/%: $(TESTS_SRCDIR)/%.c  $(HEADERS)
+$(TESTS_OBJDIR)/%: $(TESTS_SRCDIR)/%.c
 	@echo + cc [$(call uc, $(TESTSNAME))] $(<F)
 	@mkdir -p $(@D)
 	$(V)$(CC) $< $(TESTS_CFLAGS) $(TESTS_INCS) $(TESTS_LDFLAGS) -o $@
 
-tests-clean:
+tests_clean:
 	@echo + clean [$(call uc, $(TESTSNAME))] $<
-	$(V)for i in $(TESTS_EXECS); do rm -rf $i; done
+	$(V)rm -rf $(TESTS_OBJDIR)
 

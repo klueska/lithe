@@ -3,9 +3,9 @@
 V ?= @
 LIBNAME = rrthread
 
-PARLIB_DIR := /home/klueska/parlab/lithe/linux_parlib
+PARLIB_DIR ?= $(PWD)/../..
+PARLIB_LDDIR ?= $(PARLIB_DIR)/obj
 SCHEDS_DIR := $(PARLIB_DIR)/schedulers
-PARLIB_LDDIR := $(PARLIB_DIR)/obj
 
 TESTS_DIR := $(SCHEDS_DIR)/tests
 TESTS_LDLIBS := -l$(LIBNAME) -lpthread -lparlib

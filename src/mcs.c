@@ -10,10 +10,10 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include <ht/atomic.h>
+#include <mcs.h>
+#include <ht/ht.h>
 #include <ht/arch.h>
-#include <ht/mcs.h>
-#include <ht/htinternal.h>
+#include <ht/atomic.h>
 
 // MCS locks
 void mcs_lock_init(struct mcs_lock *lock)

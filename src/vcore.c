@@ -13,8 +13,8 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <uthread.h>
+#include <mcs.h>
 #include <ht/ht.h>
-#include <ht/mcs.h>
 
 /* Entry point from an underlying hard thread */
 void ht_entry()

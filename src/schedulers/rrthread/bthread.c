@@ -12,9 +12,9 @@
 #include <assert.h>
 #include <errno.h>
 #include <parlib.h>
+#include <mcs.h>
 #include <ht/atomic.h>
 #include <ht/arch.h>
-#include <ht/mcs.h>
 #include <sys/queue.h>
 #include <sys/mman.h>
 #include <assert.h>
