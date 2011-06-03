@@ -9,12 +9,12 @@ OTHER_TESTS += $(patsubst %, %_tests, $(SCHEDULERS))
 
 top_tests: all 
 	$(V)V=$(V) SRCDIR=$(TESTS_DIR) OBJDIR=$(OBJDIR)/tests \
-	  PARLIB_DIR=$(SRCDIR) PARLIB_LDDIR=$(OBJDIR) \
+	  PARLIB_DIR=$(SRCDIR) PARLIB_LDDIR=$(OBJDIR) EXT_DEPS=$(FINALLIB)\
 	  $(MAKE) -C tests
 
 top_tests_clean:
 	$(V)V=$(V) SRCDIR=$(TESTS_DIR) OBJDIR=$(OBJDIR)/tests \
-	  PARLIB_DIR=$(SRCDIR) PARLIB_LDDIR=$(OBJDIR) \
+	  PARLIB_DIR=$(SRCDIR) PARLIB_LDDIR=$(OBJDIR) EXT_DEPS=$(FINALLIB)\
 	  $(MAKE) -C tests clean
 
 tests: all $(OTHER_TESTS) top_tests
