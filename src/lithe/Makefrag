@@ -41,7 +41,7 @@ $(LITHE_FINALLIB): $(LITHE_OBJS)
 	@mkdir -p $(@D)
 	$(V)$(AR) rc $@ $(LITHE_OBJS)
 
-$(LITHE_LIBNAME)_tests:
+$(LITHE_LIBNAME)_tests: all
 	$(V)V=$(V) SRCDIR=$(LITHE_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(LITHE_LIBNAME) \
 	  PARLIB_DIR=$(SRCDIR) PARLIB_LDDIR=$(OBJDIR) \
 	  $(MAKE) -C $(LITHE_SRCDIR)/tests 

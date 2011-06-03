@@ -41,7 +41,7 @@ $(HT_FINALLIB): $(HT_OBJS)
 	@mkdir -p $(@D)
 	$(V)$(AR) rc $@ $(HT_OBJS)
 
-$(HT_LIBNAME)_tests:
+$(HT_LIBNAME)_tests: all
 	$(V)V=$(V) SRCDIR=$(HT_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(HT_LIBNAME) \
 	  PARLIB_DIR=$(SRCDIR) PARLIB_LDDIR=$(OBJDIR) \
 	  $(MAKE) -C $(HT_SRCDIR)/tests 
