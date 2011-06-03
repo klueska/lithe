@@ -6,6 +6,7 @@ HT_CFLAGS = $(CFLAGS)
 HT_SRCDIR := $(SRCDIR)/$(HT_LIBNAME)
 HT_OBJDIR := $(OBJDIR)/$(HT_LIBNAME)
 HT_SYSDEPDIR := $(HT_SRCDIR)/sysdeps/$(SYSDEP)
+HT_TESTSDIR := $(HT_SRCDIR)/tests
 HT_INCDIRS = $(SRCDIR)
 
 HT_INCS = $(patsubst %, -I%, $(HT_INCDIRS))
@@ -40,7 +41,17 @@ $(HT_FINALLIB): $(HT_OBJS)
 	@mkdir -p $(@D)
 	$(V)$(AR) rc $@ $(HT_OBJS)
 
-$(HT_LIBNAME)_clean:
+$(HT_LIBNAME)_tests:
+	$(V)V=$(V) SRCDIR=$(HT_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(HT_LIBNAME) \
+	  PARLIB_DIR=$(SRCDIR) PARLIB_LDDIR=$(OBJDIR) \
+	  $(MAKE) -C $(HT_SRCDIR)/tests 
+
+$(HT_LIBNAME)_tests_clean:
+	$(V)V=$(V) SRCDIR=$(HT_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(HT_LIBNAME) \
+	  PARLIB_DIR=$(SRCDIR) PARLIB_LDDIR=$(OBJDIR) \
+	  $(MAKE) -C $(HT_SRCDIR)/tests clean
+
+$(HT_LIBNAME)_clean: $(HT_LIBNAME)_tests_clean
 	@echo + clean [$(HT_LIBUCNAME)]
 	$(V)rm -rf $(HT_OBJDIR)
 

@@ -3,8 +3,8 @@
 MAKE = $(MAKE) -s
 V ?= @
 
-TESTSNAME = parlib_tests
-EXECS = generic_test 
+TESTSNAME = lithe_tests
+EXECS = 
 
 SRCDIR ?= $(PWD)
 OBJDIR ?= $(PWD)/obj

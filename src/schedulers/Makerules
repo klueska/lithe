@@ -32,7 +32,7 @@ $(FINALLIB): $(LIB_OBJS)
 	@mkdir -p $(@D)
 	$(V)$(AR) rc $@ $(LIB_OBJS)
 
-tests-clean:
+tests_clean:
 
 clean: tests_clean
 	@echo + clean [$(LIBUCNAME)]

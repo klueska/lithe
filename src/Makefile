@@ -51,20 +51,33 @@ $(FINALLIB): $(OBJS)
 $(SCHEDULERS): 
 	$(V)V=$(V) PARLIB_DIR=$(SRCDIR) $(MAKE) -C $(SRCDIR)/schedulers/$@
 	$(V)mkdir -p $(OBJDIR)/schedulers
-	$(V)mkdir -p $(OBJDIR)/tests
 	$(V)rm -rf $(OBJDIR)/schedulers/$@
-	$(V)rm -rf $(OBJDIR)/tests/$@
 	$(V)ln -s $(SRCDIR)/schedulers/$@/obj $(OBJDIR)/schedulers/$@
-	$(V)ln -s $(SRCDIR)/schedulers/$@/obj/tests $(OBJDIR)/tests/$@
 
 $(patsubst %, %_tests, $(SCHEDULERS)): all 
 	$(V)V=$(V) PARLIB_DIR=$(SRCDIR) PARLIB_LDDIR=$(OBJDIR) \
 	  $(MAKE) $(subst _tests,,$@)
 	$(V)V=$(V) PARLIB_DIR=$(SRCDIR) PARLIB_LDDIR=$(OBJDIR) \
 	  $(MAKE) -C $(SRCDIR)/schedulers/$(subst _tests,,$@) tests
+	$(V)mkdir -p $(OBJDIR)/tests/schedulers
+	$(V)rm -rf $(OBJDIR)/tests/schedulers/$(subst _tests,,$@)
+	$(V)ln -s $(SRCDIR)/schedulers/$(subst _tests,,$@)/obj/tests $(OBJDIR)/tests/schedulers/$(subst _tests,,$@)
 
-$(patsubst %, %_clean, $(SCHEDULERS)):
-	$(V)V=$(V) PARLIB_DIR=$(SRCDIR) $(MAKE) -C $(SRCDIR)/schedulers/$(subst _clean,,$@) clean
+$(patsubst %, %_clean, $(SCHEDULERS)): 
+	$(V)V=$(V) PARLIB_DIR=$(SRCDIR) PARLIB_LDDIR=$(OBJDIR) \
+	  $(MAKE) -C $(SRCDIR)/schedulers/$(subst _clean,,$@) clean
+	$(V)rm -rf $(OBJDIR)/schedulers/$(subst _clean,,$@)
+	$(V)if [ -d $(OBJDIR)/schedulers ]; then \
+	  [ -z $$(ls $(OBJDIR)/schedulers) ] && rm -rf $(OBJDIR)/schedulers || echo "" > /dev/null; \
+	fi
+
+$(patsubst %, %_tests_clean, $(SCHEDULERS)):
+	$(V)V=$(V) PARLIB_DIR=$(SRCDIR) PARLIB_LDDIR=$(OBJDIR) \
+	  $(MAKE) -C $(SRCDIR)/schedulers/$(subst _tests_clean,,$@) tests_clean
+	$(V)rm -rf $(OBJDIR)/tests/schedulers/$(subst _tests_clean,,$@)
+	$(V)if [ -d $(OBJDIR)/tests/schedulers ]; then \
+	  [ -z $$(ls $(OBJDIR)/tests/schedulers) ] && rm -rf $(OBJDIR)/tests/schedulers || echo "" > /dev/null; \
+	fi
 
 clean: $(patsubst %, %_clean, $(INTERMLIBS)) $(patsubst %, %_clean, $(SCHEDULERS))
 	@echo + clean [$(LIBUCNAME)]
