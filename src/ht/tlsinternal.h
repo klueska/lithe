@@ -23,6 +23,9 @@
  * are reserved, just to be safe */
 #define RESERVED_LDT_ENTRIES 5
 
+/* Callback after tls constructor has finished */
+void tls_ready();
+
 /* Initialize tls for use by a ht */
 void init_tls(uint32_t htid);
 

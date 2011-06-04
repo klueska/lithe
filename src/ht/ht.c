@@ -394,7 +394,7 @@ int ht_limit_hard_threads()
   return c;
 }
 
-static void __attribute__((constructor)) __ht_init()
+static void __ht_init()
 {
   char *limit = getenv("HT_LIMIT");
   if (limit != NULL) {
@@ -432,6 +432,20 @@ static void __attribute__((constructor)) __ht_init()
       wrfence();
     }
   }
+  ht_ready();
+}
+
+/* Default callback after __ht_init has finished */
+static void __ht_ready()
+{
+	// Do nothing by default...
+}
+extern void ht_ready() __attribute__ ((weak, alias ("__ht_ready")));
+
+/* Callback after tls constructor has finished */
+void tls_ready()
+{
+  __ht_init();
 }
 
 /* Wrapper for locking hard threads */

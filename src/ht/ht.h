@@ -70,6 +70,13 @@ extern pthread_mutex_t ht_yield_lock;
 extern __thread void *current_tls_desc;
 
 /**
+ * User defined callback function signalling that the ht libary is done
+ * initializing itself.  This function runs before main is called, and 
+ * can, therefore be used for initialization of libraries that depend on 
+ * using hard threads. */
+extern void ht_ready();
+
+/**
  * User defined entry point for each hard thread.  If current_user_context is
  * set, this function should most likely just restor it, otherwise, go on from
  * there.

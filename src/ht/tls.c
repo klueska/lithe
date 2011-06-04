@@ -53,7 +53,15 @@ static void __attribute__((constructor)) __tls_ctor()
 	assert(ret == 0);
 	assert(ud.base_addr);
     __ht_main_tls_desc = (tcbhead_t*)ud.base_addr;
+	tls_ready();
 }
+
+/* Default callback after tls constructor has finished */
+static void __tls_ready()
+{
+	// Do nothing by default...
+}
+extern void tls_ready() __attribute__ ((weak, alias ("__tls_ready")));
 
 /* Initialize tls for use in this ht */
 void init_tls(uint32_t htid)
