@@ -14,13 +14,19 @@ LIBUCNAME  := $(call uc, $(LIBNAME))
 LIB_CFLAGS  += -g -O2 -Wall -std=gnu99 -MMD -MP
 LIB_INCDIRS := . $(PARLIB_DIR) $(SCHEDS_DIR)
 LIB_INCS    := $(patsubst %, -I%, $(LIB_INCDIRS))
-LIB_CFILES  := $(notdir $(wildcard $(LIB_SRCDIR)/*.c))
+LIB_CFILES  := $(notdir $(wildcard $(SCHEDS_DIR)/*.c))
+LIB_CFILES  += $(notdir $(wildcard $(LIB_SRCDIR)/*.c))
 LIB_OBJS    := $(patsubst %.c, $(OBJDIR)/%.o, $(LIB_CFILES))
 LIB_DEPS    := $(patsubst %.o, %.d, $(LIB_OBJS))
 
 all: $(FINALLIB)
 
 -include $(LIB_DEPS)
+
+$(OBJDIR)/%.o: $(SCHEDS_DIR)/%.c 
+	@echo + cc [$(LIBUCNAME)] $(<F)
+	@mkdir -p $(@D)
+	$(V)$(CC) $(LIB_CFLAGS) $(LIB_INCS) -o $@ -c $<
 
 $(OBJDIR)/%.o: $(LIB_SRCDIR)/%.c 
 	@echo + cc [$(LIBUCNAME)] $(<F)
