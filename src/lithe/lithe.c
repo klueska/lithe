@@ -53,31 +53,57 @@
 #include <asm/unistd.h>
 
 #include <ht/atomic.h>
-#include <ht/ht.h>
 #include <spinlock.h>
 
 #include <sys/mman.h>
 #include <sys/resource.h>
 
-#include "lithe.h"
-#include "fatal.h"
+#include <lithe/lithe.h>
+#include <lithe/fatal.h>
+#include <lithe/arch.h>
 
 #ifndef __linux__
 #error "expecting __linux__ to be defined (for now, Lithe only runs on Linux)"
 #endif
 
+/* Hooks from uthread code into lithe */
+static uthread_t*   lithe_init(void);
+static void         lithe_vcore_entry(void);
+static uthread_t*   lithe_thread_create(void (*func)(void), void *udata);
+static void         lithe_thread_runnable(uthread_t *uthread);
+static void         lithe_thread_yield(uthread_t *uthread);
+static void         lithe_thread_exit(uthread_t *uthread);
+static unsigned int lithe_vcores_wanted(void);
 
+/* Unique function pointer table required by uthread code */
+struct schedule_ops lithe_sched_ops = {
+	.sched_init       = lithe_init,
+	.sched_entry      = lithe_vcore_entry,
+	.thread_create    = lithe_thread_create,
+	.thread_runnable  = lithe_thread_runnable,
+	.thread_yield     = lithe_thread_yield,
+	.thread_exit      = lithe_thread_exit,
+	.vcores_wanted    = lithe_vcores_wanted,
+	.preempt_pending  = NULL, /* lithe_preempt_pending, */
+	.spawn_thread     = NULL, /* lithe_spawn_thread, */
+};
+/* Publish these schedule_ops, overriding the weak defaults setup in uthread */
+struct schedule_ops *sched_ops __attribute__((weak)) = &lithe_sched_ops;
+
+/* Struct to keep track of each of the 2nd-level schedulers managed by lithe */
 struct lithe_sched {
   /* Lock for managing scheduler. */
   int lock;
 
   /* State of scheduler. */
-  enum { REGISTERED,
-	 UNREGISTERING,
-	 UNREGISTERED } state;
+  enum { 
+    REGISTERED,
+	UNREGISTERING,
+	UNREGISTERED 
+  } state;
 
-  /* Number of threads executing within scheduler. */
-  int nthreads;
+  /* Number of vcores currently owned by this scheduler. */
+  int vcores;
 
   /* Scheduler's parent. */
   lithe_sched_t *parent;
@@ -98,14 +124,13 @@ struct lithe_sched {
   void *this;
 };
 
-
-/* Base scheduler functions (declarations). */
-void base_enter(void *this);
-void base_yield(void *this, lithe_sched_t *sched);
-void base_reg(void *this, lithe_sched_t *sched);
-void base_unreg(void *this, lithe_sched_t *sched);
-void base_request(void *this, lithe_sched_t *sched, int k);
-void base_unblock(void *this, lithe_task_t *task);
+/* Lithe's base scheduler functions */
+static void base_enter(void *this);
+static void base_yield(void *this, lithe_sched_t *sched);
+static void base_reg(void *this, lithe_sched_t *sched);
+static void base_unreg(void *this, lithe_sched_t *sched);
+static void base_request(void *this, lithe_sched_t *sched, int k);
+static void base_unblock(void *this, lithe_task_t *task);
 
 static const lithe_sched_funcs_t base_funcs = {
   .enter   = base_enter,
@@ -116,149 +141,134 @@ static const lithe_sched_funcs_t base_funcs = {
   .unblock = base_unblock,
 };
 
-/* Base scheduler. */
+/* Base scheduler itself */
 static lithe_sched_t base = { 
   .lock     = UNLOCKED,
   .state    = REGISTERED,
-  .nthreads = 1,  /* Accounting for main (defunct thread). */
+  .vcores   = 0,
   .parent   = NULL,
   .children = NULL,
   .next     = NULL,
   .prev     = NULL,
   .funcs    = &base_funcs,
-  .this   = (void *) 0xBADC0DE,
+  .this     = (void *) 0xBADC0DE,
 };
 
 /* Root scheduler, i.e. the child scheduler of base. */
 static lithe_sched_t *root = NULL;
 
-/* Root scheduler's requested number of hard threads. */
-//static int requested = 0;
-
 /* Current scheduler of executing hard thread (initially set to base). */
-__thread lithe_sched_t *current = &base;
+__thread lithe_sched_t *current = NULL;
 
-/* Current task of executing hard thread. */
+/* Current task of executing vcore */
 __thread lithe_task_t *task = NULL;
 
 /* Task used when transitioning between schedulers. */
-__thread lithe_task_t trampoline = {{0}};
+__thread lithe_task_t trampoline = {};
 
-#define has_trampoline() (trampoline.ctx.uc_stack.ss_sp != NULL)
-
-
-#ifdef __x86_64__
-# define swap_to_trampoline()						\
-{									\
-  task = &trampoline;							\
-  void *stack = (void *)						\
-    (((size_t) trampoline.ctx.uc_stack.ss_sp)				\
-     + (trampoline.ctx.uc_stack.ss_size - __alignof__(long double)));	\
-  asm volatile ("mov %0, %%rsp" : : "r" (stack));			\
-}
-#elif __i386__
-# define swap_to_trampoline()						\
-{									\
-  task = &trampoline;							\
-  void *stack = (void *)						\
-    (((size_t) trampoline.ctx.uc_stack.ss_sp)				\
-     + (trampoline.ctx.uc_stack.ss_size - __alignof__(long double)));	\
-  asm volatile ("mov %0, %%esp" : : "r" (stack));			\
-}
-#else
-# error "missing implementations for your architecture"
-#endif
-
-
-
-
-/* TODO(benh): Implement this assuming no stack! */
-#define setup_trampoline()                                                   \
-{                                                                            \
-  /* Determine trampoline stack size. */                                     \
-  int pagesize = getpagesize();                                              \
-                                                                             \
-  size_t size = pagesize * 4;                                                \
-                                                                             \
-  const int protection = (PROT_READ | PROT_WRITE);                           \
-  const int flags = (MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT);               \
-                                                                             \
-  void *stack = mmap(NULL, size, protection, flags, -1, 0);                  \
-                                                                             \
-  if (stack == MAP_FAILED) {                                                 \
-    fatalerror("lithe: could not allocate trampoline");                      \
-  }                                                                          \
-                                                                             \
-  /* Disallow all memory access to the last page. */                         \
-  if (mprotect(stack, pagesize, PROT_NONE) != 0) {                           \
-    fatalerror("lithe: could not protect page");                             \
-  }                                                                          \
-                                                                             \
-  /* Prepare context. */                                                     \
-  if (getcontext(&trampoline.ctx)) {                                         \
-    fatalerror("lithe: could not get context");                              \
-  }                                                                          \
-                                                                             \
-  trampoline.ctx.uc_stack.ss_sp = stack;                                     \
-  trampoline.ctx.uc_stack.ss_size = size;                                    \
-  trampoline.ctx.uc_link = 0;                                                \
+void vcore_ready()
+{
+  /* Once the vcore subsystem is up and running, initialize the uthread
+   * library, which will, in turn, eventually call lithe_init() for us */
+  uthread_init();
 }
 
+static uthread_t* lithe_init()
+{
+  /* Setup a trampoline task for the main thread */
+  setup_trampoline();
+  /* Set the current scheduler in the main thread as the base scheduler */
+  current = &base;
+  /* Create a lithe task for the main thread to run in */
+  task = (lithe_task_t*)calloc(1, sizeof(lithe_task_t));
+  assert(task);
+  /* Set the scheduler of this task to the base scheduler */
+  task->sched = &base;
+  /* Up the initial vcore count for the base scheduler running in the main
+   * thread on the first vcore */
+  __sync_fetch_and_add(&(base.vcores), 1);
 
-#define cleanup_trampoline()                                                 \
-{                                                                            \
-  /* TODO(benh): This is Linux specific, should be in sysdeps/ */            \
-  void *stack = trampoline.ctx.uc_stack.ss_sp;                               \
-  size_t size = trampoline.ctx.uc_stack.ss_size;                             \
-                                                                             \
-  long result;                                                               \
-  asm volatile ("syscall"                                                    \
-		: "=a" (result)                                              \
-		: "0" (__NR_munmap),                                         \
-                  "D" ((long) stack),                                        \
-		  "S" ((long) size)                                          \
-		: "r11", "rcx", "memory");                                   \
-                                                                             \
-  /* TODO(benh): Compiler might use the stack for conditional! */            \
-  if ((unsigned long) (result) >= (unsigned long) (-127)) {                  \
-    errno = -(result);                                                       \
-    fatalerror("lithe: could not free trampoline");                          \
-  }                                                                          \
-                                                                             \
-  trampoline.ctx.uc_stack.ss_sp = NULL;                                      \
-  trampoline.ctx.uc_stack.ss_size = 0;                                       \
+  /* Return a reference to the task back to the uthread library. We will resume
+   * this task once lithe_vcore_entry() is called from the uthread_library */
+  return (uthread_t*)(task);
 }
 
+static void __attribute__((noinline, noreturn)) __lithe_vcore_entry_cont()
+{
+  /* Enter the base scheduler. */
+  assert(task);
+  task->sched = &base;
+  current = &base;
+  __sync_fetch_and_add(&(current->vcores), 1);
+  current->funcs->enter(current->this);
+
+  fatal("lithe: returned from enter");
+}
+
+static void __attribute__((noreturn)) lithe_vcore_entry()
+{
+  /* If the thread local variable 'current_uthread' is set, then resume it.
+   * This will happen in one of 2 cases: 1) It is the first, i.e. main thread,
+   * or 2) The current vcore was taken over to run a signal handler from the
+   * kernel, and is now being restarted */
+  if(current_uthread) {
+    run_current_uthread();
+    assert(0);
+  }
+
+  /* If not resuming an existing uthread, let's enter our base scheduler. First
+   * we need to pass control to our trampoline stack though. */
+  if(!has_trampoline()) 
+    setup_trampoline();
+  swap_to_trampoline();
+
+  /* Immdiately call a new function which takes no parameters, in order to
+   * refresh the stack frame within the new function and continue from there. */
+  __lithe_vcore_entry_cont();
+}
+
+static uthread_t* lithe_thread_create(void (*func)(void), void *udata)
+{
+  return NULL;
+}
+
+static void lithe_thread_runnable(struct uthread *uthread)
+{
+}
+
+static void lithe_thread_yield(struct uthread *uthread)
+{
+}
+
+static void lithe_thread_exit(struct uthread *uthread)
+{
+}
+
+static unsigned int lithe_vcores_wanted(void)
+{
+  return 0;
+}
 
 void base_enter(void *this)
 {
   lithe_sched_t *sched = root;
-  if (sched != NULL)
+  if(sched != NULL)
     lithe_sched_enter(sched);
 
-  /* TODO(benh): Don't cheat with trampolines! */
-  /* Cleanup trampoline and yield hard thread. */
-/*   cleanup_trampoline(); */
-
-  /* Leave base, join hard thread world. */
-  __sync_fetch_and_sub(&base.nthreads, 1);
-
-  ht_yield();
+  /* Leave base, yield back the vcore */
+  base_yield(NULL, NULL);
 }
-
 
 void base_yield(void *this, lithe_sched_t *sched)
 {
   /* TODO(benh): Don't cheat with trampolines! */
-  /* Cleanup trampoline and yield hard thread. */
-/*   cleanup_trampoline(); */
+  /* Cleanup trampoline and yield the vcore. */
+//  cleanup_trampoline();
 
-  /* Leave base, join hard thread world. */
-  __sync_fetch_and_sub(&base.nthreads, 1);
-
-  ht_yield();
+  /* Leave base, yield back the vcore */
+  __sync_fetch_and_sub(&(base.vcores), 1);
+  vcore_yield();
 }
-
 
 void base_reg(void *this, lithe_sched_t *sched)
 {
@@ -266,41 +276,29 @@ void base_reg(void *this, lithe_sched_t *sched)
   root = sched;
 }
 
-
 void base_unreg(void *this, lithe_sched_t *sched)
 {
   assert(root == sched);
   root = NULL;
 }
 
-
 void base_request(void *this, lithe_sched_t *sched, int k)
 {
   assert(root == sched);
-  ht_request_async(k);
+  vcore_request(k);
 }
-
 
 void base_unblock(void *this, lithe_task_t *task)
 {
   fatal("unimplemented");
 }
 
-
-int lithe_initialize()
-{
-  printf("lithe_initialize is deprecated ...\n");
-  return 0;
-}
-
-
 void * lithe_sched_this()
 {
   return current->this;
 }
 
-
-int __lithe_sched_enter(lithe_sched_t *child)
+int lithe_sched_enter(lithe_sched_t *child)
 {
   assert(task == &trampoline);
 
@@ -324,16 +322,16 @@ int __lithe_sched_enter(lithe_sched_t *child)
     /* Leave parent, join child. */
     assert(child != &base);
     current = child;
-    __sync_fetch_and_add(&child->nthreads, 1);
+    __sync_fetch_and_add(&(child->vcores), 1);
 
     if (child->state != REGISTERED) {
       /* Leave child, join parent. */
-      __sync_fetch_and_add(&child->nthreads, -1);
+      __sync_fetch_and_add(&(child->vcores), -1);
       current = parent;
 
       /* Signal unregistering hard thread. */
       if (child->state == UNREGISTERING) {
-	if (child->nthreads == 0) {
+	if (child->vcores == 0) {
 	  child->state = UNREGISTERED;
 	}
       }
@@ -353,8 +351,7 @@ int __lithe_sched_enter(lithe_sched_t *child)
   fatal("lithe: returned from enter");
 }
 
-
-int __lithe_sched_yield()
+int lithe_sched_yield()
 {
   assert(task == &trampoline);
 
@@ -362,12 +359,12 @@ int __lithe_sched_yield()
   lithe_sched_t *child = current;
 
   /* Leave child, join parent. */
-  __sync_fetch_and_add(&child->nthreads, -1);
+  __sync_fetch_and_add(&(child->vcores), -1);
   current = parent;
 
   /* Signal unregistering hard thread. */
   if (child->state == UNREGISTERING) {
-    if (child->nthreads == 0) {
+    if (child->vcores == 0) {
       child->state = UNREGISTERED;
     }
   }
@@ -377,8 +374,7 @@ int __lithe_sched_yield()
   fatal("lithe: returned from yield");
 }
 
-
-int __lithe_sched_reenter()
+int lithe_sched_reenter()
 {
   assert(task == &trampoline);
 
@@ -386,7 +382,6 @@ int __lithe_sched_reenter()
   current->funcs->enter(current->this);
   fatal("lithe: returned from enter");
 }
-
 
 void __lithe_sched_register(int func0, int func1, int arg0, int arg1)
 {
@@ -409,7 +404,6 @@ void __lithe_sched_register(int func0, int func1, int arg0, int arg1)
 
   fatal("lithe: returned from register");
 }
-
 
 int lithe_sched_register(const lithe_sched_funcs_t *funcs,
 			 void *this,
@@ -466,7 +460,7 @@ int lithe_sched_register(const lithe_sched_funcs_t *funcs,
   /* Set-up child scheduler. */
   spinlock_init(&child->lock);
   child->state = REGISTERED;
-  child->nthreads = 0;
+  child->vcores = 0;
   child->parent = parent;
   child->task = task;
   child->children = NULL;
@@ -494,7 +488,7 @@ int lithe_sched_register(const lithe_sched_funcs_t *funcs,
 
   /* Leave parent, join child. */
   current = child;
-  __sync_fetch_and_add(&child->nthreads, 1);
+  __sync_fetch_and_add(&(child->vcores), 1);
 
   /* Package the arguments. */
 #ifdef __x86_64__
@@ -513,16 +507,14 @@ int lithe_sched_register(const lithe_sched_funcs_t *funcs,
 # error "missing implementations for your architecture"
 #endif /* __x86_64__ */
 
-  makecontext(&trampoline.ctx, (void (*) ()) __lithe_sched_register,
+  makecontext(&trampoline.uth.uc, (void (*) ()) __lithe_sched_register,
 	      4, func0, func1, arg0, arg1);
 
   task = &trampoline;
-  swapcontext(&child->task->ctx, &trampoline.ctx);
+  swapcontext(&child->task->uth.uc, &trampoline.uth.uc);
 
   return 0;
 }
-
-
 
 int lithe_sched_register_task(const lithe_sched_funcs_t *funcs,
 			      void *this,
@@ -578,7 +570,7 @@ int lithe_sched_register_task(const lithe_sched_funcs_t *funcs,
   /* Set-up child scheduler. */
   spinlock_init(&child->lock);
   child->state = REGISTERED;
-  child->nthreads = 0;
+  child->vcores = 0;
   child->parent = parent;
   child->task = task;
   child->children = NULL;
@@ -606,27 +598,24 @@ int lithe_sched_register_task(const lithe_sched_funcs_t *funcs,
 
   /* Leave parent, join child. */
   current = child;
-  __sync_fetch_and_add(&child->nthreads, 1);
+  __sync_fetch_and_add(&(child->vcores), 1);
 
   /* Initialize task. */
-  if (getcontext(&_task->ctx) < 0) {
+  if (getcontext(&_task->uth.uc) < 0) {
     fatalerror("lithe: could not get context");
   }
 
   /* TODO(benh): The 'sched' field is only difference from destroyed task. */
-  _task->ctx.uc_stack.ss_sp = 0;
-  _task->ctx.uc_stack.ss_size = 0;
-  _task->ctx.uc_link = 0;
+  _task->uth.uc.uc_stack.ss_sp = 0;
+  _task->uth.uc.uc_stack.ss_size = 0;
+  _task->uth.uc.uc_link = 0;
 
   _task->sched = current;
-
-  _task->tls = NULL;
 
   task = _task;
 
   return 0;
 }
-
 
 int lithe_sched_unregister()
 {
@@ -655,10 +644,10 @@ int lithe_sched_unregister()
   spinlock_unlock(&child->lock);
 
   /* Leave child, join parent. */
-  __sync_fetch_and_add(&child->nthreads, -1);
+  __sync_fetch_and_add(&(child->vcores), -1);
   current = parent;
 
-  if (child->nthreads == 0) {
+  if (child->vcores == 0) {
     child->state = UNREGISTERED;
   }
 
@@ -685,11 +674,10 @@ int lithe_sched_unregister()
   }
 
   /* Return control. */
-  setcontext(&task->ctx);
+  setcontext(&task->uth.uc);
 
   return -1;
 }
-
 
 int lithe_sched_unregister_task(lithe_task_t **_task)
 {
@@ -720,10 +708,10 @@ int lithe_sched_unregister_task(lithe_task_t **_task)
   spinlock_unlock(&child->lock);
 
   /* Leave child, join parent. */
-  __sync_fetch_and_add(&child->nthreads, -1);
+  __sync_fetch_and_add(&(child->vcores), -1);
   current = parent;
 
-  if (child->nthreads == 0) {
+  if (child->vcores == 0) {
     child->state = UNREGISTERED;
   }
 
@@ -754,7 +742,6 @@ int lithe_sched_unregister_task(lithe_task_t **_task)
   return 0;
 }
 
-
 int lithe_sched_request(int k)
 {
   lithe_sched_t *parent = current->parent;
@@ -773,7 +760,6 @@ int lithe_sched_request(int k)
   return 0;
 }
 
-
 int lithe_task_init(lithe_task_t *_task, stack_t *stack)
 {
   if (_task == NULL) {
@@ -786,21 +772,18 @@ int lithe_task_init(lithe_task_t *_task, stack_t *stack)
     return -1;
   }
 
-  if (getcontext(&_task->ctx) < 0) {
+  if (getcontext(&_task->uth.uc) < 0) {
     fatalerror("lithe: could not get context");
   }
 
-  _task->ctx.uc_stack.ss_sp = stack->ss_sp;
-  _task->ctx.uc_stack.ss_size = stack->ss_size;
-  _task->ctx.uc_link = 0;
+  _task->uth.uc.uc_stack.ss_sp = stack->ss_sp;
+  _task->uth.uc.uc_stack.ss_size = stack->ss_size;
+  _task->uth.uc.uc_link = 0;
 
   _task->sched = current;
 
-  _task->tls = NULL;
-
   return 0;
 }
-
 
 int lithe_task_destroy(lithe_task_t *_task)
 {
@@ -814,7 +797,6 @@ int lithe_task_destroy(lithe_task_t *_task)
   return 0;
 }
 
-
 int lithe_task_get(lithe_task_t **_task)
 {
   if (_task == NULL) {
@@ -826,38 +808,6 @@ int lithe_task_get(lithe_task_t **_task)
 
   return 0;
 }
-
-
-int lithe_task_settls(void *tls) 
-{
-  if ((task == &trampoline) || (task == NULL)) {
-    errno = EPERM;
-    return -1;
-  }
-  
-  task->tls = tls;
-
-  return 0;
-}
-
-
-int lithe_task_gettls(void **tls) 
-{
-  if ((task == &trampoline) || (task == NULL)) {
-    errno = EPERM;
-    return -1;
-  }
-
-  if (tls == NULL) {
-    errno = EINVAL;
-    return -1;
-  }
-  
-  *tls = task->tls;
-
-  return 0;
-}
-
 
 void __lithe_task_do(int func0, int func1, int arg0, int arg1)
 {
@@ -880,7 +830,6 @@ void __lithe_task_do(int func0, int func1, int arg0, int arg1)
 
   fatal("lithe: returned from executing task");
 }
-
 
 int lithe_task_do(lithe_task_t *_task, void (*func) (void *), void *arg)
 {
@@ -917,14 +866,13 @@ int lithe_task_do(lithe_task_t *_task, void (*func) (void *), void *arg)
 # error "missing implementations for your architecture"
 #endif /* __x86_64__ */
 
-  makecontext(&_task->ctx, (void (*) ()) __lithe_task_do,
+  makecontext(&_task->uth.uc, (void (*) ()) __lithe_task_do,
 	      4, func0, func1, arg0, arg1);
 
   task = _task;
-  setcontext(&_task->ctx);
+  setcontext(&_task->uth.uc);
   return -1;
 }
-
 
 void __lithe_task_block(int func0, int func1,
 			int task0, int task1,
@@ -952,7 +900,6 @@ void __lithe_task_block(int func0, int func1,
 
   fatal("lithe: returned from executing task");
 }
-
 
 int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg)
 {
@@ -994,17 +941,16 @@ int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg)
 # error "missing implementations for your architecture"
 #endif /* __x86_64__ */
 
-  makecontext(&trampoline.ctx, (void (*) ()) __lithe_task_block,
+  makecontext(&trampoline.uth.uc, (void (*) ()) __lithe_task_block,
 	      6, func0, func1, task0, task1, arg0, arg1);
 
   lithe_task_t *__task = task;
 
   task = &trampoline;
-  swapcontext(&__task->ctx, &trampoline.ctx);
+  swapcontext(&__task->uth.uc, &trampoline.uth.uc);
 
   return 0;
 }
-
 
 int lithe_task_unblock(lithe_task_t *_task)
 {
@@ -1027,7 +973,6 @@ int lithe_task_unblock(lithe_task_t *_task)
   return 0;
 }
 
-
 int lithe_task_resume(lithe_task_t *_task)
 {
   if (_task == NULL) {
@@ -1042,40 +987,7 @@ int lithe_task_resume(lithe_task_t *_task)
   }
 
   task = _task;
-  setcontext(&_task->ctx);
+  setcontext(&_task->uth.uc);
   return -1;
 }
 
-
-void entry()
-{
-  /* TODO(benh): Don't cheat with trampolines (i.e. make this be assembly)! */
-  if (!has_trampoline())
-    setup_trampoline();
-
-  swap_to_trampoline();
-
-  /* Leave hard thread world, join base. */
-  __sync_fetch_and_add(&(base.nthreads), 1);
-  
-  /* Enter base. */
-  base.funcs->enter(base.this);
-  fatal("lithe: returned from enter");
-}
-
-
-static void __attribute__((constructor)) lithe_init()
-{
-  /* Setup trampoline for (defunct) thread (including main thread). */
-  if (!has_trampoline())
-    setup_trampoline();
-
-  /* Setup task for (defunct) thread (including main thread). */
-  if (task == NULL) {
-    task = (lithe_task_t *) malloc(sizeof(lithe_task_t));
-
-    /* We have to manually initialize since we don't have a stack. */
-    task->sched = &base;
-    task->tls = NULL;
-  }
-}

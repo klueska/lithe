@@ -27,7 +27,7 @@ void work()
 void __endenter(lithe_task_t *task, void *arg)
 {
   printf("__endenter\n");
-  free(task->ctx.uc_stack.ss_sp);
+  free(task->uth.uc.uc_stack.ss_sp);
   lithe_task_destroy(task);
   free(task);
   lithe_sched_yield();
@@ -94,7 +94,7 @@ static const lithe_sched_funcs_t funcs = {
 
 void __endstart(lithe_task_t *task, void *arg)
 {
-  free(task->ctx.uc_stack.ss_sp);
+  free(task->uth.uc.uc_stack.ss_sp);
   lithe_task_destroy(task);
   free(task);
   lithe_sched_unregister();
@@ -120,7 +120,6 @@ void start(void *arg)
 
 int main(int argc, char **argv)
 {
-  lithe_initialize();
   printf("main start\n");
   lithe_mutex_init(&mutex);
   lithe_sched_register(&funcs, NULL, start, NULL);

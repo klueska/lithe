@@ -16,17 +16,9 @@
 
 #include <lithe/lithe.h>
 #include <ht/atomic.h>
-#include <vcore.h>
 #include "lithe_test.h"
 
-
-void enter(void *counter)
-{
-  fetch_and_add((int *) counter, 1);
-  printf("Finished add: %d", vcore_id());
-  lithe_sched_yield();
-}
-
+void enter(void *counter);
 
 lithe_sched_funcs_t funcs = {
   .enter = enter,
@@ -37,19 +29,44 @@ lithe_sched_funcs_t funcs = {
   .unblock = unblock_nyi
 };
 
-
-void start(void *counter)
+void yield()
 {
-  int limit = ht_limit_hard_threads();
-  lithe_sched_request(limit - 1);
-  while (coherent_read(counter) < (limit - 1));
-  lithe_sched_unregister();
 }
 
+void enter(void *__counter)
+{
+  unsigned int *counter = (unsigned int*)__counter;
+  printf("enter() on vcore %d\n", vcore_id());
+  fetch_and_add(counter, 1);
+  printf("counter: %d\n", *counter);
+  lithe_sched_yield();
+}
+
+void start(void *__counter)
+{
+  printf("Scheduler Started!\n");
+  unsigned int *counter = (unsigned int*)__counter;
+  for(int i=0; i<100; i++) {
+    int limit = max_vcores();
+    int cur = num_vcores();
+    *counter = 0;
+    printf("max_vcores: %d\n", limit);
+    printf("num_vcores: %d\n", cur);
+    printf("Requesting vcores\n");
+    lithe_sched_request(limit - cur);
+    while (coherent_read(*counter) < (limit - cur));
+    printf("All vcores returned\n");
+  }
+  printf("Deregistering scheduler\n");
+  lithe_sched_unregister();
+}
 
 int main()
 {
   int counter = 0;
+  printf("Lithe Simple test starting!\n");
+  printf("Registering scheduler\n");
   lithe_sched_register(&funcs, (void *) &counter, start, (void *) &counter);
+  printf("Lithe Simple test exiting\n");
   return EXIT_SUCCESS;
 }

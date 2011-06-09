@@ -16,32 +16,27 @@
 #endif
 
 #include <stdarg.h>
-#include <ucontext.h>
-
-#include <ht/ht.h>
+#include <vcore.h>
+#include <uthread.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
 /* Value used to inform parent of an unlimited hard thread request. */
 #define LITHE_REQUEST_MAX (-1)
-
 
 /* Opaque type for lithe schedulers. */
 typedef struct lithe_sched lithe_sched_t;
 
 /* Lithe task structure. */
 typedef struct lithe_task {
-  /* Userlevel context. */
-  ucontext_t ctx;
+  /* Userlevel thread context. */
+  uthread_t uth;
 
   /* Owning scheduler. */
   lithe_sched_t *sched;
 
-  /* Task-local storage. */
-  void *tls;
 } lithe_task_t;
 
 /* Lithe scheduler callbacks/entrypoints. */
@@ -63,15 +58,8 @@ typedef struct lithe_sched_funcs {
 
   /* Callback (on any scheduler) to inform of a resumable task. */
   void (*unblock) (void *__this, lithe_task_t *task);
-} lithe_sched_funcs_t;
 
-/**
- * Initialize Lithe. This must be called on the main hard thread
- * before any other Lithe functions are used, otherwise, behavior is
- * undefined. Returns 0 on success and -1 on failures and sets errno
- * appropriately.
-*/
-int lithe_initialize();
+} lithe_sched_funcs_t;
   
 /**
  * Return the internals of the current scheduler. This can be used in
@@ -81,81 +69,24 @@ int lithe_initialize();
 */
 void * lithe_sched_this();
 
-/* TODO(benh): Put sysdep stuff someplace else. */
-
 /**
- * Grant current hard thread to specified scheduler. The specified
+ * Grant current vcore to specified scheduler. The specified
  * scheduler must be non-null and a registered scheduler of the
  * current scheduler. This function never returns unless child is
  * NULL, in which case it sets errno appropriately and returns -1.
  */
-#ifdef __x86_64__
-#ifdef __PIC__
-#define lithe_sched_enter(child)                                      \
-({                                                                    \
-  asm volatile ("mov %0, %%rdi;"                                      \
-		"jmp ___lithe_sched_enter@PLT"                        \
-		: : "r" (child));                                     \
-})
-#else
-#define lithe_sched_enter(child)                                      \
-({                                                                    \
-  asm volatile ("mov %0, %%rdi;"                                      \
-                "jmp ___lithe_sched_enter"                            \
-		: : "r" (child));                                     \
-})
-#endif /* __PIC__ */
-#elif __i386__
-# ifdef __PIC__
-# define lithe_sched_enter(child)                                      \
-({                                                                    \
-  asm volatile ("mov %0, %%edi;"                                      \
-		"jmp ___lithe_sched_enter@PLT"                        \
-		: : "r" (child));                                     \
-})
-# else
-# define lithe_sched_enter(child)                                      \
-({                                                                    \
-  asm volatile ("mov %0, %%edi;"                                      \
-                "jmp ___lithe_sched_enter"                            \
-		: : "r" (child));                                     \
-})
-# endif /* __PIC__ */
-#else
-# error "missing implementations for your architecture"
-#endif
+int lithe_sched_enter(lithe_sched_t *child);
 
 /**
  * Yield current hard thread to parent scheduler. This function should
  * never return.
  */
-#ifdef __PIC__
-#define lithe_sched_yield()                                           \
-({                                                                    \
-  asm volatile ("jmp ___lithe_sched_yield@PLT");                      \
-})
-#else
-#define lithe_sched_yield()                                           \
-({                                                                    \
-  asm volatile ("jmp ___lithe_sched_yield");                          \
-})
-#endif /* __PIC__ */
-
+int lithe_sched_yield();
 
 /**
  * Reenter current scheduler. This function should never return.
  */
-#ifdef __PIC__
-#define lithe_sched_reenter()                                         \
-({                                                                    \
-  asm volatile ("jmp ___lithe_sched_reenter@PLT");                    \
-})
-#else
-#define lithe_sched_reenter()                                         \
-({                                                                    \
-  asm volatile ("jmp ___lithe_sched_reenter");                        \
-})
-#endif /* __PIC__ */
+int lithe_sched_reenter();
 
 /**
  * Create a new scheduler instance (lithe_sched_t), registers it with
@@ -208,18 +139,6 @@ int lithe_task_destroy(lithe_task_t *task);
 int lithe_task_get(lithe_task_t **task);
 
 /*
- * Set the task local storage of the current task. Returns 0 on
- * success and -1 on error and sets errno appropriately.
- */
-int lithe_task_settls(void *tls);
-
-/*
- * Get the task local storage of the current task. Returns 0 on
- * success and -1 on error and sets errno appropriately.
- */
-int lithe_task_gettls(void **tls);
-
-/*
  * Use the specified task to call the specified function. This
  * function never returns on success and returns -1 on error and sets
  * errno appropriately.
@@ -246,7 +165,6 @@ int lithe_task_unblock(lithe_task_t *task);
  * and returns -1 on error and sets errno appropriately.
  */
 int lithe_task_resume(lithe_task_t *task);
-
 
 #ifdef __cplusplus
 }
