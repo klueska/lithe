@@ -18,6 +18,7 @@
 #include <sys/queue.h>
 #include <sys/mman.h>
 #include <assert.h>
+#include <stdio.h>
 
 #define printd(...)
 
