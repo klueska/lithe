@@ -178,7 +178,7 @@ void *__ht_entry_trampoline(void *arg)
   }
 
   /*
-   * We create stack space for the function 'etcontext' jumped to
+   * We create stack space for the function 'setcontext' jumped to
    * after an invocation of ht_yield.
    */
   if ((__ht_stack = alloca(getpagesize())) == NULL) {

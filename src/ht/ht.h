@@ -73,7 +73,8 @@ extern __thread void *current_tls_desc;
  * User defined callback function signalling that the ht libary is done
  * initializing itself.  This function runs before main is called, and 
  * can, therefore be used for initialization of libraries that depend on 
- * using hard threads. */
+ * using hard threads. 
+ */
 extern void ht_ready();
 
 /**
