@@ -20,7 +20,8 @@ struct uthread {
 	/* whether or not the scheduler can migrate you from your vcore */
 	bool dont_migrate;
 };
-extern __thread struct uthread *current_uthread;
+typedef struct uthread uthread_t;
+extern __thread uthread_t *current_uthread;
 
 /* 2L-Scheduler operations.  Can be 0.  Examples in pthread.c. */
 struct schedule_ops {
@@ -46,11 +47,20 @@ extern struct schedule_ops *sched_ops;
  * library */
 extern void uthread_vcore_entry();
 
+/* Initilization function for the uthread library */
+int uthread_init();
+
 /* Creates a uthread.  Will pass udata to sched_ops's thread_create.  Func is
  * what gets run, and if you want args, wrap it (like pthread) */
 struct uthread *uthread_create(void (*func)(void), void *udata);
+
+/* Function forcing a uthread to become runnable */
 void uthread_runnable(struct uthread *uthread);
+
+/* Function to yield a uthread - it can be made runnable again in the future */
 void uthread_yield(void);
+
+/* Function to exit a uthread completely */
 void uthread_exit(void);
 
 /* Utility function.  Event code also calls this. */

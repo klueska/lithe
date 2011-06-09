@@ -27,8 +27,14 @@ static int __uthread_allocate_tls(struct uthread *uthread);
 static void __uthread_free_tls(struct uthread *uthread);
 
 /* Gets called once out of uthread_create().  Can also do this in a ctor. */
-static int uthread_init(void)
+int uthread_init(void)
 {
+	/* Only do this initialization once, every time after, just return 0 */
+	static bool first = TRUE;
+	if (!first) 
+		return 0;
+	first = FALSE;
+
 	/* Make sure we are NOT in vcore context */
 	assert(!in_vcore_context());
 
@@ -36,10 +42,11 @@ static int uthread_init(void)
 	assert(sched_ops->sched_init);
 	/* Get thread 0's thread struct (2LS allocs it) */
 	struct uthread *uthread = sched_ops->sched_init();
-	/* Grab the main thread's tls_desc from the ht library. */
+	/* Associate the main thread's tls with the uthread returned from
+     * sched_init(). */
 	uthread->tls_desc = __ht_main_tls_desc;
-	/* Save a pointer to the uthread in the current TLS (i.e. main's TLS)*/
-	current_uthread = uthread;
+    /* Set the current thread */
+    current_uthread = uthread;
     /* Change temporarily to vcore0s tls region so we can save the newly created
      * tcb into its current_uthread variable and then restore it. */
     set_tls_desc(ht_tls_descs[0], 0);
@@ -75,13 +82,8 @@ void __attribute__((noreturn)) uthread_vcore_entry(void)
  * this is used when initing a ucontext, which is vcore specific for now. */
 struct uthread *uthread_create(void (*func)(void), void *udata)
 {
-	/* First time through, init the uthread code (which makes a uthread out of
-	 * thread0 / the current code.  Could move this to a ctor. */
-	static bool first = TRUE;
-	if (first) {
-		assert(!uthread_init());
-		first = FALSE;
-	}
+	/* Make sure we are initialized */
+	assert(uthread_init() == 0);
 
 	assert(!in_vcore_context());
 	assert(sched_ops->thread_create);
@@ -159,7 +161,7 @@ void uthread_yield(void)
 	assert(current_uthread == uthread);	
 	assert(in_vcore_context());	/* technically, we aren't fully in vcore context */
 	/* After this, make sure you don't use local variables. */
-	set_stack_pointer(ht_context.uc_stack.ss_sp);
+	set_stack_pointer(ht_context.uc_stack.ss_sp + ht_context.uc_stack.ss_size);
 	wrfence();
 	/* Finish exiting in another function. */
 	__uthread_yield(current_uthread);
@@ -208,7 +210,7 @@ void uthread_exit(void)
 	 * as you need to any local vars that might be pushed before calling the
 	 * next function, or for whatever other reason the compiler/hardware might
 	 * walk up the stack a bit when calling a noreturn function. */
-	set_stack_pointer(ht_context.uc_stack.ss_sp);
+	set_stack_pointer(ht_context.uc_stack.ss_sp + ht_context.uc_stack.ss_size);
 	wrfence();
 	/* Finish exiting in another function.  Ugh. */
 	__uthread_exit(current_uthread);
