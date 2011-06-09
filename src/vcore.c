@@ -12,9 +12,26 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/mman.h>
-#include <uthread.h>
 #include <mcs.h>
 #include <ht/ht.h>
+#include <uthread.h>
+
+/**
+ * User defined callback function signalling that the ht libary is done
+ * initializing itself. We simply reflect this back up as a vcore_ready()
+ * callback.
+ */
+void ht_ready()
+{
+  vcore_ready();
+}
+
+/* Default callback for vcore_ready() */
+static void __vcore_ready()
+{
+	// Do nothing by default...
+}
+extern void vcore_ready() __attribute__ ((weak, alias ("__vcore_ready")));
 
 /* Entry point from an underlying hard thread */
 void ht_entry()

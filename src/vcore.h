@@ -22,15 +22,22 @@ extern "C" {
 #define LOG2_MAX_VCORES LOG2_MAX_HTS
 #define MAX_VCORES (1 << LOG2_MAX_VCORES)
 
-/* Vcore API functions */
+/**
+ * User defined callback function signalling that the vcore libary is done
+ * initializing itself.  This function runs before main is called, and 
+ * can, therefore be used for initialization of libraries that depend on 
+ * using vcores.
+ */
+extern void vcore_ready();
+
+extern int vcore_request(size_t k);
+extern void vcore_yield(void);
+extern void enable_notifs(uint32_t vcoreid);
+extern void clear_notif_pending(uint32_t vcoreid);
 static inline size_t max_vcores(void);
 static inline size_t num_vcores(void);
 static inline int vcore_id(void);
 static inline bool in_vcore_context(void);
-int vcore_request(size_t k);
-void vcore_yield(void);
-void clear_notif_pending(uint32_t vcoreid);
-void enable_notifs(uint32_t vcoreid);
 
 /* Static inlines */
 static inline size_t max_vcores(void)
@@ -53,7 +60,6 @@ static inline bool in_vcore_context(void)
 	return in_ht_context();
 }
 
-#include <stdio.h>
 static __inline void
 init_user_context(struct ucontext *uc, uint32_t entry_pt, uint32_t stack_top)
 {
