@@ -12,8 +12,8 @@
 
 void ht_entry()
 {
-  if(current_ucontext) {
-    void *cuc = current_ucontext;
+  if(ht_saved_ucontext) {
+    void *cuc = ht_saved_ucontext;
     printf("Restoring context: entry %d, num_hts: %d\n", ht_id(), ht_num_hard_threads());
     set_tls_desc(current_tls_desc, ht_id());
     setcontext(cuc);
@@ -31,7 +31,7 @@ int main()
   printf("main, limit_hts: %d\n", ht_limit_hard_threads());
   ht_request_async(NUM_HTS);
   set_tls_desc(ht_tls_descs[0], 0);
-  current_ucontext = NULL;  
+  ht_saved_ucontext = NULL;  
   ht_entry();
 }
 

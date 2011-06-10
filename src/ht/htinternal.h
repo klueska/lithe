@@ -40,11 +40,6 @@ extern struct hard_thread *__ht_threads;
 /* Id of the currently running hard thread. */
 extern __thread int __ht_id;
 
-/**
- * Pointer to the main thread's tls descriptor (needed for bootstrapping).
- */
-extern void *__ht_main_tls_desc;
-
 /* Now #include the externally exposed ht interface header so that internal
  * files only need to #include this header */
 #include <ht/ht.h>

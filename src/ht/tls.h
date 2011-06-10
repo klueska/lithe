@@ -9,8 +9,11 @@
 
 #include <stdint.h>
 
-/* The main thread's tls descriptor */
-extern void *__ht_main_tls_desc;
+/* Reference to the main threads tls descriptor */
+extern void *main_tls_desc;
+
+/* Current tls_desc for each running ht, used when swapping contexts onto an ht */
+extern __thread void *current_tls_desc;
 
 /* Get a TLS, returns 0 on failure.  Any thread created by a user-level
  * scheduler needs to create a TLS. */

@@ -50,19 +50,26 @@ __thread int __ht_id = -1;
 /* Per hard thread context with its own stack and TLS region */
 __thread ucontext_t ht_context = { 0 };
 
-/* Current context running on an ht, used when swapping contexts onto an ht */
-__thread ucontext_t *current_ucontext = NULL;
+/* Current user context running on an ht, this used to restore a user context
+ * if it is interrupted for some reason without yielding voluntarily */
+__thread ucontext_t *ht_saved_ucontext = NULL;
+
+/* Current tls_desc of the user context running on an ht, this used to restore
+ * a user's tls_desc if it is interrupted for some reason without yielding
+ * voluntarily */
+__thread void *ht_saved_tls_desc = NULL;
 
 /* MCS lock required to be held when yielding an ht.  This variable stores a
  * reference to that value as it is passed in via a call to ht_yield */
 pthread_mutex_t ht_yield_lock = PTHREAD_MUTEX_INITIALIZER;
 
-/* Current tls_desc for the running ht, used when swapping contexts onto an ht */
-__thread void *current_tls_desc = NULL;
-
 /* Delineates whether the current context running on the ht is the ht context
  * itself */
 __thread bool __in_ht_context = false;
+
+/* Global context associated with the main thread.  Used when swapping this
+ * context over to ht0 */
+static ucontext_t main_context = { 0 };
 
 /* Mutex used to provide mutually exclusive access to our globals. */
 static pthread_mutex_t __ht_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -75,10 +82,6 @@ static int __ht_max_hard_threads = 0;
 
 /* Limit on the number of hard threads that can be allocated. */
 static int __ht_limit_hard_threads = 0;
-
-/* Global context associated with the main thread.  Used when swapping this
- * context over to ht0 */
-static ucontext_t __main_context = { 0 };
 
 /* Stack space to use when a hard thread yields without a stack. */
 static __thread void *__ht_stack = NULL;
@@ -152,7 +155,7 @@ entry:
   exit(1);
 }
 
-void *__ht_entry_trampoline(void *arg)
+void *__ht_trampoline_entry(void *arg)
 {
   assert(sizeof(void *) == sizeof(long int));
 
@@ -168,13 +171,13 @@ void *__ht_entry_trampoline(void *arg)
   /* Set it that we are in ht context */
   __in_ht_context = true;
 
-  /* If this is the first ht, set current_ucontext to the main_context in
-   * this guys TLS region. MUST be done here, so in proper TLS */
+  /* If this is the first ht, set ht_saved_ucontext to the main_context in this
+   * guys TLS region. MUST be done here, so in proper TLS */
   static int once = true;
   if(once) {
     once = false;
-    current_tls_desc = __ht_main_tls_desc;
-    current_ucontext = &__main_context;
+    ht_saved_ucontext = &main_context;
+    ht_saved_tls_desc = main_tls_desc;
   }
 
   /*
@@ -258,7 +261,7 @@ static void __create_hard_thread(int i)
 
   if ((errno = pthread_create(&cht->thread,
                               &attr,
-                              __ht_entry_trampoline,
+                              __ht_trampoline_entry,
                               (void *) (long int) i)) != 0) {
     fprintf(stderr, "ht: could not allocate underlying hard thread\n");
     exit(2);
@@ -325,7 +328,7 @@ int ht_request_async(int k)
       /* If this is the first ht requested, do something special */
       static int once = true;
       if(once) {
-        getcontext(&__main_context);
+        getcontext(&main_context);
         wrfence();
         if(once) {
           once = false;
@@ -396,6 +399,7 @@ int ht_limit_hard_threads()
 
 static void __ht_init()
 {
+  /* Get the number of available hard threads in the system */
   char *limit = getenv("HT_LIMIT");
   if (limit != NULL) {
     __ht_limit_hard_threads = atoi(limit);
@@ -403,8 +407,10 @@ static void __ht_init()
     __ht_limit_hard_threads = get_nprocs();  
   }
 
-  /* Never freed.  Just freed automatically when the program dies since hard
-   * threads should be alive for the entire lifetime of the program. */
+  /* Allocate the structs containing meta data about the hard threads
+   * themselves. Never freed though.  Just freed automatically when the program
+   * dies since hard threads should be alive for the entire lifetime of the
+   * program. */
   __ht_threads = malloc(sizeof(struct hard_thread) * __ht_limit_hard_threads);
   ht_tls_descs = malloc(sizeof(uintptr_t) * __ht_limit_hard_threads);
 

@@ -52,22 +52,22 @@ extern __thread ucontext_t ht_context;
 /**
  * Current user context running on each hard thread, used when interrupting a
  * user context because of async I/O or signal handling. Hard Thread 0's
- * current_ht_context is initialized to the continuation of the main thread's
+ * ht_saved_ucontext is initialized to the continuation of the main thread's
  * context the first time it's ht_entry() function is invoked.
  */
-extern __thread ucontext_t *current_ucontext;
+extern __thread ucontext_t *ht_saved_ucontext;
+
+/**
+ * Current tls_desc of the user context running on each hard thread, used when
+ * interrupting a user context because of async I/O or signal handling. Hard
+ * Thread 0's ht_saved_tls_desc is initialized to the tls_desc of the main
+ * thread's context the first time it's ht_entry() function is invoked.
+ */
+extern __thread void *ht_saved_tls_desc;
 
 /* MCS lock required to be held when yielding an ht.  This variable stores a
  * reference to that value as it is passed in via a call to ht_yield */
 extern pthread_mutex_t ht_yield_lock;
-
-/**
- * Current TLS descriptor running on each hard thread, used when interrupting a
- * user context because of async I/O or signal handling. Hard Thread 0's
- * current_tls_desc is initialized to the TLS descriptor of the main thread's
- * context the first time it's ht_entry() function is invoked.
- */
-extern __thread void *current_tls_desc;
 
 /**
  * User defined callback function signalling that the ht libary is done
@@ -78,8 +78,8 @@ extern __thread void *current_tls_desc;
 extern void ht_ready();
 
 /**
- * User defined entry point for each hard thread.  If current_user_context is
- * set, this function should most likely just restor it, otherwise, go on from
+ * User defined entry point for each hard thread.  If ht_saved_ucontext is
+ * set, this function should most likely just restore it, otherwise, go on from
  * there.
  */
 extern void ht_entry();

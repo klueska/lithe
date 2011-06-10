@@ -10,7 +10,11 @@
 #include <ht/htinternal.h>
 #include <ht/tlsinternal.h>
 
-void *__ht_main_tls_desc;
+/* Reference to the main threads tls descriptor */
+void *main_tls_desc = NULL;
+
+/* Current tls_desc for each running ht, used when swapping contexts onto an ht */
+__thread void *current_tls_desc = NULL;
 
 /* Get a TLS, returns 0 on failure.  Any thread created by a user-level
  * scheduler needs to create a TLS. */
@@ -28,7 +32,7 @@ void *allocate_tls(void)
 	/* These fields in the tls_desc need to be set up for linux to work
 	 * properly with TLS. Take a look at how things are done in libc in the
 	 * nptl code for reference. */
-	memcpy(tcb+offset, __ht_main_tls_desc+offset, sizeof(tcbhead_t)-offset);
+	memcpy(tcb+offset, main_tls_desc+offset, sizeof(tcbhead_t)-offset);
 	head->tcb = tcb;
 	head->self = tcb;
 	head->multiple_threads = true;
@@ -52,7 +56,8 @@ static void __attribute__((constructor)) __tls_ctor()
 	int ret = syscall(SYS_get_thread_area, &ud);
 	assert(ret == 0);
 	assert(ud.base_addr);
-    __ht_main_tls_desc = (tcbhead_t*)ud.base_addr;
+    main_tls_desc = (tcbhead_t*)ud.base_addr;
+	current_tls_desc = main_tls_desc;
 	tls_ready();
 }
 
@@ -97,6 +102,7 @@ void set_tls_desc(void *tls_desc, uint32_t htid)
   int ret = syscall(SYS_modify_ldt, 1, ud, sizeof(struct user_desc));
   assert(ret == 0);
   TLS_SET_GS(ud->entry_number, 1);
+  current_tls_desc = tls_desc;
   __ht_id = htid;
 }
 
