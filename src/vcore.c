@@ -36,11 +36,9 @@ extern void vcore_ready() __attribute__ ((weak, alias ("__vcore_ready")));
 /* Entry point from an underlying hard thread */
 void ht_entry()
 {
-	if(current_ucontext) {
-		memcpy(&current_uthread->uc, current_ucontext, sizeof(struct ucontext));
-		current_uthread->tls_desc = current_tls_desc;
-		current_tls_desc = NULL;
-		current_ucontext = NULL;
+	if(ht_saved_ucontext) {
+		memcpy(&current_uthread->uc, ht_saved_ucontext, sizeof(struct ucontext));
+		current_uthread->tls_desc = ht_saved_tls_desc;
 	}
 	uthread_vcore_entry();
 }

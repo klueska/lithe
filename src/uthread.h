@@ -67,7 +67,7 @@ void uthread_exit(void);
 bool check_preempt_pending(uint32_t vcoreid);
 
 /* Helpers, which sched_entry() can call */
-void run_current_uthread(void);
-void run_uthread(struct uthread *uthread);
+void run_current_uthread(void) __attribute((noreturn));
+void run_uthread(struct uthread *uthread) __attribute((noreturn));
 
 #endif /* _UTHREAD_H */

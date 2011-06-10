@@ -60,13 +60,18 @@ static inline bool in_vcore_context(void)
 	return in_ht_context();
 }
 
-static __inline void
-init_user_context(struct ucontext *uc, uint32_t entry_pt, uint32_t stack_top)
+static inline void
+init_user_context_stack(struct ucontext *uc, void *stack_top, uint32_t size)
 {
     int ret = getcontext(uc);
 	assert(ret == 0);
-	uc->uc_stack.ss_sp = (void*)stack_top;
-	makecontext(uc, (void*)entry_pt, 0);
+	uc->uc_stack.ss_sp = stack_top;
+//	uc->uc_stack.ss_size = size;
+}
+
+#define make_user_context(uc, entry_pt, ...)           \
+{                                                      \
+	makecontext((uc), (void*)entry_pt, __VA_ARGS__);   \
 }
 
 #ifdef __cplusplus
