@@ -70,4 +70,14 @@ bool check_preempt_pending(uint32_t vcoreid);
 void run_current_uthread(void) __attribute((noreturn));
 void run_uthread(struct uthread *uthread) __attribute((noreturn));
 
+#define uthread_set_tls_var(uthread, name, val)                   \
+{                                                                 \
+	int vcoreid = vcore_id();                                     \
+	typeof(name) temp_val = (val);                                \
+	void *temp_tls_desc = current_tls_desc;                       \
+	set_tls_desc(((uthread_t*)(uthread))->tls_desc, vcoreid);     \
+	name = temp_val;                                              \
+	set_tls_desc(temp_tls_desc, vcoreid);                         \
+}
+
 #endif /* _UTHREAD_H */
