@@ -189,8 +189,7 @@ void *__ht_trampoline_entry(void *arg)
     exit(1);
   }
 
-  __ht_stack = (void *)
-    (((size_t) __ht_stack) + (getpagesize() - __alignof__(long double)));
+  __ht_stack = (void *)(((size_t) __ht_stack) + getpagesize());
 
   /*
    * We need to save a context because experience shows that we seg fault if we
@@ -355,8 +354,9 @@ int ht_request_async(int k)
 void ht_yield()
 {
   /* Make sure that the application has grabbed the yield lock before calling
-   * yield */
-  pthread_mutex_trylock(&ht_yield_lock);
+   * yield. Print out a warning if this ever actually succeeds. */
+  if(pthread_mutex_trylock(&ht_yield_lock) == 0)
+    printf("You should acquire the lock before yielding the hard thread!\n");
   /* Let the rest of the code know we are in the process of yielding */
   __ht_threads[__ht_id].yielding = true;
   /* Jump to the transition stack allocated on this hard thread's underlying
