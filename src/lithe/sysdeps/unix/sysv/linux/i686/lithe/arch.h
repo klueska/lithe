@@ -74,84 +74,84 @@
 })
 #endif /* __PIC__ */
 
-#define has_trampoline() (trampoline.uth.uc.uc_stack.ss_sp != NULL)
-
-#ifdef __x86_64__
-# define swap_to_trampoline()						\
-{									\
-  task = &trampoline;							\
-  void *stack = (void *)						\
-    (((size_t) trampoline.uth.uc.uc_stack.ss_sp)				\
-     + (trampoline.uth.uc.uc_stack.ss_size - __alignof__(long double)));	\
-  asm volatile ("mov %0, %%rsp" : : "r" (stack));			\
-}
-#elif __i386__
-# define swap_to_trampoline()                              \
-{                                                          \
-  task = &trampoline;                                      \
-  void *stack = (void *)                                   \
-    (trampoline.uth.uc.uc_stack.ss_sp                      \
-     + trampoline.uth.uc.uc_stack.ss_size);                \
-  set_stack_pointer(stack);                                \
-}
-#else
-# error "missing implementations for your architecture"
-#endif
-
-/* TODO(benh): Implement this assuming no stack! */
-#define setup_trampoline()                                                   \
-{                                                                            \
-  /* Determine trampoline stack size. */                                     \
-  int pagesize = getpagesize();                                              \
-                                                                             \
-  size_t size = pagesize * 4;                                                \
-                                                                             \
-  const int protection = (PROT_READ | PROT_WRITE | PROT_EXEC);               \
-  const int flags = (MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT);               \
-                                                                             \
-  void *stack = mmap(NULL, size, protection, flags, -1, 0);                  \
-                                                                             \
-  if (stack == MAP_FAILED) {                                                 \
-    fatalerror("lithe: could not allocate trampoline");                      \
-  }                                                                          \
-                                                                             \
-  /* Disallow all memory access to the last page. */                         \
-  if (mprotect(stack, pagesize, PROT_NONE) != 0) {                           \
-    fatalerror("lithe: could not protect page");                             \
-  }                                                                          \
-                                                                             \
-  /* Prepare context. */                                                     \
-  if (getcontext(&trampoline.uth.uc)) {                                      \
-    fatalerror("lithe: could not get context");                              \
-  }                                                                          \
-                                                                             \
-  trampoline.uth.uc.uc_stack.ss_sp = stack;                                  \
-  trampoline.uth.uc.uc_stack.ss_size = size;                                 \
-  trampoline.uth.uc.uc_link = 0;                                             \
-}
-
-#define cleanup_trampoline()                                                 \
-{                                                                            \
-  /* TODO(benh): This is Linux specific, should be in sysdeps/ */            \
-  void *stack = trampoline.uth.uc.uc_stack.ss_sp;                            \
-  size_t size = trampoline.uth.uc.uc_stack.ss_size;                          \
-                                                                             \
-  long result;                                                               \
-  asm volatile ("syscall"                                                    \
-               : "=a" (result)                                               \
-               : "0" (__NR_munmap),                                          \
-                  "D" ((long) stack),                                        \
-                 "S" ((long) size)                                           \
-               : "r11", "rcx", "memory");                                    \
-                                                                             \
-  /* TODO(benh): Compiler might use the stack for conditional! */            \
-  if ((unsigned long) (result) >= (unsigned long) (-127)) {                  \
-    errno = -(result);                                                       \
-    fatalerror("lithe: could not free trampoline");                          \
-  }                                                                          \
-                                                                             \
-  trampoline.uth.uc.uc_stack.ss_sp = NULL;                                   \
-  trampoline.uth.uc.uc_stack.ss_size = 0;                                    \
-}
+//#define has_trampoline() (trampoline.uth.uc.uc_stack.ss_sp != NULL)
+//
+//#ifdef __x86_64__
+//# define swap_to_trampoline()						\
+//{									\
+//  task = &trampoline;							\
+//  void *stack = (void *)						\
+//    (((size_t) trampoline.uth.uc.uc_stack.ss_sp)				\
+//     + (trampoline.uth.uc.uc_stack.ss_size - __alignof__(long double)));	\
+//  asm volatile ("mov %0, %%rsp" : : "r" (stack));			\
+//}
+//#elif __i386__
+//# define swap_to_trampoline()                              \
+//{                                                          \
+//  task = &trampoline;                                      \
+//  void *stack = (void *)                                   \
+//    (trampoline.uth.uc.uc_stack.ss_sp                      \
+//     + trampoline.uth.uc.uc_stack.ss_size);                \
+//  set_stack_pointer(stack);                                \
+//}
+//#else
+//# error "missing implementations for your architecture"
+//#endif
+//
+///* TODO(benh): Implement this assuming no stack! */
+//#define setup_trampoline()                                                   \
+//{                                                                            \
+//  /* Determine trampoline stack size. */                                     \
+//  int pagesize = getpagesize();                                              \
+//                                                                             \
+//  size_t size = pagesize * 4;                                                \
+//                                                                             \
+//  const int protection = (PROT_READ | PROT_WRITE | PROT_EXEC);               \
+//  const int flags = (MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT);               \
+//                                                                             \
+//  void *stack = mmap(NULL, size, protection, flags, -1, 0);                  \
+//                                                                             \
+//  if (stack == MAP_FAILED) {                                                 \
+//    fatalerror("lithe: could not allocate trampoline");                      \
+//  }                                                                          \
+//                                                                             \
+//  /* Disallow all memory access to the last page. */                         \
+//  if (mprotect(stack, pagesize, PROT_NONE) != 0) {                           \
+//    fatalerror("lithe: could not protect page");                             \
+//  }                                                                          \
+//                                                                             \
+//  /* Prepare context. */                                                     \
+//  if (getcontext(&trampoline.uth.uc)) {                                      \
+//    fatalerror("lithe: could not get context");                              \
+//  }                                                                          \
+//                                                                             \
+//  trampoline.uth.uc.uc_stack.ss_sp = stack;                                  \
+//  trampoline.uth.uc.uc_stack.ss_size = size;                                 \
+//  trampoline.uth.uc.uc_link = 0;                                             \
+//}
+//
+//#define cleanup_trampoline()                                                 \
+//{                                                                            \
+//  /* TODO(benh): This is Linux specific, should be in sysdeps/ */            \
+//  void *stack = trampoline.uth.uc.uc_stack.ss_sp;                            \
+//  size_t size = trampoline.uth.uc.uc_stack.ss_size;                          \
+//                                                                             \
+//  long result;                                                               \
+//  asm volatile ("syscall"                                                    \
+//               : "=a" (result)                                               \
+//               : "0" (__NR_munmap),                                          \
+//                  "D" ((long) stack),                                        \
+//                 "S" ((long) size)                                           \
+//               : "r11", "rcx", "memory");                                    \
+//                                                                             \
+//  /* TODO(benh): Compiler might use the stack for conditional! */            \
+//  if ((unsigned long) (result) >= (unsigned long) (-127)) {                  \
+//    errno = -(result);                                                       \
+//    fatalerror("lithe: could not free trampoline");                          \
+//  }                                                                          \
+//                                                                             \
+//  trampoline.uth.uc.uc_stack.ss_sp = NULL;                                   \
+//  trampoline.uth.uc.uc_stack.ss_size = 0;                                    \
+//}
 
 #endif

@@ -6,7 +6,7 @@
  * Trampoline Context/Stack:
  *
  * There are currently two ways to get onto the trampoline. The first
- * is using the macro swap_to_trampoline (see source for details),
+ * is using the macro jump_to_trampoline (see source for details),
  * while the second is using the ucontext routines (see
  * lithe_task_block for details). The first uses less of the
  * trampoline stack space but the second is (arguably) better style.
@@ -154,17 +154,22 @@ static lithe_sched_t base = {
   .this     = (void *) 0xBADC0DE,
 };
 
+/* Reference to the task running the main thread.  Whenever we create a new
+ * trampoline task, use this task as our parent, even if creating from vcore
+ * context */
+static lithe_task_t *main_task = NULL;
+
 /* Root scheduler, i.e. the child scheduler of base. */
 static lithe_sched_t *root = NULL;
 
-/* Current scheduler of executing hard thread (initially set to base). */
+/* Current scheduler of executing vcore (initially set to base). */
 __thread lithe_sched_t *current = NULL;
 
 /* Current task of executing vcore */
 __thread lithe_task_t *task = NULL;
 
 /* Task used when transitioning between schedulers. */
-__thread lithe_task_t trampoline = {};
+__thread lithe_task_t *trampoline = NULL;
 
 void vcore_ready()
 {
@@ -173,29 +178,9 @@ void vcore_ready()
   uthread_init();
 }
 
-static uthread_t* lithe_init()
+static void __attribute__((noinline, noreturn)) __trampoline_entry()
 {
-  /* Setup a trampoline task for the main thread */
-  setup_trampoline();
-  /* Set the current scheduler in the main thread as the base scheduler */
-  current = &base;
-  /* Create a lithe task for the main thread to run in */
-  task = (lithe_task_t*)calloc(1, sizeof(lithe_task_t));
-  assert(task);
-  /* Set the scheduler of this task to the base scheduler */
-  task->sched = &base;
-  /* Up the initial vcore count for the base scheduler running in the main
-   * thread on the first vcore */
-  __sync_fetch_and_add(&(base.vcores), 1);
-
-  /* Return a reference to the task back to the uthread library. We will resume
-   * this task once lithe_vcore_entry() is called from the uthread_library */
-  return (uthread_t*)(task);
-}
-
-static void __attribute__((noinline, noreturn)) __lithe_vcore_entry_cont()
-{
-  /* Enter the base scheduler. */
+  /* Otherwise, enter the base scheduler. */
   assert(task);
   task->sched = &base;
   current = &base;
@@ -205,31 +190,85 @@ static void __attribute__((noinline, noreturn)) __lithe_vcore_entry_cont()
   fatal("lithe: returned from enter");
 }
 
+static uthread_t* lithe_init()
+{
+  /* Create a lithe task for the main thread to run in */
+  main_task = (lithe_task_t*)calloc(1, sizeof(lithe_task_t));
+  assert(main_task);
+
+  /* Associate the base scheduler with this main task */
+  main_task->sched = &base;
+
+  /* Set the current task to be the main task */
+  task = main_task;
+
+  /* Set the current scheduler to be the base scheduler */
+  current = &base;
+
+  /* Up the initial vcore count for the base scheduler for this vcore */
+  __sync_fetch_and_add(&base.vcores, 1);
+
+  /* Return a reference to the main task back to the uthread library. We will
+   * resume this task once lithe_vcore_entry() is called from the uthread
+   * library */
+  return (uthread_t*)(main_task);
+}
+
 static void __attribute__((noreturn)) lithe_vcore_entry()
 {
+  /* If this vcore doesn't currently have a trampoline setup to run its
+   * scheduler code, set one up */
+  if(trampoline == NULL)
+    trampoline = (lithe_task_t*)uthread_create(__trampoline_entry, NULL);
+  assert(trampoline);
+
   /* If the thread local variable 'current_uthread' is set, then resume it.
    * This will happen in one of 2 cases: 1) It is the first, i.e. main thread,
    * or 2) The current vcore was taken over to run a signal handler from the
    * kernel, and is now being restarted */
   if(current_uthread) {
+    uthread_set_tls_var(current_uthread, trampoline, trampoline);
     run_current_uthread();
     assert(0);
   }
 
-  /* If not resuming an existing uthread, let's enter our base scheduler. First
-   * we need to pass control to our trampoline stack though. */
-  if(!has_trampoline()) 
-    setup_trampoline();
-  swap_to_trampoline();
-
-  /* Immdiately call a new function which takes no parameters, in order to
-   * refresh the stack frame within the new function and continue from there. */
-  __lithe_vcore_entry_cont();
+  /* Otherwise, jump to the trampoline */
+  task = trampoline;
+  run_uthread((uthread_t*)trampoline);
 }
 
 static uthread_t* lithe_thread_create(void (*func)(void), void *udata)
 {
-  return NULL;
+  assert(udata == NULL);
+
+  /* Create a new lithe task */
+  lithe_task_t *t = (lithe_task_t*)calloc(1, sizeof(lithe_task_t));
+  assert(t);
+
+  /* Determine the stack size. */
+  int pagesize = getpagesize();
+
+  size_t size = pagesize * 4;
+
+  const int protection = (PROT_READ | PROT_WRITE | PROT_EXEC);
+  const int flags = (MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT);
+
+  void *stack = mmap(NULL, size, protection, flags, -1, 0);
+
+  if (stack == MAP_FAILED) {
+    fatalerror("lithe: could not allocate trampoline");
+  }
+
+  /* Disallow all memory access to the last page. */
+  if (mprotect(stack, pagesize, PROT_NONE) != 0) {
+    fatalerror("lithe: could not protect page");
+  }
+
+  init_user_context_stack(&t->uth.uc, stack, size); 
+  if(func != NULL)
+    make_user_context(&t->uth.uc, func, 0);
+
+  return (struct uthread*)t;
 }
 
 static void lithe_thread_runnable(struct uthread *uthread)
@@ -261,7 +300,6 @@ void base_enter(void *this)
 
 void base_yield(void *this, lithe_sched_t *sched)
 {
-  /* TODO(benh): Don't cheat with trampolines! */
   /* Cleanup trampoline and yield the vcore. */
 //  cleanup_trampoline();
 
@@ -300,7 +338,7 @@ void * lithe_sched_this()
 
 int lithe_sched_enter(lithe_sched_t *child)
 {
-  assert(task == &trampoline);
+  assert(task == trampoline);
 
   lithe_sched_t *parent = current;
 
@@ -353,7 +391,7 @@ int lithe_sched_enter(lithe_sched_t *child)
 
 int lithe_sched_yield()
 {
-  assert(task == &trampoline);
+  assert(task == trampoline);
 
   lithe_sched_t *parent = current->parent;
   lithe_sched_t *child = current;
@@ -376,33 +414,11 @@ int lithe_sched_yield()
 
 int lithe_sched_reenter()
 {
-  assert(task == &trampoline);
+  assert(task == trampoline);
 
   /* Enter current. */
   current->funcs->enter(current->this);
   fatal("lithe: returned from enter");
-}
-
-void __lithe_sched_register(int func0, int func1, int arg0, int arg1)
-{
-  /* Unpackage the arguments. */
-#ifdef __x86_64__
-  assert(sizeof(int) != sizeof(void *));
-  void (*func) (void *) = (void (*) (void *))
-    (((unsigned long) func1 << 32) + (unsigned int) func0);
-  void *arg = (void *)
-    (((unsigned long) arg1 << 32) + (unsigned int) arg0);
-#elif __i386__
-  assert(sizeof(int) == sizeof(void *));
-  void (*func) (void *) = (void (*) (void *)) func0;
-  void *arg = (void *) arg0;
-#else
-# error "missing implementations for your architecture"
-#endif /* __x86_64__ */
-
-  func(arg);
-
-  fatal("lithe: returned from register");
 }
 
 int lithe_sched_register(const lithe_sched_funcs_t *funcs,
@@ -421,7 +437,7 @@ int lithe_sched_register(const lithe_sched_funcs_t *funcs,
   }
 
   /* We should never be on the trampoline. */
-  if (task == &trampoline) {
+  if (task == trampoline) {
     errno = EPERM;
     return -1;
   }
@@ -490,29 +506,21 @@ int lithe_sched_register(const lithe_sched_funcs_t *funcs,
   current = child;
   __sync_fetch_and_add(&(child->vcores), 1);
 
-  /* Package the arguments. */
-#ifdef __x86_64__
-  assert(sizeof(int) != sizeof(void *));
-  int func0 = (unsigned int) (unsigned long) func;
-  int func1 = (unsigned long) func >> 32;
-  int arg0 = (unsigned int) (unsigned long) arg;
-  int arg1 = (unsigned long) arg >> 32;
-#elif __i386__
-  assert(sizeof(int) == sizeof(void *));
-  int func0 = (unsigned int) func;
-  int func1 = 0;
-  int arg0 = (unsigned int) arg;
-  int arg1 = 0;
-#else
-# error "missing implementations for your architecture"
-#endif /* __x86_64__ */
+  assert(trampoline);
+  make_user_context(&trampoline->uth.uc, func, 1, arg);
+  task = trampoline;
 
-  makecontext(&trampoline.uth.uc, (void (*) ()) __lithe_sched_register,
-	      4, func0, func1, arg0, arg1);
-
-  task = &trampoline;
-  swapcontext(&child->task->uth.uc, &trampoline.uth.uc);
-
+//  bool swap = true;
+//  ucontext_t uc;
+//  getcontext(&uc);
+//  wrfence();
+//  if(swap) {
+//    swap = false;
+//    memcpy(&child->task->uth.uc, &uc, sizeof(ucontext_t));
+//    setcontext(&trampoline->uth.uc);
+//    //run_uthread((uthread_t*)trampoline);
+//  }
+  swapcontext(&child->task->uth.uc, &trampoline->uth.uc);
   return 0;
 }
 
@@ -531,7 +539,7 @@ int lithe_sched_register_task(const lithe_sched_funcs_t *funcs,
   }
 
   /* We should never be on the trampoline. */
-  if (task == &trampoline) {
+  if (task == trampoline) {
     errno = EPERM;
     return -1;
   }
@@ -844,7 +852,7 @@ int lithe_task_do(lithe_task_t *_task, void (*func) (void *), void *arg)
   }
 
   /* TODO(benh): Must we be on the trampoline? */
-  if (task != &trampoline) {
+  if (task != trampoline) {
     errno = EPERM;
     return -1;
   }
@@ -866,8 +874,9 @@ int lithe_task_do(lithe_task_t *_task, void (*func) (void *), void *arg)
 # error "missing implementations for your architecture"
 #endif /* __x86_64__ */
 
-  makecontext(&_task->uth.uc, (void (*) ()) __lithe_task_do,
-	      4, func0, func1, arg0, arg1);
+  make_user_context(&_task->uth.uc, 
+                    (void (*) ()) __lithe_task_do,
+	                4, func0, func1, arg0, arg1);
 
   task = _task;
   setcontext(&_task->uth.uc);
@@ -909,7 +918,7 @@ int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg)
   }
 
   /* Confirm we aren't blocking using trampoline. */
-  if (task == &trampoline) {
+  if (task == trampoline) {
     errno = EPERM;
     return -1;
   }
@@ -941,13 +950,13 @@ int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg)
 # error "missing implementations for your architecture"
 #endif /* __x86_64__ */
 
-  makecontext(&trampoline.uth.uc, (void (*) ()) __lithe_task_block,
-	      6, func0, func1, task0, task1, arg0, arg1);
+  make_user_context(&trampoline->uth.uc, 
+                    (void (*) ()) __lithe_task_block,
+	                6, func0, func1, task0, task1, arg0, arg1);
 
   lithe_task_t *__task = task;
-
-  task = &trampoline;
-  swapcontext(&__task->uth.uc, &trampoline.uth.uc);
+  task = trampoline;
+  swapcontext(&__task->uth.uc, &trampoline->uth.uc);
 
   return 0;
 }
@@ -981,7 +990,7 @@ int lithe_task_resume(lithe_task_t *_task)
   }
 
   /* TODO(benh): Must we be on the trampoline? */
-  if (task != &trampoline) {
+  if (task != trampoline) {
     errno = EPERM;
     return -1;
   }

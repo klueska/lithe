@@ -66,7 +66,7 @@ init_user_context_stack(struct ucontext *uc, void *stack_top, uint32_t size)
     int ret = getcontext(uc);
 	assert(ret == 0);
 	uc->uc_stack.ss_sp = stack_top;
-//	uc->uc_stack.ss_size = size;
+	uc->uc_stack.ss_size = size;
 }
 
 #define make_user_context(uc, entry_pt, ...)           \
