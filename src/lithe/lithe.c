@@ -212,9 +212,6 @@ static uthread_t* lithe_init()
   /* Set the current scheduler to be the base scheduler */
   current_sched = &base;
 
-  /* Up the initial vcore count for the base scheduler for this vcore */
-  __sync_fetch_and_add(&current_sched->vcores, 1);
-
   /* Return a reference to the main task back to the uthread library. We will
    * resume this task once lithe_vcore_entry() is called from the uthread
    * library */
@@ -262,7 +259,7 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   if(current_uthread) {
     current_task = (lithe_task_t*)current_uthread;
     current_sched = current_task->sched;
-    uthread_set_tls_var(current_uthread, trampoline, trampoline);
+    uthread_set_tls_var(current_task, trampoline, trampoline);
     run_current_uthread();
   }
 
