@@ -178,18 +178,6 @@ void vcore_ready()
   uthread_init();
 }
 
-static void __attribute__((noinline, noreturn)) __trampoline_entry()
-{
-  /* Otherwise, enter the base scheduler. */
-  assert(task);
-  task->sched = &base;
-  current = &base;
-  __sync_fetch_and_add(&(current->vcores), 1);
-  current->funcs->enter(current->this);
-
-  fatal("lithe: returned from enter");
-}
-
 static uthread_t* lithe_init()
 {
   /* Create a lithe task for the main thread to run in */
@@ -214,47 +202,64 @@ static uthread_t* lithe_init()
   return (uthread_t*)(main_task);
 }
 
+static void __attribute__((noinline, noreturn)) __trampoline_entry()
+{
+  /* Enter the scheduler. */
+  assert(task == trampoline);
+  current->funcs->enter(current->this);
+
+  fatal("lithe: returned from enter");
+}
+
 static void __attribute__((noreturn)) lithe_vcore_entry()
 {
-  /* If this vcore doesn't currently have a trampoline setup to run its
-   * scheduler code, set one up */
+  /* Make sure we are in vcore context */
+  assert(in_vcore_context());
+
+  /* If this vcore doesn't currently have a trampoline setup to run
+   * its scheduler code, set one up */
   if(trampoline == NULL)
     trampoline = (lithe_task_t*)uthread_create(__trampoline_entry, NULL);
   assert(trampoline);
 
-  /* If the thread local variable 'current_uthread' is set, then resume it.
-   * This will happen in one of 2 cases: 1) It is the first, i.e. main thread,
-   * or 2) The current vcore was taken over to run a signal handler from the
-   * kernel, and is now being restarted */
+  /* If the thread local variable 'current_uthread' is set, then just resume
+   * it.  This will happen in one of 2 cases: 1) It is the first, i.e. main
+   * thread, or 2) The current vcore was taken over to run a signal handler
+   * from the kernel, and is now being restarted */
   if(current_uthread) {
     uthread_set_tls_var(current_uthread, trampoline, trampoline);
     run_current_uthread();
-    assert(0);
   }
 
-  /* Otherwise, jump to the trampoline */
+  /* Otherwise, this is a newly allocated vcore, so we set ourselves up to
+   * enter the base scheduler on the trampoline, and up our vcore count for
+   * this scheduler */
   task = trampoline;
+  task->sched = &base;
+  current = &base;
+  __sync_fetch_and_add(&current->vcores, 1);
+
+  /* Finally, jump to the trampoline */
   run_uthread((uthread_t*)trampoline);
 }
 
 static uthread_t* lithe_thread_create(void (*func)(void), void *udata)
 {
-  assert(udata == NULL);
-
   /* Create a new lithe task */
   lithe_task_t *t = (lithe_task_t*)calloc(1, sizeof(lithe_task_t));
   assert(t);
 
   /* Determine the stack size. */
   int pagesize = getpagesize();
-
   size_t size = pagesize * 4;
 
+  /* Build the protection and flags for the mmap call to allocate the new
+   * thread's stack */
   const int protection = (PROT_READ | PROT_WRITE | PROT_EXEC);
   const int flags = (MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT);
 
+  /* mmap the stack in */
   void *stack = mmap(NULL, size, protection, flags, -1, 0);
-
   if (stack == MAP_FAILED) {
     fatalerror("lithe: could not allocate trampoline");
   }
@@ -264,10 +269,13 @@ static uthread_t* lithe_thread_create(void (*func)(void), void *udata)
     fatalerror("lithe: could not protect page");
   }
 
+  /* Initialize the user context with the newly created stack */
   init_user_context_stack(&t->uth.uc, stack, size); 
+  /* Initialize the start function for the new thread */
   if(func != NULL)
     make_user_context(&t->uth.uc, func, 0);
 
+  /* Return the new thread */
   return (struct uthread*)t;
 }
 
@@ -508,7 +516,6 @@ int lithe_sched_register(const lithe_sched_funcs_t *funcs,
 
   assert(trampoline);
   make_user_context(&trampoline->uth.uc, func, 1, arg);
-  task = trampoline;
 
 //  bool swap = true;
 //  ucontext_t uc;
@@ -520,6 +527,8 @@ int lithe_sched_register(const lithe_sched_funcs_t *funcs,
 //    setcontext(&trampoline->uth.uc);
 //    //run_uthread((uthread_t*)trampoline);
 //  }
+//  run_uthread((uthread_t*)trampoline);
+//  setcontext(&trampoline->uth.uc);
   swapcontext(&child->task->uth.uc, &trampoline->uth.uc);
   return 0;
 }
