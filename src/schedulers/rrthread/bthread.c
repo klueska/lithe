@@ -146,7 +146,7 @@ struct uthread *pth_thread_create(void (*func)(void), void *udata)
 	/* Set the u_tf to start up in __bthread_run, which will call the real
 	 * start_routine and pass it the arg.  Note those aren't set until later in
 	 * bthread_create(). */
-    init_user_context_stack(&bthread->uthread.uc, bthread->stacktop, bthread->stacksize); 
+    init_user_context_stack(&bthread->uthread.uc, bthread->stack, bthread->stacksize); 
     if(func != NULL)
       make_user_context(&bthread->uthread.uc, func, 0);
 	return (struct uthread*)bthread;
@@ -239,8 +239,8 @@ int bthread_attr_destroy(bthread_attr_t *a)
 
 static void __bthread_free_stack(struct bthread_tcb *pt)
 {
-//	assert(!munmap(pt->stacktop - pt->stacksize, pt->stacksize));
-	free(pt->stacktop - pt->stacksize);
+//	assert(!munmap(pt->stack, pt->stacksize));
+	free(pt->stack);
 }
 
 static int __bthread_allocate_stack(struct bthread_tcb *pt)
@@ -253,7 +253,7 @@ static int __bthread_allocate_stack(struct bthread_tcb *pt)
 	void *stackbot = calloc(1, pt->stacksize);
 	if (stackbot == NULL)
 		return -1; // errno set by mmap
-	pt->stacktop = stackbot + pt->stacksize;
+	pt->stack = stackbot;
 	return 0;
 }
 

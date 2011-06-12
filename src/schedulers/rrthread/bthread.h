@@ -32,7 +32,7 @@ struct bthread_tcb {
 	uint32_t stacksize;
 	void *(*start_routine)(void*);
 	void *arg;
-	void *stacktop;
+	void *stack;
 	void *retval;
 };
 typedef struct bthread_tcb* bthread_t;
