@@ -91,27 +91,20 @@ struct uthread *uthread_create(void (*func)(void), void *udata)
 	/* Call the thread_create op to create a new 'scheduler specific' thread */
 	struct uthread *new_thread = sched_ops->thread_create(func, udata);
 
-	/* If we are currently in vcore context, then use the same tls region as
-     * the calling vcore. */
+	/* Allocate a new tls region and associate it with the newly created thread */
 	assert(current_tls_desc);
-	if(in_vcore_context()) {
-		new_thread->tls_desc = current_tls_desc;
-	}
-	/* Otherwise allocate a new tls region and associate it with the newly
-     * created thread */
-	else {
-    	/* Grab a reference to the vcoreid for future use */
-		uint32_t vcoreid = vcore_id();
-		/* Get a TLS for the new thread */
-		assert(!__uthread_allocate_tls(new_thread));
-		/* Switch into the new guys TLS and let it know who it is */
-    	void *temp_tls_desc = current_tls_desc;
-		set_tls_desc(new_thread->tls_desc, vcoreid);
-		/* Save the new_thread to the current_thread in that uthread's TLS */
-		current_uthread = new_thread;
-		/* Switch back to the caller */
-		set_tls_desc(temp_tls_desc, vcoreid);
-	}
+    /* Grab a reference to the vcoreid for future use */
+	uint32_t vcoreid = vcore_id();
+	/* Get a TLS for the new thread */
+	assert(!__uthread_allocate_tls(new_thread));
+	/* Switch into the new guys TLS and let it know who it is */
+    void *temp_tls_desc = current_tls_desc;
+	set_tls_desc(new_thread->tls_desc, vcoreid);
+	/* Save the new_thread to the current_thread in that uthread's TLS */
+	current_uthread = new_thread;
+	/* Switch back to the caller */
+	set_tls_desc(temp_tls_desc, vcoreid);
+
 	return new_thread;
 }
 

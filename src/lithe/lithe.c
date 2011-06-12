@@ -64,30 +64,6 @@
 #error "expecting __linux__ to be defined (for now, Lithe only runs on Linux)"
 #endif
 
-/* Hooks from uthread code into lithe */
-static uthread_t*   lithe_init(void);
-static void         lithe_vcore_entry(void);
-static uthread_t*   lithe_thread_create(void (*func)(void), void *udata);
-static void         lithe_thread_runnable(uthread_t *uthread);
-static void         lithe_thread_yield(uthread_t *uthread);
-static void         lithe_thread_exit(uthread_t *uthread);
-static unsigned int lithe_vcores_wanted(void);
-
-/* Unique function pointer table required by uthread code */
-struct schedule_ops lithe_sched_ops = {
-	.sched_init       = lithe_init,
-	.sched_entry      = lithe_vcore_entry,
-	.thread_create    = lithe_thread_create,
-	.thread_runnable  = lithe_thread_runnable,
-	.thread_yield     = lithe_thread_yield,
-	.thread_exit      = lithe_thread_exit,
-	.vcores_wanted    = lithe_vcores_wanted,
-	.preempt_pending  = NULL, /* lithe_preempt_pending, */
-	.spawn_thread     = NULL, /* lithe_spawn_thread, */
-};
-/* Publish these schedule_ops, overriding the weak defaults setup in uthread */
-struct schedule_ops *sched_ops __attribute__((weak)) = &lithe_sched_ops;
-
 /* Struct to keep track of each of the 2nd-level schedulers managed by lithe */
 struct lithe_sched {
   /* Lock for managing scheduler. */
@@ -121,6 +97,30 @@ struct lithe_sched {
   /* Scheduler's 'this' pointer. */
   void *this;
 };
+
+/* Hooks from uthread code into lithe */
+static uthread_t*   lithe_init(void);
+static void         lithe_vcore_entry(void);
+static uthread_t*   lithe_thread_create(void (*func)(void), void *udata);
+static void         lithe_thread_runnable(uthread_t *uthread);
+static void         lithe_thread_yield(uthread_t *uthread);
+static void         lithe_thread_exit(uthread_t *uthread);
+static unsigned int lithe_vcores_wanted(void);
+
+/* Unique function pointer table required by uthread code */
+struct schedule_ops lithe_sched_ops = {
+	.sched_init       = lithe_init,
+	.sched_entry      = lithe_vcore_entry,
+	.thread_create    = lithe_thread_create,
+	.thread_runnable  = lithe_thread_runnable,
+	.thread_yield     = lithe_thread_yield,
+	.thread_exit      = lithe_thread_exit,
+	.vcores_wanted    = lithe_vcores_wanted,
+	.preempt_pending  = NULL, /* lithe_preempt_pending, */
+	.spawn_thread     = NULL, /* lithe_spawn_thread, */
+};
+/* Publish these schedule_ops, overriding the weak defaults setup in uthread */
+struct schedule_ops *sched_ops __attribute__((weak)) = &lithe_sched_ops;
 
 /* Lithe's base scheduler functions */
 static void base_enter(void *this);
@@ -170,10 +170,15 @@ static __thread struct {
   /* Task used when transitioning between schedulers. */
   lithe_task_t *trampoline;
 
+  /* State variable indicating whether we should yield the vcore we are
+   * currently executing when vcore_entry is called again */
+  bool yield_vcore;
+
 } lithe_tls = {NULL, NULL, NULL};
 #define current_sched (lithe_tls.current_sched)
 #define current_task  (lithe_tls.current_task)
 #define trampoline    (lithe_tls.trampoline)
+#define yield_vcore   (lithe_tls.yield_vcore)
 
 void vcore_ready()
 {
@@ -210,9 +215,6 @@ static void __attribute__((noinline, noreturn)) __trampoline_entry()
 {
   assert(current_task == trampoline);
 
-  /* Don't treat the trampoline as a normal, schedulable uthread */
-  current_uthread = NULL;
-
   /* Enter the scheduler. */
   current_sched->funcs->enter(current_sched->this);
 
@@ -224,7 +226,16 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   /* Make sure we are in vcore context */
   assert(in_vcore_context());
 
-  /* If this vcore doesn't currently have a trampoline setup to run
+  /* If we are supposed to vacate this vcore and give it back to the system, do
+   * so, cleaning up any state in the process. This occurs as a result of
+   * base_yield being called, and the trampoline task exiting cleanly */
+  if(yield_vcore) {
+    __sync_fetch_and_sub(&base.vcores, 1);
+    memset(&lithe_tls, 0, sizeof(lithe_tls));
+    vcore_yield();
+  }
+
+  /* Otherwise, if this vcore doesn't currently have a trampoline setup to run
    * its scheduler code, set one up */
   if(trampoline == NULL)
     trampoline = (lithe_task_t*)uthread_create(__trampoline_entry, NULL);
@@ -250,6 +261,7 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   __sync_fetch_and_add(&current_sched->vcores, 1);
 
   /* Finally, jump to the trampoline */
+  uthread_set_tls_var(trampoline, lithe_tls, lithe_tls);
   run_uthread((uthread_t*)trampoline);
 }
 
@@ -319,11 +331,8 @@ void base_enter(void *this)
 void base_yield(void *this, lithe_sched_t *sched)
 {
   /* Cleanup trampoline and yield the vcore. */
-//  cleanup_trampoline();
-
-  /* Leave base, yield back the vcore */
-  __sync_fetch_and_sub(&(base.vcores), 1);
-  vcore_yield();
+  vcore_set_tls_var(vcore_id(), yield_vcore, true);
+  uthread_exit();
 }
 
 void base_reg(void *this, lithe_sched_t *sched)

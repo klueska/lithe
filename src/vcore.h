@@ -74,6 +74,27 @@ init_user_context_stack(struct ucontext *uc, void *stack_top, uint32_t size)
 	makecontext((uc), (void*)entry_pt, __VA_ARGS__);   \
 }
 
+#define vcore_set_tls_var(vcoreid, name, val)                     \
+{                                                                 \
+	int vid = (vcoreid);                                          \
+	typeof(name) temp_val = (val);                                \
+	void *temp_tls_desc = current_tls_desc;                       \
+    set_tls_desc(ht_tls_descs[vid], vid);                         \
+	name = temp_val;                                              \
+	set_tls_desc(temp_tls_desc, vid);                             \
+}
+
+#define vcore_get_tls_var(vcoreid, name)                          \
+({                                                                \
+	int vid = (vcoreid);                                          \
+	typeof(name) val;                                             \
+	void *temp_tls_desc = current_tls_desc;                       \
+    set_tls_desc(ht_tls_descs[vid], vid);                         \
+	val = name;                                                   \
+	set_tls_desc(temp_tls_desc, vid);                             \
+    val;                                                          \
+})
+
 #ifdef __cplusplus
 }
 #endif
