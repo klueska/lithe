@@ -174,7 +174,7 @@ static __thread struct {
    * currently executing when vcore_entry is called again */
   bool yield_vcore;
 
-} lithe_tls = {NULL, NULL, NULL};
+} lithe_tls = {NULL, NULL, NULL, false};
 #define current_sched (lithe_tls.current_sched)
 #define current_task  (lithe_tls.current_task)
 #define trampoline    (lithe_tls.trampoline)
@@ -227,8 +227,9 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   assert(in_vcore_context());
 
   /* If we are supposed to vacate this vcore and give it back to the system, do
-   * so, cleaning up any state in the process. This occurs as a result of
-   * base_yield being called, and the trampoline task exiting cleanly */
+   * so, cleaning up any lithe specific state in the process. This occurs as a
+   * result of base_yield() being called, and the trampoline task exiting
+   * cleanly */
   if(yield_vcore) {
     __sync_fetch_and_sub(&base.vcores, 1);
     memset(&lithe_tls, 0, sizeof(lithe_tls));
