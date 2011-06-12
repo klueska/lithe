@@ -80,4 +80,15 @@ void run_uthread(struct uthread *uthread) __attribute((noreturn));
 	set_tls_desc(temp_tls_desc, vcoreid);                         \
 }
 
+#define uthread_get_tls_var(uthread, name)                        \
+({                                                                \
+	int vcoreid = vcore_id();                                     \
+	typeof(name) val;                                             \
+	void *temp_tls_desc = current_tls_desc;                       \
+	set_tls_desc(((uthread_t*)(uthread))->tls_desc, vcoreid);     \
+	val = name;                                                   \
+	set_tls_desc(temp_tls_desc, vcoreid);                         \
+    val;                                                          \
+})
+
 #endif /* _UTHREAD_H */

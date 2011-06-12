@@ -3,13 +3,11 @@
  *
  * Notes:
  *
- * Trampoline Context/Stack:
+ * Trampoline Thread/Stack:
  *
- * There are currently two ways to get onto the trampoline. The first
- * is using the macro jump_to_trampoline (see source for details),
- * while the second is using the ucontext routines (see
- * lithe_task_block for details). The first uses less of the
- * trampoline stack space but the second is (arguably) better style.
+ * The trampoline thread is created in vcore context and thus shares
+ * the same tls as the vcore it is executed on.  To jump to the trampoline
+ * simply call run_uthread() passing the trampoline as the parameter.
  *
  *
  * Parents, children, and grandchildren:
@@ -162,14 +160,20 @@ static lithe_task_t *main_task = NULL;
 /* Root scheduler, i.e. the child scheduler of base. */
 static lithe_sched_t *root = NULL;
 
-/* Current scheduler of executing vcore (initially set to base). */
-__thread lithe_sched_t *current = NULL;
+static __thread struct {
+  /* Current scheduler of executing vcore (initially set to base). */
+  lithe_sched_t *current_sched;
+  
+  /* Current task of executing vcore */
+  lithe_task_t *current_task;
+  
+  /* Task used when transitioning between schedulers. */
+  lithe_task_t *trampoline;
 
-/* Current task of executing vcore */
-__thread lithe_task_t *task = NULL;
-
-/* Task used when transitioning between schedulers. */
-__thread lithe_task_t *trampoline = NULL;
+} lithe_tls = {NULL, NULL, NULL};
+#define current_sched (lithe_tls.current_sched)
+#define current_task  (lithe_tls.current_task)
+#define trampoline    (lithe_tls.trampoline)
 
 void vcore_ready()
 {
@@ -188,13 +192,13 @@ static uthread_t* lithe_init()
   main_task->sched = &base;
 
   /* Set the current task to be the main task */
-  task = main_task;
+  current_task = main_task;
 
   /* Set the current scheduler to be the base scheduler */
-  current = &base;
+  current_sched = &base;
 
   /* Up the initial vcore count for the base scheduler for this vcore */
-  __sync_fetch_and_add(&base.vcores, 1);
+  __sync_fetch_and_add(&current_sched->vcores, 1);
 
   /* Return a reference to the main task back to the uthread library. We will
    * resume this task once lithe_vcore_entry() is called from the uthread
@@ -204,9 +208,13 @@ static uthread_t* lithe_init()
 
 static void __attribute__((noinline, noreturn)) __trampoline_entry()
 {
+  assert(current_task == trampoline);
+
+  /* Don't treat the trampoline as a normal, schedulable uthread */
+  current_uthread = NULL;
+
   /* Enter the scheduler. */
-  assert(task == trampoline);
-  current->funcs->enter(current->this);
+  current_sched->funcs->enter(current_sched->this);
 
   fatal("lithe: returned from enter");
 }
@@ -227,6 +235,8 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
    * thread, or 2) The current vcore was taken over to run a signal handler
    * from the kernel, and is now being restarted */
   if(current_uthread) {
+    current_task = uthread_get_tls_var(current_uthread, current_task);
+    current_sched = current_task->sched;
     uthread_set_tls_var(current_uthread, trampoline, trampoline);
     run_current_uthread();
   }
@@ -234,10 +244,10 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   /* Otherwise, this is a newly allocated vcore, so we set ourselves up to
    * enter the base scheduler on the trampoline, and up our vcore count for
    * this scheduler */
-  task = trampoline;
-  task->sched = &base;
-  current = &base;
-  __sync_fetch_and_add(&current->vcores, 1);
+  current_task = trampoline;
+  current_task->sched = &base;
+  current_sched = &base;
+  __sync_fetch_and_add(&current_sched->vcores, 1);
 
   /* Finally, jump to the trampoline */
   run_uthread((uthread_t*)trampoline);
@@ -341,14 +351,14 @@ void base_unblock(void *this, lithe_task_t *task)
 
 void * lithe_sched_this()
 {
-  return current->this;
+  return current_sched->this;
 }
 
 int lithe_sched_enter(lithe_sched_t *child)
 {
-  assert(task == trampoline);
+  assert(current_task == trampoline);
 
-  lithe_sched_t *parent = current;
+  lithe_sched_t *parent = current_sched;
 
   if (child == NULL)
     fatal("lithe: cannot enter NULL child");
@@ -367,13 +377,13 @@ int lithe_sched_enter(lithe_sched_t *child)
   if (child->state == REGISTERED) {
     /* Leave parent, join child. */
     assert(child != &base);
-    current = child;
+    current_sched = child;
     __sync_fetch_and_add(&(child->vcores), 1);
 
     if (child->state != REGISTERED) {
       /* Leave child, join parent. */
       __sync_fetch_and_add(&(child->vcores), -1);
-      current = parent;
+      current_sched = parent;
 
       /* Signal unregistering hard thread. */
       if (child->state == UNREGISTERING) {
@@ -399,14 +409,14 @@ int lithe_sched_enter(lithe_sched_t *child)
 
 int lithe_sched_yield()
 {
-  assert(task == trampoline);
+  assert(current_task == trampoline);
 
-  lithe_sched_t *parent = current->parent;
-  lithe_sched_t *child = current;
+  lithe_sched_t *parent = current_sched->parent;
+  lithe_sched_t *child = current_sched;
 
   /* Leave child, join parent. */
   __sync_fetch_and_add(&(child->vcores), -1);
-  current = parent;
+  current_sched = parent;
 
   /* Signal unregistering hard thread. */
   if (child->state == UNREGISTERING) {
@@ -422,10 +432,10 @@ int lithe_sched_yield()
 
 int lithe_sched_reenter()
 {
-  assert(task == trampoline);
+  assert(current_task == trampoline);
 
-  /* Enter current. */
-  current->funcs->enter(current->this);
+  /* Enter current scheduler. */
+  current_sched->funcs->enter(current_sched->this);
   fatal("lithe: returned from enter");
 }
 
@@ -445,7 +455,7 @@ int lithe_sched_register(const lithe_sched_funcs_t *funcs,
   }
 
   /* We should never be on the trampoline. */
-  if (task == trampoline) {
+  if (current_task == trampoline) {
     errno = EPERM;
     return -1;
   }
@@ -457,12 +467,12 @@ int lithe_sched_register(const lithe_sched_funcs_t *funcs,
    * simultaneosly change the root scheduler (the child scheduler of
    * base).  Really we would need one base scheduler for each thread.
    */
-  if (task == NULL) {
+  if (current_task == NULL) {
     errno = EPERM;
     return -1;
   }
 
-  lithe_sched_t *parent = current;
+  lithe_sched_t *parent = current_sched;
   lithe_sched_t *child = (lithe_sched_t *) malloc(sizeof(lithe_sched_t));
 
   if (child == NULL) {
@@ -486,7 +496,7 @@ int lithe_sched_register(const lithe_sched_funcs_t *funcs,
   child->state = REGISTERED;
   child->vcores = 0;
   child->parent = parent;
-  child->task = task;
+  child->task = current_task;
   child->children = NULL;
   child->next = NULL;
   child->prev = NULL;
@@ -511,7 +521,7 @@ int lithe_sched_register(const lithe_sched_funcs_t *funcs,
   parent->funcs->reg(parent->this, child);
 
   /* Leave parent, join child. */
-  current = child;
+  current_sched = child;
   __sync_fetch_and_add(&(child->vcores), 1);
 
   assert(trampoline);
@@ -535,20 +545,20 @@ int lithe_sched_register(const lithe_sched_funcs_t *funcs,
 
 int lithe_sched_register_task(const lithe_sched_funcs_t *funcs,
 			      void *this,
-			      lithe_task_t *_task)
+			      lithe_task_t *task)
 {
   if (funcs == NULL) {
     errno = EINVAL;
     return -1;
   }
 
-  if (_task == NULL) {
+  if (task == NULL) {
     errno = EINVAL;
     return -1;
   }
 
   /* We should never be on the trampoline. */
-  if (task == trampoline) {
+  if (current_task == trampoline) {
     errno = EPERM;
     return -1;
   }
@@ -560,12 +570,12 @@ int lithe_sched_register_task(const lithe_sched_funcs_t *funcs,
    * simultaneosly change the root scheduler (the child scheduler of
    * base).  Really we would need one base scheduler for each thread.
    */
-  if (task == NULL) {
+  if (current_task == NULL) {
     errno = EPERM;
     return -1;
   }
 
-  lithe_sched_t *parent = current;
+  lithe_sched_t *parent = current_sched;
   lithe_sched_t *child = (lithe_sched_t *) malloc(sizeof(lithe_sched_t));
 
   if (child == NULL) {
@@ -589,7 +599,7 @@ int lithe_sched_register_task(const lithe_sched_funcs_t *funcs,
   child->state = REGISTERED;
   child->vcores = 0;
   child->parent = parent;
-  child->task = task;
+  child->task = current_task;
   child->children = NULL;
   child->next = NULL;
   child->prev = NULL;
@@ -614,30 +624,30 @@ int lithe_sched_register_task(const lithe_sched_funcs_t *funcs,
   parent->funcs->reg(parent->this, child);
 
   /* Leave parent, join child. */
-  current = child;
+  current_sched = child;
   __sync_fetch_and_add(&(child->vcores), 1);
 
   /* Initialize task. */
-  if (getcontext(&_task->uth.uc) < 0) {
+  if (getcontext(&task->uth.uc) < 0) {
     fatalerror("lithe: could not get context");
   }
 
   /* TODO(benh): The 'sched' field is only difference from destroyed task. */
-  _task->uth.uc.uc_stack.ss_sp = 0;
-  _task->uth.uc.uc_stack.ss_size = 0;
-  _task->uth.uc.uc_link = 0;
+  task->uth.uc.uc_stack.ss_sp = 0;
+  task->uth.uc.uc_stack.ss_size = 0;
+  task->uth.uc.uc_link = 0;
 
-  _task->sched = current;
+  task->sched = current_sched;
 
-  task = _task;
+  current_task = task;
 
   return 0;
 }
 
 int lithe_sched_unregister()
 {
-  lithe_sched_t *parent = current->parent;
-  lithe_sched_t *child = current;
+  lithe_sched_t *parent = current_sched->parent;
+  lithe_sched_t *child = current_sched;
 
   /*
    * Wait until all grandchildren have unregistered. The lock protects
@@ -650,8 +660,8 @@ int lithe_sched_unregister()
 
     while (sched != NULL) {
       while (sched->state != UNREGISTERED) {
-	rdfence();
-	atomic_delay();
+        rdfence();
+        atomic_delay();
       }
       sched = sched->next;
     }
@@ -662,14 +672,14 @@ int lithe_sched_unregister()
 
   /* Leave child, join parent. */
   __sync_fetch_and_add(&(child->vcores), -1);
-  current = parent;
+  current_sched = parent;
 
   if (child->vcores == 0) {
     child->state = UNREGISTERED;
   }
 
   /* Update task. */
-  task = child->task;
+  current_task = child->task;
 
   /* Inform parent. */
   parent->funcs->unreg(parent->this, child);
@@ -691,20 +701,20 @@ int lithe_sched_unregister()
   }
 
   /* Return control. */
-  setcontext(&task->uth.uc);
+  setcontext(&current_task->uth.uc);
 
   return -1;
 }
 
-int lithe_sched_unregister_task(lithe_task_t **_task)
+int lithe_sched_unregister_task(lithe_task_t **task)
 {
-  if (_task == NULL) {
+  if (task == NULL) {
     errno = EINVAL;
     return -1;
   }
 
-  lithe_sched_t *parent = current->parent;
-  lithe_sched_t *child = current;
+  lithe_sched_t *parent = current_sched->parent;
+  lithe_sched_t *child = current_sched;
 
   /* Wait until all grandchildren have unregistered. */
   /* TODO(*): Does it make more sense to inform the parent first? */
@@ -714,8 +724,8 @@ int lithe_sched_unregister_task(lithe_task_t **_task)
 
     while (sched != NULL) {
       while (sched->state != UNREGISTERED) {
-	rdfence();
-	atomic_delay();
+        rdfence();
+        atomic_delay();
       }
       sched = sched->next;
     }
@@ -726,15 +736,15 @@ int lithe_sched_unregister_task(lithe_task_t **_task)
 
   /* Leave child, join parent. */
   __sync_fetch_and_add(&(child->vcores), -1);
-  current = parent;
+  current_sched = parent;
 
   if (child->vcores == 0) {
     child->state = UNREGISTERED;
   }
 
   /* Update task. */
-  *_task = task;
-  task = child->task;
+  *task = current_task;
+  current_task = child->task;
 
   /* Inform parent. */
   parent->funcs->unreg(parent->this, child);
@@ -761,25 +771,25 @@ int lithe_sched_unregister_task(lithe_task_t **_task)
 
 int lithe_sched_request(int k)
 {
-  lithe_sched_t *parent = current->parent;
-  lithe_sched_t *child = current;
+  lithe_sched_t *parent = current_sched->parent;
+  lithe_sched_t *child = current_sched;
 
   /* Explicitly use NULL task. */
-  lithe_task_t *__task = task;
-  task = NULL;
+  lithe_task_t *t = current_task;
+  current_task = NULL;
 
-  current = parent;
+  current_sched = parent;
   parent->funcs->request(parent->this, child, k);
-  current = child;
+  current_sched = child;
 
-  task = __task;
+  current_task = t;
 
   return 0;
 }
 
-int lithe_task_init(lithe_task_t *_task, stack_t *stack)
+int lithe_task_init(lithe_task_t *task, stack_t *stack)
 {
-  if (_task == NULL) {
+  if (task == NULL) {
     errno = EINVAL;
     return -1;
   }
@@ -789,39 +799,39 @@ int lithe_task_init(lithe_task_t *_task, stack_t *stack)
     return -1;
   }
 
-  if (getcontext(&_task->uth.uc) < 0) {
+  if (getcontext(&task->uth.uc) < 0) {
     fatalerror("lithe: could not get context");
   }
 
-  _task->uth.uc.uc_stack.ss_sp = stack->ss_sp;
-  _task->uth.uc.uc_stack.ss_size = stack->ss_size;
-  _task->uth.uc.uc_link = 0;
+  task->uth.uc.uc_stack.ss_sp = stack->ss_sp;
+  task->uth.uc.uc_stack.ss_size = stack->ss_size;
+  task->uth.uc.uc_link = 0;
 
-  _task->sched = current;
-
-  return 0;
-}
-
-int lithe_task_destroy(lithe_task_t *_task)
-{
-  if (_task == NULL) {
-    errno = EINVAL;
-    return -1;
-  }
-
-  memset(_task, 0, sizeof(lithe_task_t));
+  task->sched = current_sched;
 
   return 0;
 }
 
-int lithe_task_get(lithe_task_t **_task)
+int lithe_task_destroy(lithe_task_t *task)
 {
-  if (_task == NULL) {
+  if (task == NULL) {
     errno = EINVAL;
     return -1;
   }
 
-  *_task = task;
+  memset(task, 0, sizeof(lithe_task_t));
+
+  return 0;
+}
+
+int lithe_task_get(lithe_task_t **task)
+{
+  if (task == NULL) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  *task = current_task;
 
   return 0;
 }
@@ -861,7 +871,7 @@ int lithe_task_do(lithe_task_t *_task, void (*func) (void *), void *arg)
   }
 
   /* TODO(benh): Must we be on the trampoline? */
-  if (task != trampoline) {
+  if (current_task != trampoline) {
     errno = EPERM;
     return -1;
   }
@@ -887,7 +897,7 @@ int lithe_task_do(lithe_task_t *_task, void (*func) (void *), void *arg)
                     (void (*) ()) __lithe_task_do,
 	                4, func0, func1, arg0, arg1);
 
-  task = _task;
+  current_task = _task;
   setcontext(&_task->uth.uc);
   return -1;
 }
@@ -901,20 +911,20 @@ void __lithe_task_block(int func0, int func1,
   assert(sizeof(int) != sizeof(void *));
   void (*func) (lithe_task_t *, void *) = (void (*) (lithe_task_t *, void *))
     (((unsigned long) func1 << 32) + (unsigned int) func0);
-  lithe_task_t *__task = (lithe_task_t *)
+  lithe_task_t *task = (lithe_task_t *)
     (((unsigned long) task1 << 32) + (unsigned int) task0);
   void *arg = (void *)
     (((unsigned long) arg1 << 32) + (unsigned int) arg0);
 #elif __i386__
   void (*func) (lithe_task_t *, void *) =
     (void (*) (lithe_task_t *, void *)) func0;
-  lithe_task_t *__task = (lithe_task_t *) task0;
+  lithe_task_t *task = (lithe_task_t *) task0;
   void *arg = (void *) arg0;
 #else
 # error "missing implementations for your architecture"
 #endif /* __x86_64__ */
 
-  func(__task, arg);
+  func(task, arg);
 
   fatal("lithe: returned from executing task");
 }
@@ -927,13 +937,13 @@ int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg)
   }
 
   /* Confirm we aren't blocking using trampoline. */
-  if (task == trampoline) {
+  if (current_task == trampoline) {
     errno = EPERM;
     return -1;
   }
 
   /* Confirm there is a task to block (i.e. no task during 'request'). */
-  if (task == NULL) {
+  if (current_task == NULL) {
     errno = EPERM;
     return -1;
   }
@@ -943,7 +953,7 @@ int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg)
   assert(sizeof(int) != sizeof(void *));
   int func0 = (unsigned int) (unsigned long) func;
   int func1 = (unsigned long) func >> 32;
-  int task0 = (unsigned int) (unsigned long) task;
+  int task0 = (unsigned int) (unsigned long) current_task;
   int task1 = (unsigned long) task >> 32;
   int arg0 = (unsigned int) (unsigned long) arg;
   int arg1 = (unsigned long) arg >> 32;
@@ -951,7 +961,7 @@ int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg)
   assert(sizeof(int) == sizeof(void *));
   int func0 = (unsigned int) func;
   int func1 = 0;
-  int task0 = (unsigned int) task;
+  int task0 = (unsigned int) current_task;
   int task1 = 0;
   int arg0 = (unsigned int) arg;
   int arg1 = 0;
@@ -963,49 +973,49 @@ int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg)
                     (void (*) ()) __lithe_task_block,
 	                6, func0, func1, task0, task1, arg0, arg1);
 
-  lithe_task_t *__task = task;
-  task = trampoline;
-  swapcontext(&__task->uth.uc, &trampoline->uth.uc);
+  lithe_task_t *task = current_task;
+  current_task = trampoline;
+  swapcontext(&task->uth.uc, &trampoline->uth.uc);
 
   return 0;
 }
 
-int lithe_task_unblock(lithe_task_t *_task)
+int lithe_task_unblock(lithe_task_t *task)
 {
-  if (_task == NULL) {
+  if (task == NULL) {
     errno = EINVAL;
     return -1;
   }
 
   /* Explicitly use NULL task. */
-  lithe_task_t *__task = task;
-  task = NULL;
+  lithe_task_t *t = current_task;
+  current_task = NULL;
 
-  lithe_sched_t *__current = current;
-  current = _task->sched;
-  current->funcs->unblock(current->this, _task);
-  current = __current;
+  lithe_sched_t *sched = current_sched;
+  current_sched = task->sched;
+  current_sched->funcs->unblock(current_sched->this, task);
+  current_sched = sched;
 
-  task = __task;
+  current_task = t;
 
   return 0;
 }
 
-int lithe_task_resume(lithe_task_t *_task)
+int lithe_task_resume(lithe_task_t *task)
 {
-  if (_task == NULL) {
+  if (task == NULL) {
     errno = EINVAL;
     return -1;
   }
 
   /* TODO(benh): Must we be on the trampoline? */
-  if (task != trampoline) {
+  if (current_task != trampoline) {
     errno = EPERM;
     return -1;
   }
 
-  task = _task;
-  setcontext(&_task->uth.uc);
+  current_task = task;
+  setcontext(&task->uth.uc);
   return -1;
 }
 
