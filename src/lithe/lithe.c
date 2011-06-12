@@ -538,19 +538,16 @@ int lithe_sched_register(const lithe_sched_funcs_t *funcs,
   assert(trampoline);
   make_user_context(&trampoline->uth.uc, func, 1, arg);
 
-//  bool swap = true;
-//  ucontext_t uc;
-//  getcontext(&uc);
-//  wrfence();
-//  if(swap) {
-//    swap = false;
-//    memcpy(&child->task->uth.uc, &uc, sizeof(ucontext_t));
-//    setcontext(&trampoline->uth.uc);
-//    //run_uthread((uthread_t*)trampoline);
-//  }
-//  run_uthread((uthread_t*)trampoline);
-//  setcontext(&trampoline->uth.uc);
-  swapcontext(&child->task->uth.uc, &trampoline->uth.uc);
+  volatile bool swap = true;
+  ucontext_t uc;
+  getcontext(&uc);
+  wrfence();
+  if(swap) {
+    swap = false;
+    memcpy(&child->task->uth.uc, &uc, sizeof(ucontext_t));
+    uthread_set_tls_var(trampoline, lithe_tls, lithe_tls);
+    run_uthread((uthread_t*)trampoline);
+  }
   return 0;
 }
 
