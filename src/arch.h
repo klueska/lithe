@@ -3,6 +3,27 @@
 
 #ifdef __linux__
 
+#define vcore_set_tls_var_ARCH(vcoreid, name, val)                \
+{                                                                 \
+	int vid = (vcoreid);                                          \
+	typeof(name) temp_val = (val);                                \
+	void *temp_tls_desc = current_tls_desc;                       \
+    set_tls_desc(ht_tls_descs[vid], vid);                         \
+	name = temp_val;                                              \
+	set_tls_desc(temp_tls_desc, vid);                             \
+}
+
+#define vcore_get_tls_var_ARCH(vcoreid, name)                     \
+({                                                                \
+	int vid = (vcoreid);                                          \
+	typeof(name) val;                                             \
+	void *temp_tls_desc = current_tls_desc;                       \
+    set_tls_desc(ht_tls_descs[vid], vid);                         \
+	val = name;                                                   \
+	set_tls_desc(temp_tls_desc, vid);                             \
+    val;                                                          \
+})
+
 #include <ucontext.h>
 typedef struct ucontext uthread_context_t;
 

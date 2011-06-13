@@ -46,8 +46,9 @@ void enter(void *__this)
 {
   printf("enter\n");
   lithe_task_t *task = (lithe_task_t *) malloc(sizeof(lithe_task_t));
-  stack_t stack = { .ss_sp = malloc(4096), .ss_size = 4096, };
-  lithe_task_init(task, &stack);
+  int size = 4096;
+  void *stack = malloc(size);
+  lithe_task_init(task, stack, size);
   lithe_task_do(task, __beginenter, __this);
 }
 
@@ -112,8 +113,9 @@ void __beginstart(void *arg)
 void start(void *arg)
 {
   lithe_task_t *task = (lithe_task_t *) malloc(sizeof(lithe_task_t));
-  stack_t stack = { .ss_sp = malloc(4096), .ss_size = 4096, };
-  lithe_task_init(task, &stack);
+  int size = 4096;
+  void *stack = malloc(size);
+  lithe_task_init(task, stack, size);
   lithe_task_do(task, __beginstart, NULL);
 }
 

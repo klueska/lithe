@@ -71,8 +71,10 @@ void uthread_exit(void);
 bool check_preempt_pending(uint32_t vcoreid);
 
 /* Helpers, which sched_entry() can call */
+void save_current_uthread(struct uthread *uthread);
 void run_current_uthread(void) __attribute((noreturn));
 void run_uthread(struct uthread *uthread) __attribute((noreturn));
+void swap_uthreads(struct uthread *old, struct uthread *new);
 
 static inline void
 init_uthread_stack(uthread_t *uth, void *stack_top, uint32_t size)
@@ -80,10 +82,8 @@ init_uthread_stack(uthread_t *uth, void *stack_top, uint32_t size)
   init_uthread_stack_ARCH(uth, stack_top, size);
 }
 
-#define init_uthread_entry(uth, entry, argc, ...)                       \
-{                                                                       \
-	init_uthread_entry_ARCH((uth), entry, (argc), ##__VA_ARGS__);       \
-}
+#define init_uthread_entry(uth, entry, argc, ...) \
+	init_uthread_entry_ARCH((uth), entry, (argc), ##__VA_ARGS__);
 
 #define uthread_set_tls_var(uthread, name, val)                   \
 {                                                                 \
@@ -103,7 +103,7 @@ init_uthread_stack(uthread_t *uth, void *stack_top, uint32_t size)
 	set_tls_desc(((uthread_t*)(uthread))->tls_desc, vcoreid);     \
 	val = name;                                                   \
 	set_tls_desc(temp_tls_desc, vcoreid);                         \
-    val;                                                          \
+	val;                                                          \
 })
 
 #endif /* _UTHREAD_H */

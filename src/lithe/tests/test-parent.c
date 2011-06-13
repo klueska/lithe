@@ -136,8 +136,9 @@ void __parent(void *arg)
 {
   printf("__parent\n");
   lithe_task_t *task = (lithe_task_t *) malloc(sizeof(lithe_task_t));
-  stack_t stack = { .ss_sp = malloc(8192), .ss_size = 8192, };
-  lithe_task_init(task, &stack);
+  int size = 8192;
+  void *stack = malloc(size);
+  lithe_task_init(task, stack, size);
   lithe_task_do(task, __beginparent, NULL);
 }
 

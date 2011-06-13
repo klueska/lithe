@@ -219,6 +219,13 @@ void uthread_exit(void)
 	__uthread_exit(current_uthread);
 }
 
+/* Saves the state of the current uthread from the point at which it is called */
+void save_current_uthread(struct uthread *uthread)
+{
+	int ret = getcontext(&uthread->uc);
+	assert(ret == 0);
+}
+
 /* Runs whatever thread is vcore's current_uthread */
 void run_current_uthread(void)
 {
@@ -242,6 +249,21 @@ void run_uthread(struct uthread *uthread)
 	set_tls_desc(uthread->tls_desc, vcoreid);
 	setcontext(&uthread->uc);
 	assert(0);
+}
+
+/* Swaps the currently running uthread for a new one, saving the state of the
+ * current uthread in the process */
+void swap_uthreads(struct uthread *old, struct uthread *new)
+{
+  volatile bool swap = true;
+  ucontext_t uc;
+  getcontext(&uc);
+  wrfence();
+  if(swap) {
+    swap = false;
+    memcpy(&old->uc, &uc, sizeof(ucontext_t));
+    run_uthread(new);
+  }
 }
 
 /* Deals with a pending preemption (checks, responds).  If the 2LS registered a

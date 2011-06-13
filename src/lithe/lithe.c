@@ -45,7 +45,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <ucontext.h>
 #include <unistd.h>
 
 #include <asm/unistd.h>
@@ -537,17 +536,9 @@ int lithe_sched_register(const lithe_sched_funcs_t *funcs,
   assert(trampoline);
 
   init_uthread_entry(&trampoline->uth, func, 1, arg);
+  uthread_set_tls_var(trampoline, lithe_tls, lithe_tls);
+  swap_uthreads(&child->task->uth, &trampoline->uth);
 
-  volatile bool swap = true;
-  ucontext_t uc;
-  getcontext(&uc);
-  wrfence();
-  if(swap) {
-    swap = false;
-    memcpy(&child->task->uth.uc, &uc, sizeof(ucontext_t));
-    uthread_set_tls_var(trampoline, lithe_tls, lithe_tls);
-    run_uthread((uthread_t*)trampoline);
-  }
   return 0;
 }
 
@@ -636,15 +627,7 @@ int lithe_sched_register_task(const lithe_sched_funcs_t *funcs,
   __sync_fetch_and_add(&(child->vcores), 1);
 
   /* Initialize task. */
-  if (getcontext(&task->uth.uc) < 0) {
-    fatalerror("lithe: could not get context");
-  }
-
-  /* TODO(benh): The 'sched' field is only difference from destroyed task. */
-  task->uth.uc.uc_stack.ss_sp = 0;
-  task->uth.uc.uc_stack.ss_size = 0;
-  task->uth.uc.uc_link = 0;
-
+  init_uthread_stack(&task->uth, NULL, 0);
   task->sched = current_sched;
 
   current_task = task;
@@ -709,7 +692,7 @@ int lithe_sched_unregister()
   }
 
   /* Return control. */
-  setcontext(&current_task->uth.uc);
+  run_uthread(&current_task->uth);
 
   return -1;
 }
@@ -795,7 +778,7 @@ int lithe_sched_request(int k)
   return 0;
 }
 
-int lithe_task_init(lithe_task_t *task, stack_t *stack)
+int lithe_task_init(lithe_task_t *task, void *stack, int stack_size)
 {
   if (task == NULL) {
     errno = EINVAL;
@@ -807,14 +790,7 @@ int lithe_task_init(lithe_task_t *task, stack_t *stack)
     return -1;
   }
 
-  if (getcontext(&task->uth.uc) < 0) {
-    fatalerror("lithe: could not get context");
-  }
-
-  task->uth.uc.uc_stack.ss_sp = stack->ss_sp;
-  task->uth.uc.uc_stack.ss_size = stack->ss_size;
-  task->uth.uc.uc_link = 0;
-
+  init_uthread_stack(&task->uth, stack, stack_size);
   task->sched = current_sched;
 
   return 0;
@@ -930,7 +906,7 @@ int lithe_task_resume(lithe_task_t *task)
   }
 
   current_task = task;
-  setcontext(&task->uth.uc);
+  run_uthread(&task->uth);
   return -1;
 }
 

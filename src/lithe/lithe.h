@@ -124,7 +124,7 @@ int lithe_sched_request(int k);
  * Initialize a new task. Returns 0 on success and -1 on error and
  * sets errno appropriately.
  */
-int lithe_task_init(lithe_task_t *task, stack_t *stack);
+int lithe_task_init(lithe_task_t *task, void *stack, int stack_size);
 
 /*
  * Destroy an existing task. Returns 0 on success and -1 on error and
