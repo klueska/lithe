@@ -146,9 +146,9 @@ struct uthread *pth_thread_create(void (*func)(void), void *udata)
 	/* Set the u_tf to start up in __bthread_run, which will call the real
 	 * start_routine and pass it the arg.  Note those aren't set until later in
 	 * bthread_create(). */
-    init_user_context_stack(&bthread->uthread.uc, bthread->stack, bthread->stacksize); 
+    init_uthread_stack(&bthread->uthread, bthread->stack, bthread->stacksize); 
     if(func != NULL)
-      make_user_context(&bthread->uthread.uc, func, 0);
+      init_uthread_entry(&bthread->uthread, func, 0);
 	return (struct uthread*)bthread;
 }
 

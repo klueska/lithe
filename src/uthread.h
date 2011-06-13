@@ -8,19 +8,23 @@
 #ifndef _UTHREAD_H
 #define _UTHREAD_H
 
-#include <ucontext.h>
+#include <arch.h>
 #include <vcore.h>
 
 /* Bare necessities of a user thread.  2LSs should allocate a bigger struct and
  * cast their threads to uthreads when talking with vcore code.  Vcore/default
  * 2LS code won't touch udata or beyond. */
+/* The definition of uthread_context_t is system dependant and located under
+ * the proper arch.h file */
 struct uthread {
-	struct ucontext uc;
+	uthread_context_t uc;
 	void *tls_desc;
 	/* whether or not the scheduler can migrate you from your vcore */
 	bool dont_migrate;
 };
 typedef struct uthread uthread_t;
+
+/* External reference to the current uthread running on this vcore */
 extern __thread uthread_t *current_uthread;
 
 /* 2L-Scheduler operations.  Can be 0.  Examples in pthread.c. */
@@ -69,6 +73,17 @@ bool check_preempt_pending(uint32_t vcoreid);
 /* Helpers, which sched_entry() can call */
 void run_current_uthread(void) __attribute((noreturn));
 void run_uthread(struct uthread *uthread) __attribute((noreturn));
+
+static inline void
+init_uthread_stack(uthread_t *uth, void *stack_top, uint32_t size)
+{
+  init_uthread_stack_ARCH(uth, stack_top, size);
+}
+
+#define init_uthread_entry(uth, entry, argc, ...)                       \
+{                                                                       \
+	init_uthread_entry_ARCH((uth), entry, (argc), ##__VA_ARGS__);       \
+}
 
 #define uthread_set_tls_var(uthread, name, val)                   \
 {                                                                 \

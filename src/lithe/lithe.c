@@ -58,7 +58,6 @@
 
 #include <lithe/lithe.h>
 #include <lithe/fatal.h>
-#include <lithe/arch.h>
 
 #ifndef __linux__
 #error "expecting __linux__ to be defined (for now, Lithe only runs on Linux)"
@@ -72,8 +71,8 @@ struct lithe_sched {
   /* State of scheduler. */
   enum { 
     REGISTERED,
-  UNREGISTERING,
-  UNREGISTERED 
+    UNREGISTERING,
+    UNREGISTERED 
   } state;
 
   /* Number of vcores currently owned by this scheduler. */
@@ -293,11 +292,11 @@ static uthread_t* lithe_thread_create(void (*func)(void), void *udata)
     fatalerror("lithe: could not protect page");
   }
 
-  /* Initialize the user context with the newly created stack */
-  init_user_context_stack(&t->uth.uc, stack, size); 
+  /* Initialize the newly create uthread with the newly created stack */
+  init_uthread_stack(&t->uth, stack, size); 
   /* Initialize the start function for the new thread */
   if(func != NULL)
-    make_user_context(&t->uth.uc, func, 0);
+    init_uthread_entry(&t->uth, func, 0);
 
   /* Return the new thread */
   return (struct uthread*)t;
@@ -398,9 +397,9 @@ int lithe_sched_enter(lithe_sched_t *child)
 
       /* Signal unregistering hard thread. */
       if (child->state == UNREGISTERING) {
-  if (child->vcores == 0) {
-    child->state = UNREGISTERED;
-  }
+        if (child->vcores == 0) {
+          child->state = UNREGISTERED;
+        }
       }
 
       /* Stay in parent. */
@@ -536,7 +535,8 @@ int lithe_sched_register(const lithe_sched_funcs_t *funcs,
   __sync_fetch_and_add(&(child->vcores), 1);
 
   assert(trampoline);
-  make_user_context(&trampoline->uth.uc, func, 1, arg);
+
+  init_uthread_entry(&trampoline->uth, func, 1, arg);
 
   volatile bool swap = true;
   ucontext_t uc;
@@ -844,97 +844,28 @@ int lithe_task_get(lithe_task_t **task)
   return 0;
 }
 
-void __lithe_task_do(int func0, int func1, int arg0, int arg1)
+int lithe_task_do(lithe_task_t *task, void (*func) (void *), void *arg)
 {
-  /* Unpackage the arguments. */
-#ifdef __x86_64__
-  assert(sizeof(int) != sizeof(void *));
-  void (*func) (void *) = (void (*) (void *))
-    (((unsigned long) func1 << 32) + (unsigned int) func0);
-  void *arg = (void *)
-    (((unsigned long) arg1 << 32) + (unsigned int) arg0);
-#elif __i386__
-  assert(sizeof(int) == sizeof(void *));
-  void (*func) (void *) = (void (*) (void *)) func0;
-  void *arg = (void *) arg0;
-#else
-# error "missing implementations for your architecture"
-#endif /* __x86_64__ */
-
-  func(arg);
-
-  fatal("lithe: returned from executing task");
-}
-
-int lithe_task_do(lithe_task_t *_task, void (*func) (void *), void *arg)
-{
-  if (_task == NULL) {
+  if (task == NULL) {
     errno = EINVAL;
     return -1;
   }
 
-  if (_task->sched == NULL) {
+  if (task->sched == NULL) {
     errno = ESRCH;
     return -1;
   }
 
-  /* TODO(benh): Must we be on the trampoline? */
+  /* TODO: Must we be on the trampoline? */
   if (current_task != trampoline) {
     errno = EPERM;
     return -1;
   }
 
-  /* Package the arguments. */
-#ifdef __x86_64__
-  assert(sizeof(int) != sizeof(void *));
-  int func0 = (unsigned int) (unsigned long) func;
-  int func1 = (unsigned long) func >> 32;
-  int arg0 = (unsigned int) (unsigned long) arg;
-  int arg1 = (unsigned long) arg >> 32;
-#elif __i386__
-  assert(sizeof(int) == sizeof(void *));
-  int func0 = (unsigned int) func;
-  int func1 = 0;
-  int arg0 = (unsigned int) arg;
-  int arg1 = 0;
-#else
-# error "missing implementations for your architecture"
-#endif /* __x86_64__ */
-
-  make_user_context(&_task->uth.uc, 
-                    (void (*) ()) __lithe_task_do,
-                  4, func0, func1, arg0, arg1);
-
-  current_task = _task;
-  setcontext(&_task->uth.uc);
+  init_uthread_entry(&task->uth, func, 1, arg); 
+  current_task = task;
+  run_uthread(&task->uth);
   return -1;
-}
-
-void __lithe_task_block(int func0, int func1,
-      int task0, int task1,
-      int arg0, int arg1)
-{
-  /* Unpackage the arguments. */
-#ifdef __x86_64__
-  assert(sizeof(int) != sizeof(void *));
-  void (*func) (lithe_task_t *, void *) = (void (*) (lithe_task_t *, void *))
-    (((unsigned long) func1 << 32) + (unsigned int) func0);
-  lithe_task_t *task = (lithe_task_t *)
-    (((unsigned long) task1 << 32) + (unsigned int) task0);
-  void *arg = (void *)
-    (((unsigned long) arg1 << 32) + (unsigned int) arg0);
-#elif __i386__
-  void (*func) (lithe_task_t *, void *) =
-    (void (*) (lithe_task_t *, void *)) func0;
-  lithe_task_t *task = (lithe_task_t *) task0;
-  void *arg = (void *) arg0;
-#else
-# error "missing implementations for your architecture"
-#endif /* __x86_64__ */
-
-  func(task, arg);
-
-  fatal("lithe: returned from executing task");
 }
 
 int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg)
@@ -956,32 +887,8 @@ int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg)
     return -1;
   }
 
-  /* Package the arguments. */
-#ifdef __x86_64__
-  assert(sizeof(int) != sizeof(void *));
-  int func0 = (unsigned int) (unsigned long) func;
-  int func1 = (unsigned long) func >> 32;
-  int task0 = (unsigned int) (unsigned long) current_task;
-  int task1 = (unsigned long) task >> 32;
-  int arg0 = (unsigned int) (unsigned long) arg;
-  int arg1 = (unsigned long) arg >> 32;
-#elif __i386__
-  assert(sizeof(int) == sizeof(void *));
-  int func0 = (unsigned int) func;
-  int func1 = 0;
-  int task0 = (unsigned int) current_task;
-  int task1 = 0;
-  int arg0 = (unsigned int) arg;
-  int arg1 = 0;
-#else
-# error "missing implementations for your architecture"
-#endif /* __x86_64__ */
-
-  make_user_context(&trampoline->uth.uc, 
-                    (void (*) ()) __lithe_task_block,
-                    6, func0, func1, task0, task1, arg0, arg1);
-
   lithe_task_t *task = current_task;
+  init_uthread_entry(&trampoline->uth, func, 2, task, arg);
   current_task = trampoline;
   swapcontext(&task->uth.uc, &trampoline->uth.uc);
 

@@ -60,20 +60,6 @@ static inline bool in_vcore_context(void)
 	return in_ht_context();
 }
 
-static inline void
-init_user_context_stack(struct ucontext *uc, void *stack_top, uint32_t size)
-{
-    int ret = getcontext(uc);
-	assert(ret == 0);
-	uc->uc_stack.ss_sp = stack_top;
-	uc->uc_stack.ss_size = size;
-}
-
-#define make_user_context(uc, entry_pt, ...)           \
-{                                                      \
-	makecontext((uc), (void*)entry_pt, __VA_ARGS__);   \
-}
-
 #define vcore_set_tls_var(vcoreid, name, val)                     \
 {                                                                 \
 	int vid = (vcoreid);                                          \
