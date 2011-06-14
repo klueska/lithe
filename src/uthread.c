@@ -250,6 +250,7 @@ void run_uthread(struct uthread *uthread)
 void swap_uthreads(struct uthread *old, struct uthread *new)
 {
   volatile bool swap = true;
+  void *tls_desc = get_tls_desc(vcore_id());
   ucontext_t uc;
   getcontext(&uc);
   wrfence();
@@ -258,6 +259,8 @@ void swap_uthreads(struct uthread *old, struct uthread *new)
     memcpy(&old->uc, &uc, sizeof(ucontext_t));
     run_uthread(new);
   }
+  current_uthread = old;
+  set_tls_desc(tls_desc, vcore_id());
 }
 
 /* Deals with a pending preemption (checks, responds).  If the 2LS registered a
