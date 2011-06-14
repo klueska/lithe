@@ -108,6 +108,14 @@ struct uthread *uthread_create(void (*func)(void), void *udata)
 	return new_thread;
 }
 
+void uthread_destroy(struct uthread *uthread)
+{
+	/* We alloc and manage the TLS, so lets get rid of it */
+	__uthread_free_tls(uthread);
+	/* Then call the scheduler specific exit function */
+	sched_ops->thread_exit(uthread);
+}
+
 void uthread_runnable(struct uthread *uthread)
 {
 	/* Allow the 2LS to make the thread runnable, and do whatever. */
@@ -120,23 +128,29 @@ void uthread_runnable(struct uthread *uthread)
 
 /* Need to have this as a separate, non-inlined function since we clobber the
  * stack pointer before calling it, and don't want the compiler to play games
- * with my hart.
- *
- * TODO: combine this 2-step logic with uthread_exit() */
-static void __attribute__((noinline, noreturn)) 
-__uthread_yield(struct uthread *uthread)
+ * with my hart. If exisiting, call sched_ops->thread_exit(), otherwise call
+ * sched_ops->thread_yield() */
+static void __uthread_stop(bool exit, struct uthread *uthread)
 {
 	assert(in_vcore_context());
+	assert(sched_ops->thread_exit);
 	assert(sched_ops->thread_yield);
 
-	/* 2LS will save the thread somewhere for restarting.  Later on, we'll
-	 * probably have a generic function for all sorts of waiting. */
-	sched_ops->thread_yield(uthread);
-	/* Leave the current vcore completely */
-	current_uthread = NULL; // this might be okay, even with a migration
+	/* If we are exiting the uthread, destroy it completely */
+	if(exit)
+		uthread_destroy(uthread);
+	/* Otherwise, we are just yielding, so call the scheduler specific
+     * yield function */
+	else 
+		sched_ops->thread_yield(uthread);
+
+	/* Set the current thread to NULL */
+	current_uthread = NULL;
+
 	/* Go back to the entry point, where we can handle notifications or
 	 * reschedule someone. */
 	uthread_vcore_entry();
+	assert(0);
 }
 
 /* Calling thread yields.  TODO: combine similar code with uthread_exit() (done
@@ -167,32 +181,12 @@ void uthread_yield(void)
 	set_stack_pointer(ht_context.uc_stack.ss_sp + ht_context.uc_stack.ss_size);
 	wrfence();
 	/* Finish exiting in another function. */
-	__uthread_yield(current_uthread);
+	__uthread_stop(false, current_uthread);
 	/* Should never get here */
 	assert(0);
 	/* Will jump here when the uthread's trapframe is restarted/popped. */
 yield_return_path:
 	printd("[U] Uthread %08p returning from a yield!\n", uthread);
-}
-
-/* Need to have this as a separate, non-inlined function since we clobber the
- * stack pointer before calling it, and don't want the compiler to play games
- * with my hart. */
-static void __attribute__((noinline, noreturn)) 
-__uthread_exit(struct uthread *uthread)
-{
-	assert(in_vcore_context());
-	assert(sched_ops->thread_exit);
-
-	/* we alloc and manage the TLS, so lets get rid of it */
-	__uthread_free_tls(uthread);
-	/* 2LS specific cleanup */
-	sched_ops->thread_exit(uthread);
-	current_uthread = NULL;
-	/* Go back to the entry point, where we can handle notifications or
-	 * reschedule someone. */
-	uthread_vcore_entry();
-	assert(0);
 }
 
 /* Exits from the uthread */
@@ -216,7 +210,7 @@ void uthread_exit(void)
 	set_stack_pointer(ht_context.uc_stack.ss_sp + ht_context.uc_stack.ss_size);
 	wrfence();
 	/* Finish exiting in another function.  Ugh. */
-	__uthread_exit(current_uthread);
+	__uthread_stop(true, current_uthread);
 }
 
 /* Saves the state of the current uthread from the point at which it is called */

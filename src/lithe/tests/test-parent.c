@@ -135,11 +135,10 @@ void __beginparent(void *arg)
 void __parent(void *arg)
 {
   printf("__parent\n");
-  lithe_task_t *task = (lithe_task_t *) malloc(sizeof(lithe_task_t));
-  int size = 8192;
-  void *stack = malloc(size);
-  lithe_task_init(task, stack, size);
-  lithe_task_do(task, __beginparent, NULL);
+  lithe_task_t *task;
+  lithe_task_stack_t stack = {malloc(8192), 8192};
+  lithe_task_create(&task, &stack);
+  lithe_task_run(task, __beginparent, NULL);
 }
 
 void parent()

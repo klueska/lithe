@@ -27,9 +27,8 @@ void work()
 void __endenter(lithe_task_t *task, void *arg)
 {
   printf("__endenter\n");
-  free(task->uth.uc.uc_stack.ss_sp);
+  free(task->stack.sp);
   lithe_task_destroy(task);
-  free(task);
   lithe_sched_yield();
 }
 
@@ -45,11 +44,10 @@ void __beginenter(void *__this)
 void enter(void *__this)
 {
   printf("enter\n");
-  lithe_task_t *task = (lithe_task_t *) malloc(sizeof(lithe_task_t));
-  int size = 4096;
-  void *stack = malloc(size);
-  lithe_task_init(task, stack, size);
-  lithe_task_do(task, __beginenter, __this);
+  lithe_task_t *task;
+  lithe_task_stack_t stack = {malloc(4096), 4096};
+  lithe_task_create(&task, &stack);
+  lithe_task_run(task, __beginenter, __this);
 }
 
 
@@ -95,9 +93,8 @@ static const lithe_sched_funcs_t funcs = {
 
 void __endstart(lithe_task_t *task, void *arg)
 {
-  free(task->uth.uc.uc_stack.ss_sp);
+  free(task->stack.sp);
   lithe_task_destroy(task);
-  free(task);
   lithe_sched_unregister();
 }
 
@@ -112,11 +109,10 @@ void __beginstart(void *arg)
 
 void start(void *arg)
 {
-  lithe_task_t *task = (lithe_task_t *) malloc(sizeof(lithe_task_t));
-  int size = 4096;
-  void *stack = malloc(size);
-  lithe_task_init(task, stack, size);
-  lithe_task_do(task, __beginstart, NULL);
+  lithe_task_t *task;
+  lithe_task_stack_t stack = {malloc(4096), 4096};
+  lithe_task_create(&task, &stack);
+  lithe_task_run(task, __beginstart, NULL);
 }
 
 

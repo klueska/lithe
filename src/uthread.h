@@ -58,6 +58,10 @@ int uthread_init();
  * what gets run, and if you want args, wrap it (like pthread) */
 struct uthread *uthread_create(void (*func)(void), void *udata);
 
+/* Destroys a uthread. Be careful not to call this on any currently running
+ * threads */
+void uthread_destroy(struct uthread *uthread);
+
 /* Function forcing a uthread to become runnable */
 void uthread_runnable(struct uthread *uthread);
 

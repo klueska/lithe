@@ -1,10 +1,10 @@
 /*
  * Lithe
  *
- * TODO(benh): Include a discussion of the transition stack and
+ * TODO: Include a discussion of the transition stack and
  * callbacks versus entry points.
  *
- * TODO(benh): Include a discussion of tasks, including the
+ * TODO: Include a discussion of tasks, including the
  * distinction between implicit and explicit tasks.
  */
 
@@ -23,28 +23,47 @@
 extern "C" {
 #endif
 
-/* Value used to inform parent of an unlimited hard thread request. */
+/* Value used to inform parent of an unlimited vcore request. */
 #define LITHE_REQUEST_MAX (-1)
 
 /* Opaque type for lithe schedulers. */
 typedef struct lithe_sched lithe_sched_t;
 
-/* Lithe task structure. */
-typedef struct lithe_task {
+/* Struct to hold the stack pointer and size of a lithe task stack */
+struct lithe_task_stack {
+  /* The stack pointer */
+  void *sp;
+
+  /* The size of the stack */
+  size_t size;
+};
+typedef struct lithe_task_stack lithe_task_stack_t;
+
+/* Lithe task structure itself. */
+struct lithe_task {
   /* Userlevel thread context. */
   uthread_t uth;
 
   /* Owning scheduler. */
   lithe_sched_t *sched;
 
-} lithe_task_t;
+  /* Struct holding the stack pointer and its size for this task.  This is only
+   * needed when a stack is created for this task dynamically, as indicataed by
+   * the following field */
+  lithe_task_stack_t stack;
+
+  /* Flag indicating whether this task's stack was created dynamically, or one
+   * was supplied for it at creation time */
+  bool dynamic_stack;
+};
+typedef struct lithe_task lithe_task_t;
 
 /* Lithe scheduler callbacks/entrypoints. */
-typedef struct lithe_sched_funcs {
-  /* Entry point for hard threads from the parent scheduler. */
+struct lithe_sched_funcs {
+  /* Entry point for vcores from the parent scheduler. */
   void (*enter) (void *__this);
 
-  /* Entry point for hard threads from a child scheduler. */
+  /* Entry point for vcores from a child scheduler. */
   void (*yield) (void *__this, lithe_sched_t *child);
 
   /* Callback (on the parent) to inform of a registerd child. */
@@ -53,13 +72,13 @@ typedef struct lithe_sched_funcs {
   /* Callback (on the parent) to inform of an unregistered child. */
   void (*unreg) (void *__this, lithe_sched_t *child);
 
-  /* Callback (on the parent) to inform of child's request for hard threads. */
+  /* Callback (on the parent) to inform of child's request for vcores. */
   void (*request) (void *__this, lithe_sched_t *child, int k);
 
   /* Callback (on any scheduler) to inform of a resumable task. */
   void (*unblock) (void *__this, lithe_task_t *task);
-
-} lithe_sched_funcs_t;
+};
+typedef struct lithe_sched_funcs lithe_sched_funcs_t;
   
 /**
  * Return the internals of the current scheduler. This can be used in
@@ -67,7 +86,7 @@ typedef struct lithe_sched_funcs {
  *
  *   #define this ((type *) (lithe_sched_this()))
 */
-void * lithe_sched_this();
+void *lithe_sched_this();
 
 /**
  * Grant current vcore to specified scheduler. The specified
@@ -78,21 +97,20 @@ void * lithe_sched_this();
 int lithe_sched_enter(lithe_sched_t *child);
 
 /**
- * Yield current hard thread to parent scheduler. This function should
- * never return.
- */
-int lithe_sched_yield();
-
-/**
  * Reenter current scheduler. This function should never return.
  */
 int lithe_sched_reenter();
 
 /**
+ * Yield current vcore to parent scheduler. This function should
+ * never return.
+ */
+int lithe_sched_yield();
+
+/**
  * Create a new scheduler instance (lithe_sched_t), registers it with
- * the current scheduler, and updates the current hard thread to be
- * scheduled by this new scheduler. Returns -1 if there is an error
- * and sets errno appropriately.
+ * the current scheduler, and updates the vcore to be scheduled by this new
+ * scheduler. Returns -1 if there is an error and sets errno appropriately.
 */
 int lithe_sched_register(const lithe_sched_funcs_t *funcs,
 			 void *__this,
@@ -104,19 +122,19 @@ int lithe_sched_register_task(const lithe_sched_funcs_t *funcs,
 			      lithe_task_t *task);
 
 /**
- * Unregister the current scheduler. This call blocks the current
- * hard thread until all resources have been recovered.
- * TODO(benh): Add return semantics comment.
+ * Unregister the current scheduler. This call blocks the current vcore until
+ * all resources have been recovered.
+ * TODO: Add return semantics comment.
 */
 int lithe_sched_unregister();
 
 int lithe_sched_unregister_task(lithe_task_t **task);
 
 /**
- * Request the specified number of hard threads from the parent. Note
- * that the parent is free to make a request using the calling hard
- * thread to their parent if necessary.
- * TODO(benh): Add return semantics comment.
+ * Request the specified number of vcores from the parent. Note that the parent
+ * is free to make a request using the calling vcore to their parent if
+ * necessary.
+ * TODO: Add return semantics comment.
  */
 int lithe_sched_request(int k);
 
@@ -124,7 +142,7 @@ int lithe_sched_request(int k);
  * Initialize a new task. Returns 0 on success and -1 on error and
  * sets errno appropriately.
  */
-int lithe_task_init(lithe_task_t *task, void *stack, int stack_size);
+int lithe_task_create(lithe_task_t **task, lithe_task_stack_t *stack);
 
 /*
  * Destroy an existing task. Returns 0 on success and -1 on error and
@@ -143,7 +161,7 @@ int lithe_task_get(lithe_task_t **task);
  * function never returns on success and returns -1 on error and sets
  * errno appropriately.
  */
-int lithe_task_do(lithe_task_t *task, void (*func) (void *), void *arg);
+int lithe_task_run(lithe_task_t *task, void (*func) (void *), void *arg);
 
 /**
  * Invoke the specified function with the current task. Note that you

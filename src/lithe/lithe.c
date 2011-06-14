@@ -265,35 +265,55 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   run_uthread((uthread_t*)trampoline);
 }
 
+static int __allocate_lithe_task_stack(lithe_task_stack_t **stack)
+{
+  /* Set things up to create a 4 page stack */
+  int pagesize = getpagesize();
+  size_t size = pagesize * 4;
+
+  /* Build the protection and flags for the mmap call to allocate the stack */
+  const int protection = (PROT_READ | PROT_WRITE | PROT_EXEC);
+  const int flags = (MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT);
+
+  /* mmap the stack in */
+  void *sp = mmap(NULL, size, protection, flags, -1, 0);
+  if (sp == MAP_FAILED) 
+    return -1;
+
+  /* Disallow all memory access to the last page. */
+  if (mprotect(sp, pagesize, PROT_NONE) != 0)
+    return -1;
+
+  /* Set the paramters properly before returning */
+  (*stack)->sp = sp;
+  (*stack)->size = size;
+  return 0;
+}
+
+static void __free_lithe_task_stack(lithe_task_stack_t *stack)
+{
+  munmap(stack->sp, stack->size);
+}
+
 static uthread_t* lithe_thread_create(void (*func)(void), void *udata)
 {
   /* Create a new lithe task */
   lithe_task_t *t = (lithe_task_t*)calloc(1, sizeof(lithe_task_t));
   assert(t);
 
-  /* Determine the stack size. */
-  int pagesize = getpagesize();
-  size_t size = pagesize * 4;
-
-  /* Build the protection and flags for the mmap call to allocate the new
-   * thread's stack */
-  const int protection = (PROT_READ | PROT_WRITE | PROT_EXEC);
-  const int flags = (MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT);
-
-  /* mmap the stack in */
-  void *stack = mmap(NULL, size, protection, flags, -1, 0);
-  if (stack == MAP_FAILED) {
-    fatalerror("lithe: could not allocate trampoline");
+  /* Get a reference to the lithe stack task if there is one */
+  lithe_task_stack_t *stack = (lithe_task_stack_t*)udata;
+  /* If not, create one.. */
+  if(stack == NULL) {
+	stack = &(t->stack);
+    assert(__allocate_lithe_task_stack(&stack) == 0);
+    t->dynamic_stack = true;
   }
+  else t->stack = *stack;
 
-  /* Disallow all memory access to the last page. */
-  if (mprotect(stack, pagesize, PROT_NONE) != 0) {
-    fatalerror("lithe: could not protect page");
-  }
-
-  /* Initialize the newly create uthread with the newly created stack */
-  init_uthread_stack(&t->uth, stack, size); 
-  /* Initialize the start function for the new thread */
+  /* Initialize the newly created uthread with the stack */
+  init_uthread_stack(&t->uth, stack->sp, stack->size); 
+  /* Initialize the start function for the new thread if there is one */
   if(func != NULL)
     init_uthread_entry(&t->uth, func, 0);
 
@@ -311,6 +331,9 @@ static void lithe_thread_yield(struct uthread *uthread)
 
 static void lithe_thread_exit(struct uthread *uthread)
 {
+  lithe_task_t *t = (lithe_task_t*)uthread;
+  if(t->dynamic_stack)
+    __free_lithe_task_stack(&t->stack);
 }
 
 static unsigned int lithe_vcores_wanted(void)
@@ -375,7 +398,7 @@ int lithe_sched_enter(lithe_sched_t *child)
   if (child->parent != parent)
     fatal("lithe: cannot enter child; child is not descendant of parent");
 
-  /* TODO(benh): Check if child is descendant of parent? */
+  /* TODO: Check if child is descendant of parent? */
 
   /*
    * Optimistically try and join child. We need to try and increment
@@ -677,7 +700,7 @@ int lithe_sched_unregister()
 
   /* Wait until all threads have left child. */
   while (child->state != UNREGISTERED) {
-    /* TODO(benh): Consider 'monitor' and 'mwait' or even MCS. */
+    /* TODO: Consider 'monitor' and 'mwait' or even MCS. */
     rdfence();
     atomic_delay();
   }
@@ -742,7 +765,7 @@ int lithe_sched_unregister_task(lithe_task_t **task)
 
   /* Wait until all threads have left child. */
   while (child->state != UNREGISTERED) {
-    /* TODO(benh): Consider 'monitor' and 'mwait' or even MCS. */
+    /* TODO: Consider 'monitor' and 'mwait' or even MCS. */
     rdfence();
     atomic_delay();
   }
@@ -778,21 +801,21 @@ int lithe_sched_request(int k)
   return 0;
 }
 
-int lithe_task_init(lithe_task_t *task, void *stack, int stack_size)
+int lithe_task_create(lithe_task_t **task, lithe_task_stack_t *stack)
 {
-  if (task == NULL) {
-    errno = EINVAL;
-    return -1;
-  }
+  assert(*task == NULL);
 
   if (stack == NULL) {
     errno = EINVAL;
     return -1;
   }
 
-  init_uthread_stack(&task->uth, stack, stack_size);
-  task->sched = current_sched;
+  *task = (lithe_task_t*)uthread_create(NULL, stack);
 
+  if(*task == NULL)
+    return -1; // errno set by uthread_create
+
+  (*task)->sched = current_sched;
   return 0;
 }
 
@@ -802,9 +825,7 @@ int lithe_task_destroy(lithe_task_t *task)
     errno = EINVAL;
     return -1;
   }
-
-  memset(task, 0, sizeof(lithe_task_t));
-
+  uthread_destroy((uthread_t*)task);
   return 0;
 }
 
@@ -816,11 +837,10 @@ int lithe_task_get(lithe_task_t **task)
   }
 
   *task = current_task;
-
   return 0;
 }
 
-int lithe_task_do(lithe_task_t *task, void (*func) (void *), void *arg)
+int lithe_task_run(lithe_task_t *task, void (*func) (void *), void *arg)
 {
   if (task == NULL) {
     errno = EINVAL;
@@ -899,7 +919,7 @@ int lithe_task_resume(lithe_task_t *task)
     return -1;
   }
 
-  /* TODO(benh): Must we be on the trampoline? */
+  /* TODO: Must we be on the trampoline? */
   if (current_task != trampoline) {
     errno = EPERM;
     return -1;
