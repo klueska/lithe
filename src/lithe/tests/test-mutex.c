@@ -9,7 +9,7 @@
 
 lithe_mutex_t mutex;
 
-int task_count = 500000;
+int task_count = 150000;
 struct task_deque taskq;
 int qlock;
 
@@ -111,7 +111,7 @@ void start(void *arg)
   /* Create a bunch of worker tasks */
   for(int i=0; i < task_count; i++) {
     lithe_task_t *task = NULL;
-    lithe_task_stack_t stack = {malloc(1024), 1024};
+    lithe_task_stack_t stack = {malloc(4096), 4096};
     lithe_task_create(&task, work, NULL, &stack);
     task_deque_enqueue(&taskq, task);
   }
