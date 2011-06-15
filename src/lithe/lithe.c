@@ -209,7 +209,7 @@ static uthread_t* lithe_init()
 static void __lithe_sched_enter()
 {
   assert(current_task == trampoline);
-  assert(current_task == current_uthread);
+  assert(&current_task->uth == current_uthread);
 
   /* Enter current scheduler. */
   current_sched->funcs->enter(current_sched->this);
@@ -438,7 +438,7 @@ int lithe_sched_enter(lithe_sched_t *child)
 
   /* Enter child. */
   assert(current_task == trampoline);
-  assert(current_task == current_uthread);
+  assert(&current_task->uth == current_uthread);
   child->funcs->enter(child->this);
   fatal("lithe: returned from enter");
 }
@@ -724,7 +724,7 @@ int lithe_sched_unregister()
   }
 
   /* Return control. */
-  assert(current_task != current_uthread);
+  assert(&current_task->uth != current_uthread);
   uthread_set_tls_var(&current_task->uth, lithe_tls, lithe_tls);
   run_uthread(&current_task->uth);
 
