@@ -99,7 +99,7 @@ int lithe_sched_enter(lithe_sched_t *child);
 /**
  * Reenter current scheduler. This function should never return.
  */
-int lithe_sched_reenter();
+void lithe_sched_reenter();
 
 /**
  * Yield current vcore to parent scheduler. This function should
@@ -142,7 +142,8 @@ int lithe_sched_request(int k);
  * Initialize a new task. Returns 0 on success and -1 on error and
  * sets errno appropriately.
  */
-int lithe_task_create(lithe_task_t **task, lithe_task_stack_t *stack);
+int lithe_task_create(lithe_task_t **task, void (*func) (void *), void *arg, 
+                      lithe_task_stack_t *stack);
 
 /*
  * Destroy an existing task. Returns 0 on success and -1 on error and
@@ -161,7 +162,7 @@ int lithe_task_get(lithe_task_t **task);
  * function never returns on success and returns -1 on error and sets
  * errno appropriately.
  */
-int lithe_task_run(lithe_task_t *task, void (*func) (void *), void *arg);
+int lithe_task_run(lithe_task_t *task);
 
 /**
  * Invoke the specified function with the current task. Note that you
