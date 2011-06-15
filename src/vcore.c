@@ -37,6 +37,7 @@ extern void vcore_ready() __attribute__ ((weak, alias ("__vcore_ready")));
 void ht_entry()
 {
 	if(ht_saved_ucontext) {
+		assert(current_uthread);
 		memcpy(&current_uthread->uc, ht_saved_ucontext, sizeof(struct ucontext));
 		current_uthread->tls_desc = ht_saved_tls_desc;
 	}
