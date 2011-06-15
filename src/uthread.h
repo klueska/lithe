@@ -92,11 +92,14 @@ init_uthread_stack(uthread_t *uth, void *stack_top, uint32_t size)
 #define uthread_set_tls_var(uthread, name, val)                   \
 {                                                                 \
 	int vcoreid = vcore_id();                                     \
-	typeof(name) temp_val = (val);                                \
+	volatile typeof(name) temp_val = (val);                       \
 	void *temp_tls_desc = current_tls_desc;                       \
+	wrfence();                                                    \
 	set_tls_desc(((uthread_t*)(uthread))->tls_desc, vcoreid);     \
 	name = temp_val;                                              \
+    wrfence();                                                    \
 	set_tls_desc(temp_tls_desc, vcoreid);                         \
+    wrfence();                                                    \
 }
 
 #define uthread_get_tls_var(uthread, name)                        \
@@ -105,8 +108,10 @@ init_uthread_stack(uthread_t *uth, void *stack_top, uint32_t size)
 	typeof(name) val;                                             \
 	void *temp_tls_desc = current_tls_desc;                       \
 	set_tls_desc(((uthread_t*)(uthread))->tls_desc, vcoreid);     \
+    wrfence();                                                    \
 	val = name;                                                   \
 	set_tls_desc(temp_tls_desc, vcoreid);                         \
+    wrfence();                                                    \
 	val;                                                          \
 })
 
