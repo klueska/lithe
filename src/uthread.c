@@ -239,7 +239,7 @@ void run_uthread(struct uthread *uthread)
 	assert(uthread->tls_desc);
 
 	uint32_t vcoreid = vcore_id();
-	current_uthread = uthread;
+	vcore_set_tls_var(vcoreid, current_uthread, uthread);
 	set_tls_desc(uthread->tls_desc, vcoreid);
 	setcontext(&uthread->uc);
 	assert(0);
@@ -259,8 +259,9 @@ void swap_uthreads(struct uthread *old, struct uthread *new)
     memcpy(&old->uc, &uc, sizeof(ucontext_t));
     run_uthread(new);
   }
-  current_uthread = old;
-  set_tls_desc(tls_desc, vcore_id());
+  int vcoreid = vcore_id();
+  vcore_set_tls_var(vcoreid, current_uthread, old);
+  set_tls_desc(tls_desc, vcoreid);
 }
 
 /* Deals with a pending preemption (checks, responds).  If the 2LS registered a
