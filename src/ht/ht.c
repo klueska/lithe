@@ -357,6 +357,9 @@ void ht_yield()
    * yield. Print out a warning if this ever actually succeeds. */
   if(pthread_mutex_trylock(&ht_yield_lock) == 0)
     printf("You should acquire the lock before yielding the hard thread!\n");
+  /* Clear out the saved ht_saved_context and ht_saved_tls_desc variables */
+  ht_saved_ucontext = NULL;
+  ht_saved_tls_desc = NULL;
   /* Let the rest of the code know we are in the process of yielding */
   __ht_threads[__ht_id].yielding = true;
   /* Jump to the transition stack allocated on this hard thread's underlying
