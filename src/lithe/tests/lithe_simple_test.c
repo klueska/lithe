@@ -50,6 +50,7 @@ void start(void *__counter)
     int limit = max_vcores();
     int cur = num_vcores();
     *counter = 0;
+    printf("counter: \n");
     printf("max_vcores: %d\n", limit);
     printf("num_vcores: %d\n", cur);
     printf("Requesting vcores\n");
@@ -66,7 +67,8 @@ int main()
   int counter = 0;
   printf("Lithe Simple test starting!\n");
   printf("Registering scheduler\n");
-  lithe_sched_register(&funcs, (void *) &counter, start, (void *) &counter);
+  lithe_task_t *task = lithe_task_create(start, &counter, NULL);
+  lithe_sched_register(&funcs, (void *) &counter, task);
   printf("Lithe Simple test exiting\n");
   return EXIT_SUCCESS;
 }

@@ -61,7 +61,9 @@ void __child(void *arg)
 void child()
 {
   printf("child\n");
-  lithe_sched_register(&child_funcs, NULL, __child, NULL);
+  lithe_task_stack_t stack = {malloc(8192), 8192};
+  lithe_task_t *task = lithe_task_create(__child, NULL, &stack);
+  lithe_sched_register(&child_funcs, NULL, task);
 }
 
 struct parent_sched {
@@ -132,20 +134,13 @@ void __beginparent(void *arg)
   lithe_task_block(__endparent, aftertask);
 }
 
-void __parent(void *arg)
-{
-  printf("__parent\n");
-  lithe_task_t *task;
-  lithe_task_stack_t stack = {malloc(8192), 8192};
-  lithe_task_create(&task, __beginparent, NULL, &stack);
-  lithe_task_run(task);
-}
-
 void parent()
 {
   printf("parent\n");
   struct parent_sched __this = { NULL };
-  lithe_sched_register(&parent_funcs, &__this, __parent, NULL);
+  lithe_task_stack_t stack = {malloc(8192), 8192};
+  lithe_task_t *task = lithe_task_create(__beginparent, NULL, &stack);
+  lithe_sched_register(&parent_funcs, &__this, task);
 }
 
 int main()

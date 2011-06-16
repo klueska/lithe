@@ -44,7 +44,7 @@ struct lithe_task {
   /* Userlevel thread context. */
   uthread_t uth;
 
-  /* Owning scheduler. */
+  /* The lithe scheduler associated with this task */
   lithe_sched_t *sched;
 
   /* Struct holding the stack pointer and its size for this task.  This is only
@@ -113,11 +113,6 @@ int lithe_sched_yield();
  * scheduler. Returns -1 if there is an error and sets errno appropriately.
 */
 int lithe_sched_register(const lithe_sched_funcs_t *funcs,
-			 void *__this,
-			 void (*func) (void *),
-			 void *arg);
-
-int lithe_sched_register_task(const lithe_sched_funcs_t *funcs,
 			      void *__this,
 			      lithe_task_t *task);
 
@@ -128,8 +123,6 @@ int lithe_sched_register_task(const lithe_sched_funcs_t *funcs,
 */
 int lithe_sched_unregister();
 
-int lithe_sched_unregister_task(lithe_task_t **task);
-
 /**
  * Request the specified number of vcores from the parent. Note that the parent
  * is free to make a request using the calling vcore to their parent if
@@ -139,11 +132,11 @@ int lithe_sched_unregister_task(lithe_task_t **task);
 int lithe_sched_request(int k);
 
 /*
- * Initialize a new task. Returns 0 on success and -1 on error and
- * sets errno appropriately.
+ * Initialize a new task. Returns the newly initialized task on success and
+ * NULL on error.
  */
-int lithe_task_create(lithe_task_t **task, void (*func) (void *), void *arg, 
-                      lithe_task_stack_t *stack);
+lithe_task_t *lithe_task_create(void (*func) (void *), void *arg, 
+                                lithe_task_stack_t *stack);
 
 /*
  * Destroy an existing task. Returns 0 on success and -1 on error and

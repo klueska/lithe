@@ -6,7 +6,6 @@
 #include <lithe/lithe_mutex.h>
 #include <lithe/fatal.h>
 
-
 lithe_mutex_t mutex;
 
 int task_count = 150000;
@@ -91,10 +90,20 @@ static const lithe_sched_funcs_t funcs = {
   .unblock = unblock,
 };
 
-void run_tasks()
+void start()
 {
+  printf("start\n");
+  /* Create a bunch of worker tasks */
+  for(int i=0; i < task_count; i++) {
+    lithe_task_stack_t stack = {malloc(4096), 4096};
+    lithe_task_t *task  = lithe_task_create(work, NULL, &stack);
+    task_deque_enqueue(&taskq, task);
+  }
+
+  /* Start up some more vcores to do our work for us */
   lithe_sched_request(max_vcores());
 
+  /* Wait for all the workers to run */
   while(1) {
     lithe_mutex_lock(&mutex);
       if(task_count == 0)
@@ -102,25 +111,10 @@ void run_tasks()
     lithe_mutex_unlock(&mutex);
   }
   lithe_mutex_unlock(&mutex);
+
+  /* Unregister the scheduler */
   lithe_sched_unregister();
 }
-
-void start(void *arg)
-{
-  printf("start\n");
-  /* Create a bunch of worker tasks */
-  for(int i=0; i < task_count; i++) {
-    lithe_task_t *task = NULL;
-    lithe_task_stack_t stack = {malloc(4096), 4096};
-    lithe_task_create(&task, work, NULL, &stack);
-    task_deque_enqueue(&taskq, task);
-  }
-  /* Create an initial task to set everything in motion and run it */
-  lithe_task_t *task = NULL;
-  lithe_task_create(&task, run_tasks, NULL, NULL);
-  lithe_task_run(task);
-}
-
 
 int main(int argc, char **argv)
 {
@@ -128,7 +122,9 @@ int main(int argc, char **argv)
   lithe_mutex_init(&mutex);
   task_deque_init(&taskq);
   spinlock_init(&qlock);
-  lithe_sched_register(&funcs, NULL, start, NULL);
+  lithe_task_t *start_task = lithe_task_create(start, NULL, NULL);
+  lithe_sched_register(&funcs, NULL, start_task);
   printf("main finish\n");
   return 0;
 }
+
