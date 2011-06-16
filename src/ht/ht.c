@@ -293,6 +293,10 @@ int ht_request(int k)
 
 static int __ht_request_async(int k)
 {
+  /* Short circuit if k == 0 */
+  if(k == 0)
+    return 0;
+
   /* Determine how many hard threads we can allocate. */
   int available = __ht_limit_hard_threads - __ht_max_hard_threads;
   k = available >= k ? k : available;
@@ -312,16 +316,16 @@ static int __ht_request_async(int k)
   /* Update hard thread counts. */
   __ht_num_hard_threads += j;
 
-  return __ht_max_hard_threads;
+  return k;
 }
 
 int ht_request_async(int k)
 {
-  int hts = -1;
+  int hts = 0;
   pthread_mutex_lock(&__ht_mutex);
   {
-    if (k < 0) {
-      fprintf(stderr, "ht: decrementing requests is unimplemented\n");
+    if (k <= 0) {
+      fprintf(stderr, "ht: you must request at least one hard thread ");
       exit(1);
     } else {
       /* If this is the first ht requested, do something special */
@@ -344,7 +348,7 @@ int ht_request_async(int k)
         k -=1;
       }
       /* Put in the rest of the request as normal */
-      hts = __ht_request_async(k);
+      hts += __ht_request_async(k);
     }
   }
   pthread_mutex_unlock(&__ht_mutex);
