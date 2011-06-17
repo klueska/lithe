@@ -19,7 +19,7 @@ void unreg_nyi(void *this, lithe_sched_t *child)
   fatal("should not be calling unregister");
 }
 
-void request_nyi(void *this, lithe_sched_t *child, int k)
+int request_nyi(void *this, lithe_sched_t *child, int k)
 {
   fatal("should not be calling request");
 }

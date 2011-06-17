@@ -24,10 +24,7 @@ void work()
 {
   lithe_mutex_lock(&mutex);
   {
-    lithe_task_t *task;
-    if (lithe_task_get(&task) != 0) {
-      fatal("could not get task");
-    }
+    lithe_task_t *task = lithe_task_self();
     printf("task 0x%x in critical section (count = %d)\n", (unsigned int)task, --task_count);
   }
   lithe_mutex_unlock(&mutex);
@@ -66,7 +63,7 @@ void unreg(void *__this, lithe_sched_t *sched)
 }
 
 
-void request(void *__this, lithe_sched_t *sched, int k)
+int request(void *__this, lithe_sched_t *sched, int k)
 {
   fatal("unimplemented");
 }

@@ -73,20 +73,42 @@ struct lithe_sched_funcs {
   void (*unreg) (void *__this, lithe_sched_t *child);
 
   /* Callback (on the parent) to inform of child's request for vcores. */
-  void (*request) (void *__this, lithe_sched_t *child, int k);
+  int (*request) (void *__this, lithe_sched_t *child, int k);
 
   /* Callback (on any scheduler) to inform of a resumable task. */
   void (*unblock) (void *__this, lithe_task_t *task);
 };
 typedef struct lithe_sched_funcs lithe_sched_funcs_t;
   
+
 /**
- * Return the internals of the current scheduler. This can be used in
- * conjunction with a macro to get a "poor man's this":
- *
- *   #define this ((type *) (lithe_sched_this()))
-*/
-void *lithe_sched_this();
+ * Create a new scheduler instance (lithe_sched_t), registers it with
+ * the current scheduler, and updates the vcore to be scheduled by this new
+ * scheduler. Returns -1 if there is an error and sets errno appropriately.
+ */
+int lithe_sched_register(const lithe_sched_funcs_t *funcs,
+			      void *__this,
+			      lithe_task_t *task);
+
+/**
+ * Unregister the current scheduler. This call blocks the current vcore until
+ * all resources have been recovered.
+ * TODO: Add return semantics comment.
+ */
+int lithe_sched_unregister();
+
+/**
+ * Return the a pointer to the current scheduler. I.e. the pointer passed in
+ * when the scheduler was registered 
+ */
+void *lithe_sched_current();
+
+/**
+ * Request the specified number of vcores from the parent. Note that the parent
+ * is free to make a request using the calling vcore to their parent if
+ * necessary. Returns the number of vcores actually granted.
+ */
+int lithe_sched_request(int k);
 
 /**
  * Grant current vcore to specified scheduler. The specified
@@ -107,30 +129,6 @@ void lithe_sched_reenter();
  */
 int lithe_sched_yield();
 
-/**
- * Create a new scheduler instance (lithe_sched_t), registers it with
- * the current scheduler, and updates the vcore to be scheduled by this new
- * scheduler. Returns -1 if there is an error and sets errno appropriately.
-*/
-int lithe_sched_register(const lithe_sched_funcs_t *funcs,
-			      void *__this,
-			      lithe_task_t *task);
-
-/**
- * Unregister the current scheduler. This call blocks the current vcore until
- * all resources have been recovered.
- * TODO: Add return semantics comment.
-*/
-int lithe_sched_unregister();
-
-/**
- * Request the specified number of vcores from the parent. Note that the parent
- * is free to make a request using the calling vcore to their parent if
- * necessary.
- * TODO: Add return semantics comment.
- */
-int lithe_sched_request(int k);
-
 /*
  * Initialize a new task. Returns the newly initialized task on success and
  * NULL on error.
@@ -145,13 +143,12 @@ lithe_task_t *lithe_task_create(void (*func) (void *), void *arg,
 int lithe_task_destroy(lithe_task_t *task);
 
 /*
- * Returns the currently executing task. Returns 0 on success and -1
- * on error and sets errno appropriately.
+ * Returns the currently executing task.
  */
-int lithe_task_get(lithe_task_t **task);
+lithe_task_t *lithe_task_self();
 
 /*
- * Use the specified task to call the specified function. This
+ * Run the specified task.  It must have been presreated. This 
  * function never returns on success and returns -1 on error and sets
  * errno appropriately.
  */
@@ -171,12 +168,6 @@ int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg);
  * appropriately.
  */
 int lithe_task_unblock(lithe_task_t *task);
-
-/*
- * Resume the specified task. This function never returns on success
- * and returns -1 on error and sets errno appropriately.
- */
-int lithe_task_resume(lithe_task_t *task);
 
 #ifdef __cplusplus
 }
