@@ -286,7 +286,6 @@ bool check_preempt_pending(uint32_t vcoreid)
 /* TLS helpers */
 static int __uthread_allocate_tls(struct uthread *uthread)
 {
-	assert(!uthread->tls_desc);
 	uthread->tls_desc = allocate_tls();
 	if (!uthread->tls_desc) {
 		errno = ENOMEM;
