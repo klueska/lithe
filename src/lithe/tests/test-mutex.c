@@ -3,20 +3,99 @@
 
 #include <spinlock.h>
 #include <lithe/lithe.h>
+#include <lithe/defaults.h>
 #include <lithe/lithe_mutex.h>
 #include <lithe/fatal.h>
 
+int task_count = 150000;
 lithe_mutex_t mutex;
 
-int task_count = 150000;
-struct task_deque taskq;
-int qlock;
+/* The root scheduler itself */
+typedef struct root_sched {
+  lithe_sched_t sched;
+  int qlock;
+  struct task_deque taskq;
+} root_sched_t;
 
-void __endwork(lithe_task_t *task, void *arg)
+/* Scheduler functions */
+static lithe_sched_t *root_create();
+static void root_destroy(lithe_sched_t *__this);
+static void root_start(lithe_sched_t *__this);
+static void root_vcore_enter(lithe_sched_t *__this);
+static lithe_task_t* root_task_create(lithe_sched_t *__this, void *udata);
+static void root_task_exit(lithe_sched_t *__this, lithe_task_t *task);
+static void root_task_runnable(lithe_sched_t *__this, lithe_task_t *task);
+
+static const lithe_sched_funcs_t root_sched_funcs = {
+  .create          = root_create,
+  .destroy         = root_destroy,
+  .start           = root_start,
+  .vcore_request   = __vcore_request_default,
+  .vcore_enter     = root_vcore_enter,
+  .vcore_return    = __vcore_return_default,
+  .child_started   = __child_started_default,
+  .child_finished  = __child_finished_default,
+  .task_create     = root_task_create,
+  .task_yield      = __task_yield_default,
+  .task_exit       = root_task_exit,
+  .task_runnable   = root_task_runnable
+};
+
+static lithe_sched_t *root_create()
+{
+  root_sched_t *sched = malloc(sizeof(root_sched_t));
+  spinlock_init(&sched->qlock);
+  task_deque_init(&sched->taskq);
+  return (lithe_sched_t*)sched;
+}
+
+
+static void root_destroy(lithe_sched_t *__this)
+{
+  assert(__this);
+  free(__this);
+}
+
+
+static void root_vcore_enter(lithe_sched_t *__this)
+{
+  root_sched_t *sched = (root_sched_t *)__this;
+  lithe_task_t *task = NULL;
+
+  spinlock_lock(&sched->qlock);
+    task_deque_dequeue(&sched->taskq, &task);
+  spinlock_unlock(&sched->qlock);
+
+  if(task == NULL)
+    lithe_vcore_yield();
+  else 
+    lithe_task_run(task);
+}
+
+
+static lithe_task_t* root_task_create(lithe_sched_t *__this, void *udata)
+{
+  lithe_task_t *task = malloc(sizeof(lithe_task_t));
+  task->stack.size = 4096;
+  task->stack.sp = malloc(task->stack.size);
+  assert(task->stack.sp);
+  return task;
+}
+
+
+static void root_task_exit(lithe_sched_t *__this, lithe_task_t *task)
 {
   free(task->stack.sp);
-  lithe_task_destroy(task);
-  lithe_sched_reenter();
+}
+
+
+static void root_task_runnable(lithe_sched_t *__this, lithe_task_t *task)
+{
+  root_sched_t *sched = (root_sched_t *)__this;
+  spinlock_lock(&sched->qlock);
+    task_deque_enqueue(&sched->taskq, task);
+    lithe_vcore_request(max_vcores());
+  spinlock_unlock(&sched->qlock);
 }
 
 
@@ -28,77 +107,22 @@ void work()
     printf("task 0x%x in critical section (count = %d)\n", (unsigned int)task, --task_count);
   }
   lithe_mutex_unlock(&mutex);
-  lithe_task_block(__endwork, NULL);
-}
-
-void enter(void *__this)
-{
-  lithe_task_t *task = NULL;
-
-  spinlock_lock(&qlock);
-    task_deque_dequeue(&taskq, &task);
-  spinlock_unlock(&qlock);
-
-  if(task == NULL)
-    lithe_sched_yield();
-  else 
-    lithe_task_run(task);
-}
-
-void yield(void *__this, lithe_sched_t *child)
-{
-  fatal("unimplemented");
 }
 
 
-void reg(void *__this, lithe_sched_t *sched)
+void root_start(lithe_sched_t *__this)
 {
-  fatal("unimplemented");
-}
-
-
-void unreg(void *__this, lithe_sched_t *sched)
-{
-  fatal("unimplemented");
-}
-
-
-int request(void *__this, lithe_sched_t *sched, int k)
-{
-  fatal("unimplemented");
-}
-
-
-void unblock(void *__this, lithe_task_t *task)
-{
-  spinlock_lock(&qlock);
-    task_deque_enqueue(&taskq, task);
-    lithe_sched_request(max_vcores());
-  spinlock_unlock(&qlock);
-}
-
-
-static const lithe_sched_funcs_t funcs = {
-  .enter   = enter,
-  .yield   = yield,
-  .reg     = reg,
-  .unreg   = unreg,
-  .request = request,
-  .unblock = unblock,
-};
-
-void start()
-{
-  printf("start\n");
+  printf("root_start start\n");
+  root_sched_t *sched = (root_sched_t*)__this;
+  lithe_mutex_init(&mutex);
   /* Create a bunch of worker tasks */
   for(int i=0; i < task_count; i++) {
-    lithe_task_stack_t stack = {malloc(4096), 4096};
-    lithe_task_t *task  = lithe_task_create(work, NULL, &stack);
-    task_deque_enqueue(&taskq, task);
+    lithe_task_t *task  = lithe_task_create(work, NULL);
+    task_deque_enqueue(&sched->taskq, task);
   }
 
   /* Start up some more vcores to do our work for us */
-  lithe_sched_request(max_vcores());
+  lithe_vcore_request(max_vcores());
 
   /* Wait for all the workers to run */
   while(1) {
@@ -108,19 +132,13 @@ void start()
     lithe_mutex_unlock(&mutex);
   }
   lithe_mutex_unlock(&mutex);
-
-  /* Unregister the scheduler */
-  lithe_sched_unregister();
+  printf("root_start finish\n");
 }
 
 int main(int argc, char **argv)
 {
   printf("main start\n");
-  lithe_mutex_init(&mutex);
-  task_deque_init(&taskq);
-  spinlock_init(&qlock);
-  lithe_task_t *start_task = lithe_task_create(start, NULL, NULL);
-  lithe_sched_register(&funcs, NULL, start_task);
+  lithe_sched_start(&root_sched_funcs);
   printf("main finish\n");
   return 0;
 }

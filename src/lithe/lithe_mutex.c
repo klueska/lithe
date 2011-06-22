@@ -37,7 +37,6 @@ void block(lithe_task_t *task, void *arg)
   lithe_mutex_t *mutex = (lithe_mutex_t *) arg;
   task_deque_enqueue(&mutex->deque, task);
   spinlock_unlock(&mutex->lock);
-  lithe_sched_reenter();
 }
 
 

@@ -26,76 +26,107 @@ extern "C" {
 /* Value used to inform parent of an unlimited vcore request. */
 #define LITHE_REQUEST_MAX (-1)
 
-/* Opaque type for lithe schedulers. */
+/* Declared here, and defined later on */
+struct lithe_sched_funcs;
+typedef struct lithe_sched_funcs lithe_sched_funcs_t;
+struct lithe_task;
+typedef struct lithe_task lithe_task_t;
+
+/* Opaque type required by every lithe scheduler, but used only internally by
+ * lithe itself */
+struct lithe_sched_idata;
+typedef struct lithe_sched_idata lithe_sched_idata_t;
+
+/* Basic lithe scheduler structure. All derived schedulers MUST have this as
+ * their first field so that they can be cast properly within lithe */
+struct lithe_sched {
+  /* Scheduler functions. */
+  const lithe_sched_funcs_t *funcs;
+
+  /* Scheduler state, managed internally by lithe */
+  lithe_sched_idata_t *idata;
+};
 typedef struct lithe_sched lithe_sched_t;
 
-/* Struct to hold the stack pointer and size of a lithe task stack */
+
+/* Lithe scheduler callbacks/entrypoints. */
+struct lithe_sched_funcs {
+  /* Initialization function called when this scheduler is first registered */
+  lithe_sched_t* (*create) (void);
+
+  /* Destructor function called just before this scheduler is deregistered */
+  void (*destroy) (lithe_sched_t *__this);
+
+  /* Start function of the scheduler.  From here you can launch tasks, do whatever */
+  void (*start) (lithe_sched_t *__this);
+
+  /* Function ultimately responsible for granting vcore requests from a child
+   * scheduler. This function is automatically called when a child invokes
+   * lithe_sched_request() from within it's current scheduler */
+  int (*vcore_request) (lithe_sched_t *__this, lithe_sched_t *child, int k);
+
+  /* Entry point for vcores granted to this scheduler by a call to
+   * lithe_vcore_request() */
+  void (*vcore_enter) (lithe_sched_t *__this);
+
+  /* Entry point for vcores given back to this scheduler by a call to
+   * lithe_vcore_yield() */
+  void (*vcore_return) (lithe_sched_t *__this, lithe_sched_t *child);
+
+  /* Callback to inform of a successfully registered child. */
+  void (*child_started) (lithe_sched_t *__this, lithe_sched_t *child);
+
+  /* Callback to inform of a sucessfully unregistered child. */
+  void (*child_finished) (lithe_sched_t *__this, lithe_sched_t *child);
+
+  /* Callback for scheduler specific task creation. */
+  lithe_task_t* (*task_create) (lithe_sched_t *__this, void *udata);
+
+  /* Callback for scheduler specific yielding of tasks */
+  void (*task_yield) (lithe_sched_t *__this, lithe_task_t *task);
+
+  /* Callback for scheduler specific exiting of tasks */
+  void (*task_exit) (lithe_sched_t *__this, lithe_task_t *task);
+
+  /* Function letting this scheduler know that the provided task is runnable.
+   * This could result from a blocked task being unblocked, or just after a
+   * task is first created and is to be run for the first time */
+  void (*task_runnable) (lithe_sched_t *__this, lithe_task_t *task);
+
+};
+  
+/* Structure used to keep track of the stack used by a lithe task */
 struct lithe_task_stack {
-  /* The stack pointer */
+  /* Pointer to the stack */
   void *sp;
 
-  /* The size of the stack */
+  /* Size of the stack */
   size_t size;
 };
 typedef struct lithe_task_stack lithe_task_stack_t;
 
-/* Lithe task structure itself. */
+/* Basic lithe task structure.  All derived scheduler tasks MUST have this as
+ * their first field so that they can be cast properly within the lithe
+ * scheduler. */
 struct lithe_task {
   /* Userlevel thread context. */
   uthread_t uth;
 
-  /* The lithe scheduler associated with this task */
-  lithe_sched_t *sched;
-
-  /* Struct holding the stack pointer and its size for this task.  This is only
-   * needed when a stack is created for this task dynamically, as indicataed by
-   * the following field */
+  /* The stack associated with this lithe task */
   lithe_task_stack_t stack;
 
-  /* Flag indicating whether this task's stack was created dynamically, or one
-   * was supplied for it at creation time */
-  bool dynamic_stack;
+  /* The lithe scheduler associated with this task */
+  lithe_sched_t *sched;
 };
-typedef struct lithe_task lithe_task_t;
 
-/* Lithe scheduler callbacks/entrypoints. */
-struct lithe_sched_funcs {
-  /* Entry point for vcores from the parent scheduler. */
-  void (*enter) (void *__this);
-
-  /* Entry point for vcores from a child scheduler. */
-  void (*yield) (void *__this, lithe_sched_t *child);
-
-  /* Callback (on the parent) to inform of a registerd child. */
-  void (*reg) (void *__this, lithe_sched_t *child);
-
-  /* Callback (on the parent) to inform of an unregistered child. */
-  void (*unreg) (void *__this, lithe_sched_t *child);
-
-  /* Callback (on the parent) to inform of child's request for vcores. */
-  int (*request) (void *__this, lithe_sched_t *child, int k);
-
-  /* Callback (on any scheduler) to inform of a resumable task. */
-  void (*unblock) (void *__this, lithe_task_t *task);
-};
-typedef struct lithe_sched_funcs lithe_sched_funcs_t;
-  
 
 /**
- * Create a new scheduler instance (lithe_sched_t), registers it with
- * the current scheduler, and updates the vcore to be scheduled by this new
- * scheduler. Returns -1 if there is an error and sets errno appropriately.
+ * Registers the scheduler functions passed as a parameter to create a new
+ * lithe scheduler.  It also hands the current vcore over to this scheduler
+ * until it is unregistered later on.  Once unregistered this call will
+ * complete.  Returns -1 if there is an error and sets errno appropriately.
  */
-int lithe_sched_register(const lithe_sched_funcs_t *funcs,
-			      void *__this,
-			      lithe_task_t *task);
-
-/**
- * Unregister the current scheduler. This call blocks the current vcore until
- * all resources have been recovered.
- * TODO: Add return semantics comment.
- */
-int lithe_sched_unregister();
+int lithe_sched_start(const lithe_sched_funcs_t *funcs);
 
 /**
  * Return the a pointer to the current scheduler. I.e. the pointer passed in
@@ -108,7 +139,7 @@ void *lithe_sched_current();
  * is free to make a request using the calling vcore to their parent if
  * necessary. Returns the number of vcores actually granted.
  */
-int lithe_sched_request(int k);
+int lithe_vcore_request(int k);
 
 /**
  * Grant current vcore to specified scheduler. The specified
@@ -116,31 +147,19 @@ int lithe_sched_request(int k);
  * current scheduler. This function never returns unless child is
  * NULL, in which case it sets errno appropriately and returns -1.
  */
-int lithe_sched_enter(lithe_sched_t *child);
-
-/**
- * Reenter current scheduler. This function should never return.
- */
-void lithe_sched_reenter();
+int lithe_vcore_grant(lithe_sched_t *child);
 
 /**
  * Yield current vcore to parent scheduler. This function should
  * never return.
  */
-int lithe_sched_yield();
+void lithe_vcore_yield();
 
 /*
  * Initialize a new task. Returns the newly initialized task on success and
  * NULL on error.
  */
-lithe_task_t *lithe_task_create(void (*func) (void *), void *arg, 
-                                lithe_task_stack_t *stack);
-
-/*
- * Destroy an existing task. Returns 0 on success and -1 on error and
- * sets errno appropriately.
- */
-int lithe_task_destroy(lithe_task_t *task);
+lithe_task_t *lithe_task_create(void (*func) (void), void *udata); 
 
 /*
  * Returns the currently executing task.
@@ -148,7 +167,7 @@ int lithe_task_destroy(lithe_task_t *task);
 lithe_task_t *lithe_task_self();
 
 /*
- * Run the specified task.  It must have been presreated. This 
+ * Run the specified task.  It must have been precreated. This 
  * function never returns on success and returns -1 on error and sets
  * errno appropriately.
  */
@@ -168,6 +187,21 @@ int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg);
  * appropriately.
  */
 int lithe_task_unblock(lithe_task_t *task);
+
+/**
+ * Invoke the specified function with the current task. Note that you
+ * can not block without a valid task (i.e. you can not block when
+ * executing on the trampoline). Returns 0 on success (after the task
+ * has been resumed) and -1 on error and sets errno appropriately.
+*/
+void lithe_task_yield();
+
+/*
+ * Exit an existing task, freeing all of its data structures and meta data in
+ * the process. Returns 0 on success and -1 on error and sets errno
+ * appropriately.
+ */
+void lithe_task_exit();
 
 #ifdef __cplusplus
 }

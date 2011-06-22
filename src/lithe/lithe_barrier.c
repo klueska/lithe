@@ -39,7 +39,6 @@ void __lithe_barrier_block(lithe_task_t *task, void *__blocked)
   blocked->queue[blocked->len] = task;
   blocked->len += 1;
   spinlock_unlock(&blocked->mtx);
-  lithe_sched_reenter();
 }
 
 
