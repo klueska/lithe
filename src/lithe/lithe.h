@@ -173,7 +173,7 @@ int lithe_task_run(lithe_task_t *task);
 /**
  * Invoke the specified function with the current task. Note that you
  * can not block without a valid task (i.e. you can not block when
- * executing on the trampoline). Returns 0 on success (after the task
+ * executing in vcore context). Returns 0 on success (after the task
  * has been resumed) and -1 on error and sets errno appropriately.
 */
 int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg);
@@ -188,7 +188,7 @@ int lithe_task_unblock(lithe_task_t *task);
 /**
  * Invoke the specified function with the current task. Note that you
  * can not block without a valid task (i.e. you can not block when
- * executing on the trampoline). Returns 0 on success (after the task
+ * executing in vcore context). Returns 0 on success (after the task
  * has been resumed) and -1 on error and sets errno appropriately.
 */
 void lithe_task_yield();
