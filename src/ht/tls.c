@@ -51,13 +51,8 @@ void free_tls(void *tcb)
 static void __attribute__((constructor)) __tls_ctor()
 {
 	/* Get a reference to the main program's TLS descriptor */
-    struct user_desc ud;
-	ud.entry_number = DEFAULT_TLS_GDT_ENTRY;
-	int ret = syscall(SYS_get_thread_area, &ud);
-	assert(ret == 0);
-	assert(ud.base_addr);
-    main_tls_desc = (tcbhead_t*)ud.base_addr;
-	current_tls_desc = main_tls_desc;
+	current_tls_desc = get_current_tls_base();
+	main_tls_desc = current_tls_desc;
 	tls_ready();
 }
 
@@ -72,18 +67,14 @@ extern void tls_ready() __attribute__ ((weak, alias ("__tls_ready")));
 void init_tls(uint32_t htid)
 {
 	/* Get a reference to the current TLS region in the GDT */
-    struct user_desc cud;
-	cud.entry_number = DEFAULT_TLS_GDT_ENTRY;
-	int ret = syscall(SYS_get_thread_area, &cud);
-	assert(ret == 0);
-	void *tcb = (void*)cud.base_addr;
+	void *tcb = get_current_tls_base();
 	assert(tcb);
 
 	/* Set up the TLS region as an entry in the LDT */
 	struct user_desc *ud = &(__ht_threads[htid].ldt_entry);
 	memset(ud, 0, sizeof(struct user_desc));
 	ud->entry_number = htid + RESERVED_LDT_ENTRIES;
-	ud->limit = 0xffffffff;
+	ud->limit = (-1);
 	ud->seg_32bit = 1;
 	ud->limit_in_pages = 1;
 	ud->useable = 1;
@@ -97,11 +88,19 @@ void set_tls_desc(void *tls_desc, uint32_t htid)
 {
   assert(tls_desc != NULL);
 
-  struct user_desc *ud = &(__ht_threads[htid].ldt_entry);
-  ud->base_addr = (unsigned long int)tls_desc;
-  int ret = syscall(SYS_modify_ldt, 1, ud, sizeof(struct user_desc));
-  assert(ret == 0);
-  TLS_SET_GS(ud->entry_number, 1);
+#ifdef __x86_64__
+  if(tls_desc > (void *)0xFFFFFFFF) {
+	arch_prctl(ARCH_SET_FS, tls_desc);
+  }
+  else 
+#endif
+  {
+    struct user_desc *ud = &(__ht_threads[htid].ldt_entry);
+    ud->base_addr = (unsigned long int)tls_desc;
+    int ret = syscall(SYS_modify_ldt, 1, ud, sizeof(struct user_desc));
+    assert(ret == 0);
+    TLS_SET_SEGMENT_REGISTER(ud->entry_number, 1);
+  }
   current_tls_desc = tls_desc;
   __ht_id = htid;
 }
@@ -112,6 +111,6 @@ void *get_tls_desc(uint32_t htid)
 {
 	struct user_desc *ud = &(__ht_threads[htid].ldt_entry);
 	assert(ud->base_addr != 0);
-	return (void *)ud->base_addr;
+	return (void *)(unsigned long)ud->base_addr;
 }
 

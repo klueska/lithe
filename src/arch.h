@@ -43,52 +43,46 @@ typedef struct ucontext uthread_context_t;
 
 #elif __x86_64__
 
-#define init_uthread_entry_ARCH(uth, entry, argc, ...)                  \
-{                                                                       \
-    if(argc == 0)                                                       \
-	  init_uthread_entry_0_x86_64(uth, entry, ##__VA_ARGS__);           \
-    else if(argc == 1)                                                  \
-	  init_uthread_entry_1_x86_64(uth, entry, ##__VA_ARGS__);           \
-    else if(argc == 2)                                                  \
-	  init_uthread_entry_2_x86_64(uth, entry, ##__VA_ARGS__);           \
-    else if(argc == 3)                                                  \
-	  init_uthread_entry_3_x86_64(uth, entry, ##__VA_ARGS__);           \
-}
+#define init_uthread_entry_ARCH(uth, entry, argc, ...) \
+  init_uthread_entry_##argc##_ARCH(uth, entry, ##__VA_ARGS__) \
 
-#define init_uthread_entry_0_x86_64(uth, entry, ...) \
-  makecontext(&(uth)->uc, (void*)entry, 0, ##__VA_ARGS__)
+#define init_uthread_entry_0_ARCH(uth, entry) \
+  makecontext(&(uth)->uc, (void*)entry, 0)
 
-#define init_uthread_entry_1_x86_64(uth, entry, arg)     \
-{                                                               \
-  long unsigned int targ1 = arg1;                               \
-  makecontext(&(uth)->uc, makecontext_entry_1_x86_64, 4,        \
-              entry >> 32, entry & 0xFFFFFFFF,                  \
-              (targ) >> 32, (targ) & 0xFFFFFFFF)                \
-}
-
-#define init_uthread_entry_2_x86_64(uth, entry, arg1, arg2)     \
-{                                                               \
-  long unsigned int targ1 = arg1;                               \
-  long unsigned int targ2 = arg2;                               \
-  makecontext(&(uth)->uc, makecontext_entry_2_x86_64, 6,        \
-              entry >> 32, entry & 0xFFFFFFFF,                  \
-              (targ1) >> 32, (targ1) & 0xFFFFFFFF,              \
-              (targ2) >> 32, (targ2) & 0xFFFFFFFF)              \
-}
-
-#define init_uthread_entry_3_x86_64(uth, entry, arg1, arg2, arg3)     \
+#define init_uthread_entry_1_ARCH(uth, entry, arg)                    \
 {                                                                     \
-  long unsigned int targ1 = arg1;                                     \
-  long unsigned int targ2 = arg2;                                     \
-  long unsigned int targ3 = arg3;                                     \
-  makecontext(&(uth)->uc, makecontext_entry_3_x86_64, 8,              \
-              entry >> 32, entry & 0xFFFFFFFF,                        \
-              (targ1) >> 32, (targ1) & 0xFFFFFFFF,                    \
-              (targ2) >> 32, (targ2) & 0xFFFFFFFF,                    \
-              (targ3) >> 32, (targ3) & 0xFFFFFFFF)                    \
+  unsigned long tentry = (unsigned long) entry;                       \
+  unsigned long targ = (unsigned long) arg;                           \
+  makecontext(&(uth)->uc, (void *)makecontext_entry_1_ARCH, 4,        \
+              tentry >> 32, tentry & 0xFFFFFFFF,                      \
+              targ >> 32, targ & 0xFFFFFFFF);                         \
 }
 
-static void makecontext_entry_1_x86_64(int entry1, int entry2, 
+#define init_uthread_entry_2_ARCH(uth, entry, arg1, arg2)             \
+{                                                                     \
+  unsigned long tentry = (unsigned long) entry;                       \
+  unsigned long targ1 = (unsigned long) arg1;                         \
+  unsigned long targ2 = (unsigned long) arg2;                         \
+  makecontext(&(uth)->uc, (void *)makecontext_entry_2_ARCH, 6,        \
+              tentry >> 32, tentry & 0xFFFFFFFF,                      \
+              targ1 >> 32, targ1 & 0xFFFFFFFF,                        \
+              targ2 >> 32, targ2 & 0xFFFFFFFF);                       \
+}
+
+#define init_uthread_entry_3_ARCH(uth, entry, arg1, arg2, arg3)       \
+{                                                                     \
+  unsigned long tentry = (unsigned long) entry;                       \
+  unsigned long targ1 = (unsigned long) arg1;                         \
+  unsigned long targ2 = (unsigned long) arg2;                         \
+  unsigned long targ3 = (unsigned long) arg3;                         \
+  makecontext(&(uth)->uc, (void *)makecontext_entry_3_ARCH, 8,        \
+              tentry >> 32, tentry & 0xFFFFFFFF,                      \
+              targ1 >> 32, targ1 & 0xFFFFFFFF,                        \
+              targ2 >> 32, targ2 & 0xFFFFFFFF,                        \
+              targ3 >> 32, targ3 & 0xFFFFFFFF);                       \
+}
+
+static void makecontext_entry_1_ARCH(int entry1, int entry2, 
                                        int arg1, int arg2)
 {
   void (*entry) (void *) = (void (*) (void *))
@@ -98,11 +92,11 @@ static void makecontext_entry_1_x86_64(int entry1, int entry2,
   entry(arg);
 }
 
-static void makecontext_entry_2_x86_64(int entry1, int entry2, 
+static void makecontext_entry_2_ARCH(int entry1, int entry2, 
                                        int arg1, int arg2,
                                        int arg3, int arg4)
 {
-  void (*entry) (void *) = (void (*) (void *))
+  void (*entry) (void *, void *) = (void (*) (void *, void *))
     (((unsigned long) entry1 << 32) + (unsigned int) entry2);
   void *new_arg1 = (void *)
     (((unsigned long) arg1 << 32) + (unsigned int) arg2);
@@ -111,12 +105,12 @@ static void makecontext_entry_2_x86_64(int entry1, int entry2,
   entry(new_arg1, new_arg2);
 }
 
-static void makecontext_entry_3_x86_64(int entry1, int entry2, 
+static void makecontext_entry_3_ARCH(int entry1, int entry2, 
                                        int arg1, int arg2,
                                        int arg3, int arg4,
                                        int arg5, int arg6)
 {
-  void (*entry) (void *) = (void (*) (void *))
+  void (*entry) (void *, void *, void *) = (void (*) (void *, void *, void *))
     (((unsigned long) entry1 << 32) + (unsigned int) entry2);
   void *new_arg1 = (void *)
     (((unsigned long) arg1 << 32) + (unsigned int) arg2);

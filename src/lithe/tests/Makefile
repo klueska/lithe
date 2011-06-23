@@ -13,6 +13,7 @@ EXT_DEPS ?=
 
 CFLAGS += -O2 -Wall -std=gnu99 -MMD -MP
 CFLAGS += -fno-strict-aliasing
+CFLAGS += -Wno-unused-function 
 LDFLAGS += -L$(PARLIB_LDDIR) -lpthread -lparlib
 
 INCDIRS := $(SRCDIR) $(PARLIB_DIR)

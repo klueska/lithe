@@ -7,13 +7,14 @@ TESTSNAME = ht_tests
 
 SRCDIR ?= $(PWD)
 OBJDIR ?= $(PWD)/obj
-PARLIB_DIR ?= $(PWD)/../src
-PARLIB_LDDIR ?= $(PWD)/../obj
+PARLIB_DIR ?= $(PWD)/../../../src
+PARLIB_LDDIR ?= $(PWD)/../../../obj
 EXT_DEPS ?= 
 
 CFLAGS += -O2 -Wall -std=gnu99 -MMD -MP
 CFLAGS += -fno-strict-aliasing
-LDFLAGS += -L$(PARLIB_LDDIR) -lpthread -lparlib
+CFLAGS += -Wno-unused-function 
+LDFLAGS += -L$(PARLIB_LDDIR)/ht -lpthread -lht
 
 INCDIRS := $(SRCDIR) $(PARLIB_DIR)
 INCS := $(patsubst %, -I%, $(INCDIRS))

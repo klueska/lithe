@@ -12,7 +12,11 @@
 #include <string.h>
 #include <unistd.h>
 
-#define internal_function   __attribute ((regparm (3), stdcall))
+#ifdef __i386__
+  #define internal_function __attribute ((regparm (3), stdcall))
+#elif __x86_64__
+  #define internal_function
+#endif
 
 #define PGSIZE getpagesize()
 #define ARCH_CL_SIZE 64
@@ -23,7 +27,11 @@
 static __inline void __attribute__((always_inline))
 set_stack_pointer(void* sp)
 {
+#ifdef __i386__ 
 	asm volatile ("mov %0,%%esp" : : "r"(sp) : "memory","esp");
+#elif __x86_64__ 
+	asm volatile ("mov %0,%%rsp" : : "r"(sp) : "memory","rsp");
+#endif
 }
 
 static __inline void

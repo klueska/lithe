@@ -70,8 +70,11 @@ static void start(lithe_sched_t *__this)
   printf("Scheduler Started!\n");
   unsigned int *counter = &((simple_sched_t*)__this)->counter;
   for(int i=0; i<100; i++) {
-    int limit = max_vcores();
-    int cur = num_vcores();
+    int limit, cur;
+    do {
+      limit = max_vcores();
+      cur = num_vcores();
+    } while(!(limit - cur));
     *counter = 0;
     printf("counter: \n");
     printf("max_vcores: %d\n", limit);

@@ -12,6 +12,8 @@ LIBUCNAME  := $(call uc, $(LIBNAME))
 
 # These variables are specific just to the compilation of the library itself.
 LIB_CFLAGS  += -g -O2 -Wall -std=gnu99 -MMD -MP
+LIB_CFLAGS  += -fno-strict-aliasing
+LIB_CFLAGS  += -Wno-unused-function
 LIB_INCDIRS := . $(PARLIB_DIR) $(SCHEDS_DIR)
 LIB_INCS    := $(patsubst %, -I%, $(LIB_INCDIRS))
 LIB_CFILES  := $(notdir $(wildcard $(SCHEDS_DIR)/*.c))

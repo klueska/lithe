@@ -11,7 +11,11 @@
 #include <sys/param.h>
 #include <ht/glibc-tls.h>
 
-#define internal_function   __attribute ((regparm (3), stdcall))
+#ifdef __i386__
+  #define internal_function   __attribute ((regparm (3), stdcall))
+#elif __x86_64
+  #define internal_function
+#endif
 
 extern void *_dl_allocate_tls(void *mem) internal_function; 
 extern void _dl_deallocate_tls (void *tcb, bool dealloc_tcb) internal_function; 
@@ -85,12 +89,12 @@ int main(int argc, char **argv)
 	ud.entry_number = 6;
 	int ret = syscall(SYS_get_thread_area, &ud);
 	assert(ret == 0);
-	main_tls_area = (void *)ud.base_addr;
+	main_tls_area = (void *)(long)ud.base_addr;
 
 	#define NUM_PTHREADS 10
 	pthread_t pthreads[NUM_PTHREADS];
 	for(int i=0; i<NUM_PTHREADS; i++)
-		pthread_create(&pthreads[i], NULL, entry, (void *)i);
+		pthread_create(&pthreads[i], NULL, entry, (void *)(long)i);
 	for(int i=0; i<NUM_PTHREADS; i++)
 		pthread_join(pthreads[i], NULL);
 	return 0;

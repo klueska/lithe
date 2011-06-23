@@ -8,6 +8,8 @@ INTERMLIBS := ht lithe
 SCHEDULERS := rrthread
 SYSDEP := unix/sysv/linux/i686
 CFLAGS = -g -O2 -Wall -std=gnu99 -MMD -MP
+CFLAGS += -Wno-unused-function 
+CFLAGS += -Wno-unused-value 
 
 SRCDIR ?= $(PWD)
 OBJDIR ?= $(SRCDIR)/obj

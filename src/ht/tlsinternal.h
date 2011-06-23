@@ -10,10 +10,17 @@
 #include <stdio.h>
 #include <assert.h>
 #include <unistd.h>
+#include <sys/syscall.h>
 
 #include <ht/arch.h>
 #include <ht/glibc-tls.h>
 #include <ht/htinternal.h>
+
+#ifdef __x86_64__
+  #include <asm/prctl.h>
+  #include <sys/prctl.h>
+  int arch_prctl(int code, unsigned long *addr);
+#endif 
 
 /* This is the default entry number of the TLS segment in the GDT when a
  * process first starts up. */
@@ -29,34 +36,52 @@ void tls_ready();
 /* Initialize tls for use by a ht */
 void init_tls(uint32_t htid);
 
-#define TLS_SET_GS(entry, ldt) \
-  asm volatile("movl %0, %%gs" :: "r" ((entry<<3)|(0x4&(ldt<<2))|0x3) : "memory")
+/* Get the current tls base address */
+static __inline void *get_current_tls_base()
+{
+	size_t addr;
+#ifdef __i386__
+    struct user_desc ud;
+	ud.entry_number = DEFAULT_TLS_GDT_ENTRY;
+	int ret = syscall(SYS_get_thread_area, &ud);
+	assert(ret == 0);
+	assert(ud.base_addr);
+    addr = (size_t)ud.base_addr;
+#elif __x86_64__
+	arch_prctl(ARCH_GET_FS, &addr);
+#endif
+	return (void *)addr;
+}
 
-#define TLS_GET_GS() \
-({ \
-  int reg = 0; \
-  asm volatile("movl %%gs, %0" : "=r" (reg)); \
-  reg; \
-})
+#ifdef __i386__
+  #define TLS_SET_SEGMENT_REGISTER(entry, ldt) \
+    asm volatile("movl %0, %%gs" :: "r" ((entry<<3)|(0x4&(ldt<<2))|0x3) : "memory")
 
-#define TLS_REGION_ADDR() \
-({ \
-  void *reg = NULL; \
-  asm volatile("movl %%gs:0x0, %0" : "=r" (reg)); \
-  reg; \
-})
+  #define TLS_GET_SEGMENT_REGISTER(entry, ldt, perms) \
+  ({ \
+    int reg = 0; \
+    asm volatile("movl %%gs, %0" : "=r" (reg)); \
+    printf("reg: 0x%x\n", reg); \
+    *(entry) = (reg >> 3); \
+    *(ldt) = (0x1 & (reg >> 2)); \
+    *(perms) = (0x3 & reg); \
+  })
 
-#define TLS_PRINT_REGION_ADDR() \
-({ \
-  void *addr = TLS_REGION_ADDR(); \
-  printf("addr: %p\n", addr); \
-})
+#elif __x86_64
+  #define TLS_SET_SEGMENT_REGISTER(entry, ldt) \
+    asm volatile("movl %0, %%fs" :: "r" ((entry<<3)|(0x4&(ldt<<2))|0x3) : "memory")
 
-#define TLS_PRINT_GS() \
-({ \
-  int gs = TLS_GET_GS(); \
-  printf("gs: entry:%d, ldt?:%d, perms:%d\n", (gs>>3), (0x1&(gs>>2)), (gs&0x3)); \
-})
+  #define TLS_GET_SEGMENT_REGISTER(entry, ldt, perms) \
+  ({ \
+    int reg = 0; \
+    asm volatile("movl %%fs, %0" : "=r" (reg)); \
+    printf("reg: 0x%x\n", reg); \
+    *(entry) = (reg >> 3); \
+    *(ldt) = (0x1 & (reg >> 2)); \
+    *(perms) = (0x3 & reg); \
+  })
+
+#endif
 
 #include <ht/tls.h>
 

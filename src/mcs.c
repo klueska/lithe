@@ -24,7 +24,7 @@ void mcs_lock_init(struct mcs_lock *lock)
 static inline mcs_lock_qnode_t *mcs_qnode_swap(mcs_lock_qnode_t **addr,
                                                mcs_lock_qnode_t *val)
 {
-	return (mcs_lock_qnode_t*)atomic_exchange_acq((int*)addr,(int)val);
+	return (mcs_lock_qnode_t*)atomic_exchange_acq((long*)addr,(long)val);
 }
 
 void mcs_lock_lock(struct mcs_lock *lock, struct mcs_lock_qnode *qnode)

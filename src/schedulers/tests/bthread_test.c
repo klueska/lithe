@@ -24,7 +24,7 @@ void *yield_thread(void* arg)
 		printf_safe("[A] bthread %d returned from yield on vcore %d\n",
 		            bthread_self()->id, vcore_id());
 	}
-	return (void*)(bthread_self()->id);
+	return (void*)(long)(bthread_self()->id);
 }
 
 int main(int argc, char** argv) 

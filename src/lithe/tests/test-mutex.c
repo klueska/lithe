@@ -104,7 +104,8 @@ void work()
   lithe_mutex_lock(&mutex);
   {
     lithe_task_t *task = lithe_task_self();
-    printf("task 0x%x in critical section (count = %d)\n", (unsigned int)task, --task_count);
+    printf("task 0x%x in critical section (count = %d)\n", 
+      (unsigned int)(unsigned long)task, --task_count);
   }
   lithe_mutex_unlock(&mutex);
 }
