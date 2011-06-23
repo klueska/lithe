@@ -62,6 +62,8 @@ void __task_yield_default(lithe_sched_t *__this, lithe_task_t *task)
 
 void __task_exit_default(lithe_sched_t *__this, lithe_task_t *task)
 {
+  assert(task);
+  assert(task->stack.sp);
   free(task->stack.sp);
   free(task);
 }

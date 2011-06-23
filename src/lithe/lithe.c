@@ -190,6 +190,9 @@ static __thread struct {
    * after a yield from a lithe task */
   lithe_vcore_func_t *next_func;
 
+  /* The current scheduler to run any tasks / functions with */
+  lithe_sched_t *current_sched;
+
   /* Task used when transitioning between schedulers. */
   lithe_task_t *trampoline;
 
@@ -198,12 +201,12 @@ static __thread struct {
   bool yield_vcore;
 
 } lithe_tls = {NULL, NULL, NULL, false};
-#define trampoline    (lithe_tls.trampoline)
-#define yield_vcore   (lithe_tls.yield_vcore)
 #define next_task     (lithe_tls.next_task)
 #define next_func     (lithe_tls.next_func)
+#define current_sched (lithe_tls.current_sched)
+#define trampoline    (lithe_tls.trampoline)
+#define yield_vcore   (lithe_tls.yield_vcore)
 #define current_task  ((lithe_task_t*)current_uthread)
-#define current_sched (current_task->sched)
 
 void vcore_ready()
 {
@@ -219,7 +222,7 @@ static uthread_t* lithe_init()
   assert(main_task);
 
   /* Set the scheduler associated with the task to be the base scheduler */
-  main_task->sched = &base_sched;
+  current_sched = &base_sched;
 
   /* Return a reference to the main task back to the uthread library. We will
    * resume this task once lithe_vcore_entry() is called from the uthread
@@ -259,7 +262,7 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
     trampoline = (lithe_task_t*)uthread_create(NULL, NULL);
     assert(trampoline);
     /* Set the initial trampoline scheduler to be the base scheduler */
-    trampoline->sched = &base_sched;
+    uthread_set_tls_var(&trampoline->uth, current_sched, &base_sched);
     /* Make the trampoline self aware */
     uthread_set_tls_var(trampoline, trampoline, trampoline);
     /* Up our vcore count for the base scheduler */
@@ -271,7 +274,8 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
    * taken over to run a signal handler from the kernel, and is now being
    * restarted */
   if(current_task) {
-    trampoline->sched = current_task->sched;
+    current_sched = uthread_get_tls_var(&current_task->uth, current_sched);
+    uthread_set_tls_var(&trampoline->uth, current_sched, current_sched);
     uthread_set_tls_var(&current_task->uth, trampoline, trampoline);
     run_current_uthread();
   }
@@ -279,7 +283,8 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   /* Otherwise, if next_task is set, start it off anew. */
   if(next_task) {
     lithe_task_t *task = next_task;
-    trampoline->sched = task->sched;
+    current_sched = uthread_get_tls_var(&task->uth, current_sched);
+    uthread_set_tls_var(&trampoline->uth, current_sched, current_sched);
     uthread_set_tls_var(&task->uth, trampoline, trampoline);
     next_task = NULL;
     run_uthread(&task->uth);
@@ -288,8 +293,9 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   /* Otherwise, if next_function is set, call it */
   if(next_func) {
     lithe_vcore_func_t *func = next_func;
+    current_sched = func->sched;
     init_uthread_entry(&trampoline->uth, func->func, 1, func->arg);
-    trampoline->sched = func->sched;
+    uthread_set_tls_var(&trampoline->uth, current_sched, func->sched);
     next_func = NULL;
     run_uthread(&trampoline->uth);
     //func->func(func->arg);
@@ -299,6 +305,7 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   /* Otherwise... */
   /* Set the entry function of the trampoline to reenter whatever the current
    * scheduler is */
+  current_sched = uthread_get_tls_var(&trampoline->uth, current_sched);
   init_uthread_entry(&trampoline->uth, __lithe_sched_reenter, 0);
   /* Jump to the trampoline */
   run_uthread(&trampoline->uth);
@@ -395,6 +402,7 @@ static void base_vcore_return(lithe_sched_t *__this, lithe_sched_t *sched)
 {
   /* Cleanup trampoline and yield the vcore back to the system. */
   vcore_set_tls_var(vcore_id(), yield_vcore, true);
+  vcore_set_tls_var(vcore_id(), current_sched, current_sched);
   uthread_exit();
 }
 
@@ -509,7 +517,6 @@ void lithe_vcore_yield()
 
   /* Leave child, join parent. */
   __sync_fetch_and_add(&(child->idata->vcores), -1);
-  current_sched = parent;
 
   /* Signal unregistering hard thread. */
   if (child->idata->state == UNREGISTERING) {
@@ -616,9 +623,8 @@ int lithe_sched_start(const lithe_sched_funcs_t *funcs)
   parent->funcs->child_started(parent, child);
 
   /* Leave parent, join child. */
-  current_sched = &base_sched;
+  current_sched = child;
   child->idata->start_task = lithe_task_create(__lithe_sched_start, NULL);
-  child->idata->start_task->sched = child;
   current_sched = parent;
 
   vcore_set_tls_var(vcore_id(), next_task, child->idata->start_task);
@@ -667,11 +673,7 @@ static void lithe_sched_finish()
     rdfence();
     atomic_delay();
   }
-
-  /* Rejoin the parent scheduler now that all child threads have finished */
-  current_sched = parent;
-
-  /* Inform the parent that their child has finished */
+  /* Inform the parent that this child scheduler has finished */
   parent->funcs->child_finished(parent, child);
 
   /* Free all grandchildren schedulers. */
@@ -694,9 +696,9 @@ int lithe_vcore_request(int k)
   lithe_sched_t *parent = current_sched->idata->parent;
   lithe_sched_t *child = current_sched;
 
-  current_task->sched = parent;
+  current_sched = parent;
   int granted = parent->funcs->vcore_request(parent, child, k);
-  current_task->sched = child;
+  current_sched = child;
   return granted;
 }
 
@@ -715,7 +717,7 @@ lithe_task_t *lithe_task_create(void (*func) (void), void *udata)
   assert(task->stack.sp);
   init_uthread_stack(&task->uth, task->stack.sp, task->stack.size);
   init_uthread_entry(&task->uth, __lithe_task_create, 1, func);
-  task->sched = current_sched;
+  uthread_set_tls_var(&task->uth, current_sched, current_sched);
   return task;
 }
 

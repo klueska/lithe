@@ -114,9 +114,6 @@ struct lithe_task {
 
   /* The stack associated with this lithe task */
   lithe_task_stack_t stack;
-
-  /* The lithe scheduler associated with this task */
-  lithe_sched_t *sched;
 };
 
 
