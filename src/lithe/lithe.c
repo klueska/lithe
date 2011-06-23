@@ -95,6 +95,14 @@ struct lithe_sched_idata {
   lithe_sched_t *next, *prev;
 };
 
+/* Struct to hold the function pointer and argument of a function to be called
+ * in vcore_entry after one of the lithe functions yields from a task */
+typedef struct lithe_vcore_func {
+  void (*func) (void *);
+  void *arg;
+  lithe_sched_t *sched;
+} lithe_vcore_func_t;
+
 /* Hooks from uthread code into lithe */
 static uthread_t*   lithe_init(void);
 static void         lithe_vcore_entry(void);
@@ -175,8 +183,12 @@ static lithe_sched_t *root_sched = NULL;
 
 static __thread struct {
   /* The next task to run on this vcore when lithe_vcore_entry is called again
-   * after a yield or exit */
+   * after a yield from another lithe task */
   lithe_task_t *next_task;
+
+  /* The next function to run on this vcore when lithe_vcore_entry is called
+   * after a yield from a lithe task */
+  lithe_vcore_func_t *next_func;
 
   /* Task used when transitioning between schedulers. */
   lithe_task_t *trampoline;
@@ -185,10 +197,11 @@ static __thread struct {
    * currently executing when vcore_entry is called again */
   bool yield_vcore;
 
-} lithe_tls = {NULL, NULL, false};
+} lithe_tls = {NULL, NULL, NULL, false};
 #define trampoline    (lithe_tls.trampoline)
 #define yield_vcore   (lithe_tls.yield_vcore)
 #define next_task     (lithe_tls.next_task)
+#define next_func     (lithe_tls.next_func)
 #define current_task  ((lithe_task_t*)current_uthread)
 #define current_sched (current_task->sched)
 
@@ -270,6 +283,17 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
     uthread_set_tls_var(&task->uth, trampoline, trampoline);
     next_task = NULL;
     run_uthread(&task->uth);
+  }
+
+  /* Otherwise, if next_function is set, call it */
+  if(next_func) {
+    lithe_vcore_func_t *func = next_func;
+    init_uthread_entry(&trampoline->uth, func->func, 1, func->arg);
+    trampoline->sched = func->sched;
+    next_func = NULL;
+    run_uthread(&trampoline->uth);
+    //func->func(func->arg);
+    assert(0); // Should never return from called function 
   }
 
   /* Otherwise... */
@@ -508,8 +532,8 @@ static void __lithe_sched_start()
   current_sched->funcs->start(current_sched);
   
   /* Jump to the trampoline to destroy this task and scheduler */
-  init_uthread_entry(&trampoline->uth, lithe_sched_finish, 0);
-  vcore_set_tls_var(vcore_id(), next_task, trampoline);
+  lithe_vcore_func_t func = {lithe_sched_finish, NULL, current_sched};
+  vcore_set_tls_var(vcore_id(), next_func, &func);
   uthread_yield();
 }
 
@@ -717,10 +741,15 @@ int lithe_task_run(lithe_task_t *task)
   return -1;
 }
 
-void __lithe_task_block(void (*func)(lithe_task_t *, void *), 
-                        lithe_task_t *task, void *arg)
+void __lithe_task_block(void *arg)
 {
-  func(task, arg);
+  struct { 
+    void (*func) (lithe_task_t *, void *); 
+    lithe_task_t *task;
+    void *arg;
+  } *real_arg = arg;
+
+  real_arg->func(real_arg->task, real_arg->arg);
   uthread_yield();
 }
 
@@ -743,9 +772,14 @@ int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg)
     return -1;
   }
 
-  init_uthread_entry(&trampoline->uth, __lithe_task_block, 
-                     3, func, current_task, arg);
-  vcore_set_tls_var(vcore_id(), next_task, trampoline);
+  struct { 
+    void (*func) (lithe_task_t *, void *); 
+    lithe_task_t *task;
+    void *arg;
+  } real_func_arg = {func, current_task, arg};
+  lithe_vcore_func_t real_func = {__lithe_task_block, &real_func_arg, current_sched};
+
+  vcore_set_tls_var(vcore_id(), next_func, &real_func);
   uthread_yield();
   return 0;
 }
