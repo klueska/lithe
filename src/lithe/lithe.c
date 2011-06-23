@@ -266,6 +266,8 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   assert(0); // Should never return from entered scheduler
 }
 
+/* Never used, but keep around for later in case we decide to allow the base
+ * scheduler to ever create tasks of its own... */
 static int __allocate_lithe_task_stack(lithe_task_stack_t **stack)
 {
   /* Set things up to create a 4 page stack */
@@ -291,6 +293,8 @@ static int __allocate_lithe_task_stack(lithe_task_stack_t **stack)
   return 0;
 }
 
+/* Never used, but keep around for later in case we decide to allow the base
+ * scheduler to ever create tasks of its own... */
 static void __free_lithe_task_stack(lithe_task_stack_t *stack)
 {
   munmap(stack->sp, stack->size);
@@ -374,30 +378,18 @@ static int base_vcore_request(lithe_sched_t *__this, lithe_sched_t *sched, int k
 
 static lithe_task_t *base_task_create(lithe_sched_t *__this, void *udata)
 {
-  /* Create a new lithe task */
-  lithe_task_t *t = (lithe_task_t*)calloc(1, sizeof(lithe_task_t));
-  assert(t);
-
-  /* Set up the stack for this lithe task */
-  lithe_task_stack_t *stack = &(t->stack);
-  assert(__allocate_lithe_task_stack(&stack) == 0);
-
-  /* Initialize the uthread associated with the newly created task with the
-   * stack */
-  init_uthread_stack(&t->uth, stack->sp, stack->size); 
-
-  /* Return the new thread */
-  return t;
+  fatal("The base scheduler should never be creating tasks of its own!\n");
+  return NULL;
 }
 
 static void base_task_yield(lithe_sched_t *__this, lithe_task_t *task)
 {
-  // Do nothing, lust let it yield as normal...
+  // Do nothing.  The only task we should ever yield is the main task...
 }
 
 static void base_task_exit(lithe_sched_t *__this, lithe_task_t *task)
 {
-  __free_lithe_task_stack(&task->stack);
+  fatal("The base scheduler should never have any tasks to be exiting!\n");
 }
 
 static void base_task_runnable(lithe_sched_t *__this, lithe_task_t *task)
