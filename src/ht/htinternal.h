@@ -30,8 +30,11 @@ struct hard_thread {
    * user space. */
   struct user_desc ldt_entry;
   
-  /* Thread properties when running in ht context */
-  pthread_t thread;
+  /* Thread properties when running in ht context: stack + TLS stuff */
+  pid_t ptid;
+  void *stack_top;
+  size_t stack_size;
+  void *tls_desc;
 };
 
 /* Array of hard threads */
