@@ -155,12 +155,18 @@ entry:
   exit(1);
 }
 
-int __ht_trampoline_entry(void *arg)
+#ifdef HT_USE_PTHREAD
+void *
+#else
+int 
+#endif
+__ht_trampoline_entry(void *arg)
 {
   assert(sizeof(void *) == sizeof(long int));
 
   int htid = (int) (long int) arg;
 
+#ifndef HT_USE_PTHREAD
   /* Set the proper affinity for this hard thread */
   cpu_set_t c;
   CPU_ZERO(&c);
@@ -170,6 +176,7 @@ int __ht_trampoline_entry(void *arg)
     exit(1);
   }
   sched_yield();
+#endif
 
   /* Initialize the tls region to be used by this ht */
   init_tls(htid);
@@ -236,6 +243,47 @@ int __ht_trampoline_entry(void *arg)
 
 static void __create_hard_thread(int i)
 {
+#ifdef HT_USE_PTHREAD
+  struct hard_thread *cht = &__ht_threads[i];
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+  cpu_set_t c;
+  CPU_ZERO(&c);
+  CPU_SET(i, &c);
+  if ((errno = pthread_attr_setaffinity_np(&attr,
+                                    sizeof(cpu_set_t),
+                                    &c)) != 0) {
+    fprintf(stderr, "ht: could not set affinity of underlying pthread\n");
+    exit(1);
+  }
+  if ((errno = pthread_attr_setstacksize(&attr, 4*PTHREAD_STACK_MIN)) != 0) {
+    fprintf(stderr, "ht: could not set stack size of underlying pthread\n");
+    exit(1);
+  }
+  if ((errno = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED)) != 0) {
+    fprintf(stderr, "ht: could not set stack size of underlying pthread\n");
+    exit(1);
+  }
+  
+  /* Set the created flag for the thread we are about to spawn off */
+  cht->created = true;
+
+  /* Also up the thread counts and set the flags for allocated and running
+   * until we get a chance to stop the thread and deallocate it in its entry
+   * gate */
+  cht->allocated = true;
+  cht->running = true;
+  __ht_num_hard_threads++;
+  __ht_max_hard_threads++;
+
+  if ((errno = pthread_create(&cht->thread,
+                              &attr,
+                              __ht_trampoline_entry,
+                              (void *) (long int) i)) != 0) {
+    fprintf(stderr, "ht: could not allocate underlying hard thread\n");
+    exit(2);
+  }
+#else 
   struct hard_thread *cht = &__ht_threads[i];
   cht->stack_size = HT_MIN_STACK_SIZE;
   if((cht->stack_top = malloc(cht->stack_size)) == NULL) {
@@ -272,44 +320,9 @@ static void __create_hard_thread(int i)
            clone_flags, (void *)((long int)i), 
            &cht->ptid, &cht->ldt_entry, &cht->ptid) == -1) {
     perror("Error");
-//  pthread_attr_t attr;
-//  pthread_attr_init(&attr);
-//  cpu_set_t c;
-//  CPU_ZERO(&c);
-//  CPU_SET(i, &c);
-//  if ((errno = pthread_attr_setaffinity_np(&attr,
-//                                    sizeof(cpu_set_t),
-//                                    &c)) != 0) {
-//    fprintf(stderr, "ht: could not set affinity of underlying pthread\n");
-//    exit(1);
-//  }
-//  if ((errno = pthread_attr_setstacksize(&attr, 4*PTHREAD_STACK_MIN)) != 0) {
-//    fprintf(stderr, "ht: could not set stack size of underlying pthread\n");
-//    exit(1);
-//  }
-//  if ((errno = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED)) != 0) {
-//    fprintf(stderr, "ht: could not set stack size of underlying pthread\n");
-//    exit(1);
-//  }
-//  
-//  /* Set the created flag for the thread we are about to spawn off */
-//  cht->created = true;
-//
-//  /* Also up the thread counts and set the flags for allocated and running
-//   * until we get a chance to stop the thread and deallocate it in its entry
-//   * gate */
-//  cht->allocated = true;
-//  cht->running = true;
-//  __ht_num_hard_threads++;
-//  __ht_max_hard_threads++;
-//
-//  if ((errno = pthread_create(&cht->thread,
-//                              &attr,
-//                              __ht_trampoline_entry,
-//                              (void *) (long int) i)) != 0) {
-//    fprintf(stderr, "ht: could not allocate underlying hard thread\n");
     exit(2);
   }
+#endif
 }
 
 static int __ht_allocate(int k)

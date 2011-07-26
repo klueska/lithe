@@ -12,9 +12,13 @@
 
 #include <stdbool.h>
 #include <asm/ldt.h>
-#include <pthread.h>
 #include <bits/local_lim.h>
 #include <ht/arch.h>
+
+#define HT_USE_PTHREAD
+#ifdef HT_USE_PTHREAD
+  #include <pthread.h>
+#endif
 
 //#define HT_MIN_STACK_SIZE (4*16384)
 #define HT_MIN_STACK_SIZE (3*PGSIZE)
@@ -30,11 +34,16 @@ struct hard_thread {
    * user space. */
   struct user_desc ldt_entry;
   
+#ifdef HT_USE_PTHREAD
+  /* The pthread associated with this hard thread */
+  pthread_t thread;
+#else
   /* Thread properties when running in ht context: stack + TLS stuff */
   pid_t ptid;
   void *stack_top;
   size_t stack_size;
   void *tls_desc;
+#endif
 };
 
 /* Array of hard threads */
