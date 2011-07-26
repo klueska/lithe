@@ -266,40 +266,6 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   assert(0); // Should never return from entered scheduler
 }
 
-/* Never used, but keep around for later in case we decide to allow the base
- * scheduler to ever create tasks of its own... */
-static int __allocate_lithe_task_stack(lithe_task_stack_t **stack)
-{
-  /* Set things up to create a 4 page stack */
-  int pagesize = getpagesize();
-  size_t size = pagesize * 4;
-
-  /* Build the protection and flags for the mmap call to allocate the stack */
-  const int protection = (PROT_READ | PROT_WRITE | PROT_EXEC);
-  const int flags = (MAP_PRIVATE | MAP_ANONYMOUS | MAP_32BIT);
-
-  /* mmap the stack in */
-  void *sp = mmap(NULL, size, protection, flags, -1, 0);
-  if (sp == MAP_FAILED) 
-    return -1;
-
-  /* Disallow all memory access to the last page. */
-  if (mprotect(sp, pagesize, PROT_NONE) != 0)
-    return -1;
-
-  /* Set the paramters properly before returning */
-  (*stack)->sp = sp;
-  (*stack)->size = size;
-  return 0;
-}
-
-/* Never used, but keep around for later in case we decide to allow the base
- * scheduler to ever create tasks of its own... */
-static void __free_lithe_task_stack(lithe_task_stack_t *stack)
-{
-  munmap(stack->sp, stack->size);
-}
-
 static uthread_t* lithe_thread_create(void (*func)(void), void *udata)
 {
   return (uthread_t*)current_sched->funcs->task_create(current_sched, udata);
@@ -620,7 +586,7 @@ int lithe_vcore_request(int k)
   return granted;
 }
 
-void __lithe_task_create(void (*func) (void)) 
+void __lithe_task_run(void (*func) (void)) 
 {
   func();
   uthread_exit();
@@ -635,7 +601,7 @@ lithe_task_t *lithe_task_create(void (*func) (void), void *udata)
   assert(task->stack.sp);
 
   init_uthread_stack(&task->uth, task->stack.sp, task->stack.size);
-  init_uthread_entry(&task->uth, __lithe_task_create, 1, func);
+  init_uthread_entry(&task->uth, __lithe_task_run, 1, func);
   uthread_set_tls_var(&task->uth, current_sched, current_sched);
   return task;
 }
