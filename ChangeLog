@@ -1,0 +1,74 @@
+In the process of building a linux compatibility layer for Akaros user libraries
+  Ht + Lithe were most similar existing code base - used for starting point
+  Could have stopped with ht port for all practical purposes
+  Eventually want to support lithe though, so makes sense to port it now and
+    implement all our example user level schedulers within its framework
+
+Restructured to fit Akaros model:
+  Akaros: kernel -> vcore -> uthread -> lithe
+  Linux:  kernel -> ht -> vcore -> uthread -> lithe
+  
+Structural/Semantical changes to ht code:
+  Conceptually, ht library functions exactly as before
+  Added user-level __thread style TLS support so __thread can be used both by
+    hts themselves and by user threads running on top of each ht 
+  Removed ht_request - all requests are now ht_async_requests
+  Reliance on pthreads removed - now uses clone() directly
+    - having problems with reliability with this when calling other glibc funcs
+    - problems appear to be with the low_level_locks and manifest with printf()
+    - small change to switch between using underlying pthreads / clone()
+  A few changes to the way hts are created / managed
+    - all hts created up front and put to sleep until needed - never destroyed
+    - upon return from first ht_async_request, the main thread is automatically
+      promoted to ht 0 - all other hts come in through ht_entry()
+    - Removed the special case required to 'promote' the main thread to an ht
+      - artifact of this is that there are now 2 copies of the main thread context
+        - one is restored and run as ht 0
+        - the other is put to sleep and never run again (extra linux_task though)
+    - ht_yield_lock added to protect any state managed outside the ht library
+      - calling ht_yield() without holding this lock is an error
+      - it is released just before the ht is finally yielded within the library
+
+Structural/Semantical changes to lithe code:
+  Biggest change - uses uthread library instead of linux ucontext
+    - uthread assumes a single user level scheduler to be built on top of it
+      - requires set of function pointers similar to the function pointers 
+        required by each scheduler in lithe
+    - lithe hooked in as uthread's single scheduler
+      - all other schedulers hooked into lithe through its redefined interface
+
+  Lithe library functions:
+    lithe_sched_start()   - start a child scheduler
+    lithe_sched_current() - query what scheduler is currently running
+    lithe_vcore_request() - request a new vcore from parent scheduler
+    lithe_vcore_grant()   - grant the current vcore to a child
+    lithe_vcore_yield()   - yield the current vcore to my parent
+    lithe_task_create()   - create a new lithe task
+    lithe_task_self()     - query what the current lithe task is
+    lithe_task_run()      - run a new lithe task
+    lithe_task_block()    - block the currently running task
+    lithe_task_unblock()  - unblock a specific lithe task
+    lithe_task_yield()    - yield the currently running lithe task
+    lithe_task_exit()     - exit the currently running lithe task
+  
+  Scheduler function pointers:
+    create()         - callback allocating memory for sched struct
+    destroy()        - callback deallocating memory and cleaning up state
+    start()          - start function of the scheduler
+    vcore_request()  - callback when child scheduler requests vcores
+    vcore_enter()    - entry function for new vcores as they come up
+    vcore_return()   - callback when child yields a vcore back
+    child_started()  - callback notifying when a child scheduler is started
+    child_finished() - callback notfying when a child scheduler has finished
+    task_create()    - callback for allocating memory for task struct 
+    task_yield()     - callback for what to do with task being yielded
+    task_exit()      - callback for what to do when a task is about to exit
+    task_runnable()  - callback for what to do when a task is made runnable
+
+What's working so far:
+  Threading model currently supported throughout:
+    - Including new user-thread TLS support 
+  Future work to get async I/O model inline with Akaros:
+    - Akaros unifies async I/O with OS signaling mechanisms
+      - We need to build a layer that emulates this behaviour in Linux
+    
