@@ -37,12 +37,12 @@ void TestScheduler::start()
       cur = num_vcores();
     } while(!(limit - cur));
     *counter = 0;
-    printf("counter: \n");
+    printf("counter: %d\n", *counter);
     printf("max_vcores: %d\n", limit);
     printf("num_vcores: %d\n", cur);
+    printf("Wait for counter to reach: %d\n", (limit - cur));
     printf("Requesting vcores\n");
     lithe_vcore_request(limit - cur);
-    printf("Waiting for counter to reach: %d\n", (limit - cur));
     while (coherent_read(*counter) < (limit - cur));
     printf("All vcores returned\n");
   }

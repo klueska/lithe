@@ -52,7 +52,7 @@ typedef struct lithe_sched lithe_sched_t;
 /* Lithe scheduler callbacks/entrypoints. */
 struct lithe_sched_funcs {
   /* Initialization function called when this scheduler is first registered */
-  lithe_sched_t* (*create) (void *arg);
+  lithe_sched_t* (*construct) (void *__sched);
 
   /* Destructor function called just before this scheduler is deregistered */
   void (*destroy) (lithe_sched_t *__this);

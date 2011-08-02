@@ -9,15 +9,13 @@
 extern "C" {
 #endif
 
-static lithe_sched_t *__create_default()
+static lithe_sched_t *__construct_default(void *__sched)
 {
-  return (lithe_sched_t*)malloc(sizeof(lithe_sched_t));
+  return (lithe_sched_t*)__sched;
 }
 
 static void __destroy_default(lithe_sched_t *__this)
 {
-  assert(__this);
-  free(__this);
 }
 
 static void __start_default(lithe_sched_t *__this)

@@ -58,16 +58,6 @@
 /* Struct to keep track of the internal state of each of the 2nd-level
  * schedulers managed by lithe */
 struct lithe_sched_idata {
-  /* Lock for managing scheduler. */
-  int lock;
-
-  /* State of scheduler. */
-  enum { 
-    REGISTERED,
-    UNREGISTERING,
-    UNREGISTERED 
-  } state;
-
   /* Number of vcores currently owned by this scheduler. */
   int vcores;
 
@@ -79,13 +69,6 @@ struct lithe_sched_idata {
 
   /* Parent task from which this scheduler was started. */
   lithe_task_t *parent_task;
-
-  /* Scheduler's children schedulers (necessary to insure calling enter is
-   * valid). */
-  lithe_sched_t *children;
-
-  /* Linked list of sibling's (list head is parent->children). */ 
-  lithe_sched_t *next, *prev;
 };
 
 /* Struct to hold the function pointer and argument of a function to be called
@@ -120,7 +103,7 @@ struct schedule_ops lithe_sched_ops = {
 struct schedule_ops *sched_ops __attribute__((weak)) = &lithe_sched_ops;
 
 /* Lithe's base scheduler functions */
-static lithe_sched_t *base_create();
+static lithe_sched_t *base_construct(void *__sched);
 static void base_destroy(lithe_sched_t *__this);
 static void base_start(lithe_sched_t *__this);
 static int base_vcore_request(lithe_sched_t *this, lithe_sched_t *child, int k);
@@ -134,7 +117,7 @@ static void base_task_exit(lithe_sched_t *__this, lithe_task_t *task);
 static void base_task_runnable(lithe_sched_t *__this, lithe_task_t *task);
 
 static const lithe_sched_funcs_t base_funcs = {
-  .create          = base_create,
+  .construct       = base_construct,
   .destroy         = base_destroy,
   .start           = base_start,
   .vcore_request   = base_vcore_request,
@@ -149,14 +132,9 @@ static const lithe_sched_funcs_t base_funcs = {
 };
 
 static lithe_sched_idata_t base_idata = {
-  .lock         = UNLOCKED,
-  .state        = REGISTERED,
   .vcores       = 0,
   .parent       = NULL,
   .parent_task  = NULL,
-  .children     = NULL,
-  .next         = NULL,
-  .prev         = NULL,
 };
 
 /* Base scheduler itself */
@@ -295,7 +273,7 @@ static unsigned int lithe_vcores_wanted(void)
 }
 
 
-static lithe_sched_t *base_create()
+static lithe_sched_t *base_construct(void *__sched)
 {
   fatal("Trying to recreate the base scheduler!\n");
 }
@@ -371,40 +349,14 @@ void *lithe_sched_current()
 int lithe_vcore_grant(lithe_sched_t *child)
 {
   assert(child);
-  assert(child->idata->parent);
   assert(in_vcore_context());
 
-  lithe_sched_t *parent = current_sched;
+  /* Leave parent, join child. */
+  assert(child != &base_sched);
+  current_sched = child;
+  __sync_fetch_and_add(&(child->idata->vcores), 1);
 
-  /* TODO: Check if child is descendant of parent? */
-
-  /*
-   * Optimistically try and join child. We need to try and increment
-   * the childrens number of threads before we check the childs state
-   * because that is the order of writes that an unregistering child
-   * will take.
-   */
-  if (child->idata->state == REGISTERED) {
-    /* Leave parent, join child. */
-    assert(child != &base_sched);
-    current_sched = child;
-    __sync_fetch_and_add(&(child->idata->vcores), 1);
-
-    if (child->idata->state != REGISTERED) {
-      /* Leave child, join parent. */
-      __sync_fetch_and_add(&(child->idata->vcores), -1);
-      current_sched = parent;
-
-      /* Signal unregistering hard thread. */
-      if (child->idata->state == UNREGISTERING) {
-        if (child->idata->vcores == 0) {
-          child->idata->state = UNREGISTERED;
-        }
-      }
-    }
-  }
-
-  /* Enter current_sched, updated or not... */
+  /* Enter the child scheduler */
   __lithe_sched_reenter();
   fatal("lithe: returned from enter");
 }
@@ -420,13 +372,6 @@ void lithe_vcore_yield()
   /* Leave child, join parent. */
   __sync_fetch_and_add(&(child->idata->vcores), -1);
 
-  /* Signal unregistering hard thread. */
-  if (child->idata->state == UNREGISTERING) {
-    if (child->idata->vcores == 0) {
-      child->idata->state = UNREGISTERED;
-    }
-  }
-
   /* Yield the vcore to the parent */
   current_sched = parent;
   parent->funcs->vcore_return(parent, child);
@@ -434,20 +379,7 @@ void lithe_vcore_yield()
 }
 
 static void lithe_sched_finish();
-static void __lithe_sched_start()
-{
-  /* Run the start function of the scheduler */
-  assert(!in_vcore_context());
-  assert(current_sched);
-  current_sched->funcs->start(current_sched);
-  
-  /* Jump into vcore context to destroy this task and scheduler */
-  lithe_vcore_func_t func = {lithe_sched_finish, NULL};
-  vcore_set_tls_var(vcore_id(), next_func, &func);
-  uthread_yield();
-}
-
-int lithe_sched_start(const lithe_sched_funcs_t *funcs, void *arg)
+int lithe_sched_start(const lithe_sched_funcs_t *funcs, void *__sched)
 {
   assert(funcs);
   assert(!in_vcore_context());
@@ -457,48 +389,17 @@ int lithe_sched_start(const lithe_sched_funcs_t *funcs, void *arg)
   /* Set the parent to be the current scheduler */
   lithe_sched_t *parent = current_sched;
 
-  /* Create the child scheduler */
-  lithe_sched_t *child = funcs->create(arg);
-  lithe_sched_idata_t *child_idata = (lithe_sched_idata_t *) malloc(sizeof(lithe_sched_idata_t));
-  assert(child);
-  assert(child_idata);
-  child->idata = child_idata;
-
-  /* Check if parent scheduler is still valid. */
-  spinlock_lock(&parent->idata->lock);
-  { 
-   if (parent->idata->state != REGISTERED) {
-      spinlock_unlock(&parent->idata->lock);
-      errno = EPERM;
-      return -1;
-    }
-  }
-  spinlock_unlock(&parent->idata->lock);
+  /* Call the constructor on the child scheduler */
+  lithe_sched_t *child = funcs->construct(__sched);
+  /* Create the childs sched_idata on the stack and set up the pointer to it */
+  lithe_sched_idata_t child_idata;
+  child->idata = &child_idata;
 
   /* Set-up child scheduler */
   child->funcs = funcs;
-  spinlock_init(&child->idata->lock);
-  child->idata->state = REGISTERED;
   child->idata->vcores = 0;
   child->idata->parent = parent;
   child->idata->parent_task = current_task;
-  child->idata->children = NULL;
-  child->idata->next = NULL;
-  child->idata->prev = NULL;
-
-  /* Add child to parents list of children. */
-  spinlock_lock(&parent->idata->lock);
-  {
-    child->idata->next = parent->idata->children;
-    child->idata->prev = NULL;
-
-    if (parent->idata->children != NULL) {
-      parent->idata->children->idata->prev = child;
-    }
-
-    parent->idata->children = child;
-  }
-  spinlock_unlock(&parent->idata->lock);
 
   /* Update the number of vcores now owned by this child */
   __sync_fetch_and_add(&(child->idata->vcores), 1);
@@ -506,13 +407,20 @@ int lithe_sched_start(const lithe_sched_funcs_t *funcs, void *arg)
   /* Inform parent. */
   parent->funcs->child_started(parent, child);
 
-  /* Leave parent, join child. */
+  /* Leave parent, join child, hijacking this task in the process. */
   current_sched = child;
-  child->idata->start_task = lithe_task_create(__lithe_sched_start, NULL);
-  current_sched = parent;
+  vcore_set_tls_var(vcore_id(), current_sched, current_sched);
+  current_sched->funcs->start(current_sched);
 
-  vcore_set_tls_var(vcore_id(), next_task, child->idata->start_task);
+  /* Set up a function to run in vcore context to exit the child scheduler */
+  lithe_vcore_func_t func = {lithe_sched_finish, NULL};
+  vcore_set_tls_var(vcore_id(), next_func, &func);
+  /* Yield to vcore context */
   uthread_yield();
+
+  /* When we come back, we are now in the parent again... */
+  current_sched = parent;
+  vcore_set_tls_var(vcore_id(), current_sched, current_sched);
   return 0;
 }
 
@@ -523,54 +431,23 @@ static void lithe_sched_finish()
   lithe_sched_t *parent = current_sched->idata->parent;
   lithe_sched_t *child = current_sched;
 
-  /*
-   * Wait until all grandchildren have finished. The lock protects
-   * against some other scheduler trying to register with child
-   * (another grandchild) as well as our write to child idata->
-   */
-  spinlock_lock(&child->idata->lock);
-  {
-    lithe_sched_t *sched = child->idata->children;
-
-    while (sched != NULL) {
-      while (sched->idata->state != UNREGISTERED) {
-        rdfence();
-        atomic_delay();
-      }
-      sched = sched->idata->next;
-    }
-
-    child->idata->state = UNREGISTERING;
-  }
-  spinlock_unlock(&child->idata->lock);
+  /* Don't actually end this scheduler until all vcores have been yielded
+   * (except this one of course) */
+  while (coherent_read(child->idata->vcores) != 1);
 
   /* Update child's vcore count */
   __sync_fetch_and_add(&(child->idata->vcores), -1);
 
-  if (child->idata->vcores == 0) {
-    child->idata->state = UNREGISTERED;
-  }
-
-  /* Wait until all threads have left child. */
-  while (child->idata->state != UNREGISTERED) {
-    /* TODO: Consider 'monitor' and 'mwait' or even MCS. */
-    rdfence();
-    atomic_delay();
-  }
   /* Inform the parent that this child scheduler has finished */
   parent->funcs->child_finished(parent, child);
 
-  /* Free all grandchildren schedulers. */
-  lithe_sched_t *sched = child->idata->children;
-  while (sched != NULL) {
-    lithe_sched_t *next = sched->idata->next;
-    free(sched->idata);
-    sched->funcs->destroy(sched);
-    sched = next;
-  }
-
-  /* Return control to the parent task. */
+  /* Set the next task to be the one that returns to the parent scheduler */
   vcore_set_tls_var(vcore_id(), next_task, child->idata->parent_task);
+
+  /* Destroy the child */
+  child->funcs->destroy(child);
+
+  /* Return to vcore entry to run the next task */
   lithe_vcore_entry();
 }
 

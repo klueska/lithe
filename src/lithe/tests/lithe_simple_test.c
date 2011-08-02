@@ -23,14 +23,14 @@ typedef struct simple_sched {
   unsigned int counter;
 } simple_sched_t;
 
-static lithe_sched_t *create(void *arg);
+static lithe_sched_t *construct(void *arg);
 static void destroy(lithe_sched_t *__this);
 static void start(lithe_sched_t *__this);
 static void vcore_enter(lithe_sched_t *__this);
 
 static const lithe_sched_funcs_t funcs = {
-  .create          = create,
-  .destroy         = destroy,
+  .construct       = construct,
+  .destroy         = __destroy_default,
   .start           = start,
   .vcore_request   = __vcore_request_default,
   .vcore_enter     = vcore_enter,
@@ -43,17 +43,11 @@ static const lithe_sched_funcs_t funcs = {
   .task_runnable   = __task_runnable_default
 };
 
-static lithe_sched_t *create(void *arg)
+static lithe_sched_t *construct(void *__sched)
 {
-  simple_sched_t *sched = malloc(sizeof(simple_sched_t));
+  simple_sched_t *sched = (simple_sched_t*)__sched;
   sched->counter = 0;
   return (lithe_sched_t*)sched;
-}
-
-static void destroy(lithe_sched_t *__this)
-{
-  assert(__this);
-  free(__this);
 }
 
 static void vcore_enter(lithe_sched_t *__this)
@@ -91,7 +85,8 @@ static void start(lithe_sched_t *__this)
 int main()
 {
   printf("Lithe Simple test starting!\n");
-  lithe_sched_start(&funcs, NULL);
+  simple_sched_t sched;
+  lithe_sched_start(&funcs, &sched);
   printf("Lithe Simple test exiting\n");
   return EXIT_SUCCESS;
 }

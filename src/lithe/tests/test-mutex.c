@@ -18,7 +18,7 @@ typedef struct root_sched {
 } root_sched_t;
 
 /* Scheduler functions */
-static lithe_sched_t *root_create(void *arg);
+static lithe_sched_t *root_construct(void *arg);
 static void root_destroy(lithe_sched_t *__this);
 static void root_start(lithe_sched_t *__this);
 static void root_vcore_enter(lithe_sched_t *__this);
@@ -27,8 +27,8 @@ static void root_task_exit(lithe_sched_t *__this, lithe_task_t *task);
 static void root_task_runnable(lithe_sched_t *__this, lithe_task_t *task);
 
 static const lithe_sched_funcs_t root_sched_funcs = {
-  .create          = root_create,
-  .destroy         = root_destroy,
+  .construct       = root_construct,
+  .destroy         = __destroy_default,
   .start           = root_start,
   .vcore_request   = __vcore_request_default,
   .vcore_enter     = root_vcore_enter,
@@ -41,19 +41,12 @@ static const lithe_sched_funcs_t root_sched_funcs = {
   .task_runnable   = root_task_runnable
 };
 
-static lithe_sched_t *root_create(void *arg)
+static lithe_sched_t *root_construct(void *__sched)
 {
-  root_sched_t *sched = malloc(sizeof(root_sched_t));
+  root_sched_t *sched = (root_sched_t*)__sched;
   spinlock_init(&sched->qlock);
   task_deque_init(&sched->taskq);
   return (lithe_sched_t*)sched;
-}
-
-
-static void root_destroy(lithe_sched_t *__this)
-{
-  assert(__this);
-  free(__this);
 }
 
 
@@ -139,7 +132,8 @@ void root_start(lithe_sched_t *__this)
 int main(int argc, char **argv)
 {
   printf("main start\n");
-  lithe_sched_start(&root_sched_funcs, NULL);
+  root_sched_t root_sched;
+  lithe_sched_start(&root_sched_funcs, &root_sched);
   printf("main finish\n");
   return 0;
 }
