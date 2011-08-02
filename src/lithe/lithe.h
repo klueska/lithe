@@ -156,7 +156,7 @@ void lithe_vcore_yield();
  * Initialize a new task. Returns the newly initialized task on success and
  * NULL on error.
  */
-lithe_task_t *lithe_task_create(void (*func) (void), void *udata); 
+lithe_task_t *lithe_task_create(void (*func) (void *), void *arg); 
 
 /*
  * Returns the currently executing task.

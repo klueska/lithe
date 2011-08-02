@@ -69,6 +69,10 @@ struct lithe_sched_idata {
 
   /* Parent task from which this scheduler was started. */
   lithe_task_t *parent_task;
+
+  /* Copy of the __sched variable passed in via a call to lithe_sched_start().
+   * This variable is returned upon subsequent calls to lithe_sched_current() */
+  void *real_sched;
 };
 
 /* Struct to hold the function pointer and argument of a function to be called
@@ -343,7 +347,7 @@ static void base_task_runnable(lithe_sched_t *__this, lithe_task_t *task)
 
 void *lithe_sched_current()
 {
-  return current_sched;
+  return current_sched->idata->real_sched;
 }
 
 int lithe_vcore_grant(lithe_sched_t *child)
@@ -400,6 +404,7 @@ int lithe_sched_start(const lithe_sched_funcs_t *funcs, void *__sched)
   child->idata->vcores = 0;
   child->idata->parent = parent;
   child->idata->parent_task = current_task;
+  child->idata->real_sched = __sched;
 
   /* Update the number of vcores now owned by this child */
   __sync_fetch_and_add(&(child->idata->vcores), 1);
@@ -463,22 +468,22 @@ int lithe_vcore_request(int k)
   return granted;
 }
 
-void __lithe_task_run(void (*func) (void)) 
+void __lithe_task_run(void (*func) (void *), void *udata) 
 {
-  func();
+  func(udata);
   uthread_exit();
 }
 
-lithe_task_t *lithe_task_create(void (*func) (void), void *udata) 
+lithe_task_t *lithe_task_create(void (*func) (void*), void *udata) 
 {
   assert(func != NULL);
 
-  lithe_task_t *task = (lithe_task_t*)uthread_create(func, udata);
+  lithe_task_t *task = (lithe_task_t*)uthread_create(NULL, udata);
   assert(task);
   assert(task->stack.sp);
 
   init_uthread_stack(&task->uth, task->stack.sp, task->stack.size);
-  init_uthread_entry(&task->uth, __lithe_task_run, 1, func);
+  init_uthread_entry(&task->uth, __lithe_task_run, 2, func, udata);
   uthread_set_tls_var(&task->uth, current_sched, current_sched);
   return task;
 }
