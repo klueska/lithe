@@ -7,19 +7,18 @@
 #include <lithe/lithe_mutex.h>
 #include <lithe/fatal.h>
 
-int task_count = 150000;
-lithe_mutex_t mutex;
-
 /* The root scheduler itself */
 typedef struct root_sched {
   lithe_sched_t sched;
+
+  int task_count;
+  lithe_mutex_t mutex;
   int qlock;
   struct task_deque taskq;
 } root_sched_t;
 
 /* Scheduler functions */
 static lithe_sched_t *root_construct(void *arg);
-static void root_destroy(lithe_sched_t *__this);
 static void root_start(lithe_sched_t *__this);
 static void root_vcore_enter(lithe_sched_t *__this);
 static lithe_task_t* root_task_create(lithe_sched_t *__this, void *udata);
@@ -44,6 +43,7 @@ static const lithe_sched_funcs_t root_sched_funcs = {
 static lithe_sched_t *root_construct(void *__sched)
 {
   root_sched_t *sched = (root_sched_t*)__sched;
+  lithe_mutex_init(&sched->mutex);
   spinlock_init(&sched->qlock);
   task_deque_init(&sched->taskq);
   return (lithe_sched_t*)sched;
@@ -92,15 +92,16 @@ static void root_task_runnable(lithe_sched_t *__this, lithe_task_t *task)
 }
 
 
-void work()
+void work(void *arg)
 {
-  lithe_mutex_lock(&mutex);
+  root_sched_t *sched = (root_sched_t*)arg;
+  lithe_mutex_lock(&sched->mutex);
   {
     lithe_task_t *task = lithe_task_self();
     printf("task 0x%x in critical section (count = %d)\n", 
-      (unsigned int)(unsigned long)task, --task_count);
+      (unsigned int)(unsigned long)task, --sched->task_count);
   }
-  lithe_mutex_unlock(&mutex);
+  lithe_mutex_unlock(&sched->mutex);
 }
 
 
@@ -108,10 +109,9 @@ void root_start(lithe_sched_t *__this)
 {
   printf("root_start start\n");
   root_sched_t *sched = (root_sched_t*)__this;
-  lithe_mutex_init(&mutex);
   /* Create a bunch of worker tasks */
-  for(int i=0; i < task_count; i++) {
-    lithe_task_t *task  = lithe_task_create(work, NULL);
+  for(int i=0; i < sched->task_count; i++) {
+    lithe_task_t *task  = lithe_task_create(work, sched);
     task_deque_enqueue(&sched->taskq, task);
   }
 
@@ -120,12 +120,12 @@ void root_start(lithe_sched_t *__this)
 
   /* Wait for all the workers to run */
   while(1) {
-    lithe_mutex_lock(&mutex);
-      if(task_count == 0)
+    lithe_mutex_lock(&sched->mutex);
+      if(sched->task_count == 0)
         break;
-    lithe_mutex_unlock(&mutex);
+    lithe_mutex_unlock(&sched->mutex);
   }
-  lithe_mutex_unlock(&mutex);
+  lithe_mutex_unlock(&sched->mutex);
   printf("root_start finish\n");
 }
 
@@ -133,6 +133,7 @@ int main(int argc, char **argv)
 {
   printf("main start\n");
   root_sched_t root_sched;
+  root_sched.task_count = 150000;
   lithe_sched_start(&root_sched_funcs, &root_sched);
   printf("main finish\n");
   return 0;

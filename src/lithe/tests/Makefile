@@ -22,7 +22,7 @@ INCS := $(patsubst %, -I%, $(INCDIRS))
 CFILES := $(notdir $(shell find $(SRCDIR) -name "*.c"))
 CXXFILES := $(notdir $(shell find $(SRCDIR) -name "*.cc"))
 EXECS := $(patsubst %.c, $(OBJDIR)/%, $(CFILES))
-EXECS += $(patsubst %.cc, $(OBJDIR)/%, $(CXXFILES))
+EXECS += $(patsubst %.cc, $(OBJDIR)/%_cc, $(CXXFILES))
 
 uc = $(shell echo $(1) | tr a-z A-Z)
 
@@ -36,7 +36,7 @@ $(OBJDIR)/%: $(SRCDIR)/%.c $(EXT_DEPS)
 	@mkdir -p $(@D)
 	$(V)$(CC) -o $@ $< $(CFLAGS) $(INCS) $(LDFLAGS)
 
-$(OBJDIR)/%: $(SRCDIR)/%.cc $(EXT_DEPS)
+$(OBJDIR)/%_cc: $(SRCDIR)/%.cc $(EXT_DEPS)
 	@echo + cxx [$(call uc, $(TESTSNAME))] $(<F)
 	@mkdir -p $(@D)
 	$(V)$(CXX) -o $@ $< $(CXXFLAGS) $(INCS) $(LDFLAGS)

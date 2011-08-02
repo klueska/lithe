@@ -71,7 +71,7 @@ static void child_start(lithe_sched_t *__this)
   printf("child_start finish\n");
 }
 
-void child_main()
+void child_main(void *arg)
 {
   printf("child_main start\n");
   /* Start a child scheduler: Blocks until scheduler finishes */
