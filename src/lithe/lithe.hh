@@ -34,21 +34,21 @@ class Scheduler {
   virtual void start() = 0;
   virtual void vcore_enter() = 0;
 
-  int vcore_request(lithe_sched_t *child, int k) 
+  virtual int vcore_request(lithe_sched_t *child, int k) 
     { return __vcore_request_default((lithe_sched_t*)&csched, child, k); }
-  void vcore_return(lithe_sched_t *child)
+  virtual void vcore_return(lithe_sched_t *child)
     { return __vcore_return_default((lithe_sched_t*)&csched, child); }
-  void child_started(lithe_sched_t *child)
+  virtual void child_started(lithe_sched_t *child)
     { return __child_started_default((lithe_sched_t*)&csched, child); }
-  void child_finished(lithe_sched_t *child)
+  virtual void child_finished(lithe_sched_t *child)
     { return __child_finished_default((lithe_sched_t*)&csched, child); }
-  lithe_task_t* task_create(void *udata)
+  virtual lithe_task_t* task_create(void *udata)
     { return __task_create_default((lithe_sched_t*)&csched, udata); }
-  void task_yield(lithe_task_t *task)
+  virtual void task_yield(lithe_task_t *task)
     { return __task_yield_default((lithe_sched_t*)&csched, task); }
-  void task_exit(lithe_task_t *task)
+  virtual void task_exit(lithe_task_t *task)
     { return __task_exit_default((lithe_sched_t*)&csched, task); }
-  void task_runnable(lithe_task_t *task)
+  virtual void task_runnable(lithe_task_t *task)
     { return __task_runnable_default((lithe_sched_t*)&csched, task); }
   
  public:
