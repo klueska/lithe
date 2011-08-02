@@ -1,77 +1,60 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "lithe.hh"
+#include <lithe/lithe.hh>
+#include <ht/atomic.h>
 
 using namespace lithe;
 
 class TestScheduler : public Scheduler {
- private:
  protected:
-  virtual void enter();
-  virtual void yield(lithe_sched_t *child);
-  virtual void reg(lithe_sched_t *child);
-  virtual void unreg(lithe_sched_t *child);
-  virtual void request(lithe_sched_t *child, int k);
-  virtual void unblock(lithe_task_t *task);
+  void start();
+  void vcore_enter();
 
  public:
-  TestScheduler() {}
+  unsigned int counter;
+  TestScheduler() { counter = 0; }
   ~TestScheduler() {}
 };
 
-
-void TestScheduler::enter()
+void TestScheduler::vcore_enter()
 {
-  printf("0x%x: enter\n", (unsigned int)this);
-  sleep(5);
-  lithe_sched_yield();
+  unsigned int *counter = &this->counter;
+  printf("enter() on vcore %d\n", vcore_id());
+  fetch_and_add(counter, 1);
+  printf("counter: %d\n", *counter);
+  lithe_vcore_yield();
 }
 
-
-void TestScheduler::yield(lithe_sched_t *child)
+void TestScheduler::start()
 {
-  printf("0x%x: yield\n", (unsigned int)this);
-  lithe_sched_yield();
+  printf("TestScheduler Started!\n");
+  unsigned int *counter = &this->counter;
+  for(int i=0; i<100; i++) {
+    unsigned int limit, cur;
+    do {
+      limit = max_vcores();
+      cur = num_vcores();
+    } while(!(limit - cur));
+    *counter = 0;
+    printf("counter: \n");
+    printf("max_vcores: %d\n", limit);
+    printf("num_vcores: %d\n", cur);
+    printf("Requesting vcores\n");
+    lithe_vcore_request(limit - cur);
+    printf("Waiting for counter to reach: %d\n", (limit - cur));
+    while (coherent_read(*counter) < (limit - cur));
+    printf("All vcores returned\n");
+  }
+  printf("TestScheduler finishing!\n");
 }
-
-
-void TestScheduler::reg(lithe_sched_t *child)
-{
-  printf("0x%x: reg\n", (unsigned int)this);
-}
-
-
-void TestScheduler::unreg(lithe_sched_t *child)
-{
-  printf("0x%x: unreg\n", (unsigned int)this);
-}
-
-
-void TestScheduler::request(lithe_sched_t *child, int k)
-{
-  printf("0x%x: request\n", (unsigned int)this);
-}
-
-
-void TestScheduler::unblock(lithe_task_t *task)
-{
-  printf("0x%x: unblock\n", (unsigned int)this);
-}
-
-
-extern "C" {
 
 int main(int argc, char **argv)
 {
-  printf("main start\n");
-//   TestScheduler sched;
-//   sched.doRegister();
-//   sched.doRequest(1);
-//   sleep(1);
-//   sched.doUnregister();
-  printf("main finish\n");
-  return 0;
+  printf("CXX Lithe Simple test starting\n");
+  TestScheduler sched;
+  lithe_sched_start(&Scheduler::funcs, &sched);
+  printf("CXX Lithe Simple test finishing\n");
+  return EXIT_SUCCESS;
 }
- 
-}
+

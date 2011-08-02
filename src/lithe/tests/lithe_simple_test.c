@@ -23,7 +23,7 @@ typedef struct simple_sched {
   unsigned int counter;
 } simple_sched_t;
 
-static lithe_sched_t *create();
+static lithe_sched_t *create(void *arg);
 static void destroy(lithe_sched_t *__this);
 static void start(lithe_sched_t *__this);
 static void vcore_enter(lithe_sched_t *__this);
@@ -43,7 +43,7 @@ static const lithe_sched_funcs_t funcs = {
   .task_runnable   = __task_runnable_default
 };
 
-static lithe_sched_t *create()
+static lithe_sched_t *create(void *arg)
 {
   simple_sched_t *sched = malloc(sizeof(simple_sched_t));
   sched->counter = 0;
@@ -91,7 +91,7 @@ static void start(lithe_sched_t *__this)
 int main()
 {
   printf("Lithe Simple test starting!\n");
-  lithe_sched_start(&funcs);
+  lithe_sched_start(&funcs, NULL);
   printf("Lithe Simple test exiting\n");
   return EXIT_SUCCESS;
 }

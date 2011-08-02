@@ -11,6 +11,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif 
+
 #ifndef DEBUG
 
 /*
@@ -43,5 +47,9 @@ void __fatal(char *file, int line, char *fmt, ...) __attribute__((noreturn));
 void __fatalerror(char *file, int line, char *fmt, ...) __attribute__((noreturn));
 
 #endif // DEBUG
+
+#ifdef __cplusplus
+}
+#endif 
 
 #endif // FATAL_H

@@ -1,11 +1,9 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "lithe.hh"
-#include "fatal.h"
+#include <lithe/lithe.hh>
 
-using namespace Lithe;
-
+using namespace lithe;
 
 class MutexScheduler : public Scheduler {
  private:

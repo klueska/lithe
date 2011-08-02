@@ -2,6 +2,7 @@
 
 LITHE_LIBNAME = lithe
 LITHE_CFLAGS = $(CFLAGS) -fno-strict-aliasing
+LITHE_CPPFLAGS = $(filter-out -std=gnu99, $(LITHE_CFLAGS))
 
 LITHE_SRCDIR := $(SRCDIR)/$(LITHE_LIBNAME)
 LITHE_OBJDIR := $(OBJDIR)/$(LITHE_LIBNAME)
@@ -13,13 +14,16 @@ LITHE_INCS = $(patsubst %, -I%, $(LITHE_INCDIRS))
 LITHE_FINALLIB = $(LITHE_OBJDIR)/lib$(LITHE_LIBNAME).a
 
 LITHE_LIBUCNAME := $(call uc, $(LITHE_LIBNAME))
-LITHE_CFILES  := $(notdir $(wildcard $(LITHE_SRCDIR)/*.c))
-LITHE_CFILES  += $(notdir $(wildcard $(LITHE_SYSDEPDIR)/*.c))
-LITHE_SFILES  := $(notdir $(wildcard $(LITHE_SRCDIR)/*.S))
-LITHE_SFILES  += $(notdir $(wildcard $(LITHE_SYSDEPDIR)/*.S))
-LITHE_OBJS    := $(patsubst %.c, $(LITHE_OBJDIR)/%.o, $(LITHE_CFILES))
-LITHE_OBJS    += $(patsubst %.S, $(LITHE_OBJDIR)/%.o, $(LITHE_SFILES))
-LITHE_DEPS    := $(patsubst %.o, %.d, $(LITHE_OBJS))
+LITHE_CFILES    := $(notdir $(wildcard $(LITHE_SRCDIR)/*.c))
+LITHE_CFILES    += $(notdir $(wildcard $(LITHE_SYSDEPDIR)/*.c))
+LITHE_SFILES    := $(notdir $(wildcard $(LITHE_SRCDIR)/*.S))
+LITHE_SFILES    += $(notdir $(wildcard $(LITHE_SYSDEPDIR)/*.S))
+LITHE_CPPFILES  := $(notdir $(wildcard $(LITHE_SRCDIR)/*.cc))
+LITHE_CPPFILES  += $(notdir $(wildcard $(LITHE_SYSDEPDIR)/*.cc))
+LITHE_OBJS      := $(patsubst %.c, $(LITHE_OBJDIR)/%.o, $(LITHE_CFILES))
+LITHE_OBJS      += $(patsubst %.cc, $(LITHE_OBJDIR)/%_cc.o, $(LITHE_CPPFILES))
+LITHE_OBJS      += $(patsubst %.S, $(LITHE_OBJDIR)/%.o, $(LITHE_SFILES))
+LITHE_DEPS      := $(patsubst %.o, %.d, $(LITHE_OBJS))
 OBJS += $(LITHE_OBJS)
 
 -include $(LITHE_DEPS)
@@ -30,6 +34,11 @@ $(LITHE_OBJDIR)/%.o: $(LITHE_SRCDIR)/%.c
 	@echo + cc [$(LITHE_LIBUCNAME)] $(<F)
 	@mkdir -p $(@D)
 	$(V)$(CC) $(LITHE_CFLAGS) $(LITHE_INCS) -o $@ -c $<
+
+$(LITHE_OBJDIR)/%_cc.o: $(LITHE_SRCDIR)/%.cc
+	@echo + cxx [$(LITHE_LIBUCNAME)] $(<F)
+	@mkdir -p $(@D)
+	$(V)$(CXX) $(LITHE_CPPFLAGS) $(LITHE_INCS) -o $@ -c $<
 
 $(LITHE_OBJDIR)/%.o: $(LITHE_SYSDEPDIR)/%.S
 	@echo + cc [$(LITHE_LIBUCNAME)] $(<F)

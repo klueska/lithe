@@ -247,7 +247,7 @@ void run_uthread(struct uthread *uthread)
 
 /* Swaps the currently running uthread for a new one, saving the state of the
  * current uthread in the process */
-void swap_uthreads(struct uthread *old, struct uthread *new)
+void swap_uthreads(struct uthread *__old, struct uthread *__new)
 {
   volatile bool swap = true;
   void *tls_desc = get_tls_desc(vcore_id());
@@ -256,11 +256,11 @@ void swap_uthreads(struct uthread *old, struct uthread *new)
   wrfence();
   if(swap) {
     swap = false;
-    memcpy(&old->uc, &uc, sizeof(ucontext_t));
-    run_uthread(new);
+    memcpy(&__old->uc, &uc, sizeof(ucontext_t));
+    run_uthread(__new);
   }
   int vcoreid = vcore_id();
-  vcore_set_tls_var(vcoreid, current_uthread, old);
+  vcore_set_tls_var(vcoreid, current_uthread, __old);
   set_tls_desc(tls_desc, vcoreid);
 }
 

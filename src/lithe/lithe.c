@@ -447,7 +447,7 @@ static void __lithe_sched_start()
   uthread_yield();
 }
 
-int lithe_sched_start(const lithe_sched_funcs_t *funcs)
+int lithe_sched_start(const lithe_sched_funcs_t *funcs, void *arg)
 {
   assert(funcs);
   assert(!in_vcore_context());
@@ -458,7 +458,7 @@ int lithe_sched_start(const lithe_sched_funcs_t *funcs)
   lithe_sched_t *parent = current_sched;
 
   /* Create the child scheduler */
-  lithe_sched_t *child = funcs->create();
+  lithe_sched_t *child = funcs->create(arg);
   lithe_sched_idata_t *child_idata = (lithe_sched_idata_t *) malloc(sizeof(lithe_sched_idata_t));
   assert(child);
   assert(child_idata);

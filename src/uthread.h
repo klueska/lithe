@@ -78,7 +78,7 @@ bool check_preempt_pending(uint32_t vcoreid);
 void save_current_uthread(struct uthread *uthread);
 void run_current_uthread(void) __attribute((noreturn));
 void run_uthread(struct uthread *uthread) __attribute((noreturn));
-void swap_uthreads(struct uthread *old, struct uthread *new);
+void swap_uthreads(struct uthread *__old, struct uthread *__new);
 
 static inline void
 init_uthread_stack(uthread_t *uth, void *stack_top, uint32_t size)

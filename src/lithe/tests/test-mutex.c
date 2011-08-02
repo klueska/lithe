@@ -18,7 +18,7 @@ typedef struct root_sched {
 } root_sched_t;
 
 /* Scheduler functions */
-static lithe_sched_t *root_create();
+static lithe_sched_t *root_create(void *arg);
 static void root_destroy(lithe_sched_t *__this);
 static void root_start(lithe_sched_t *__this);
 static void root_vcore_enter(lithe_sched_t *__this);
@@ -41,7 +41,7 @@ static const lithe_sched_funcs_t root_sched_funcs = {
   .task_runnable   = root_task_runnable
 };
 
-static lithe_sched_t *root_create()
+static lithe_sched_t *root_create(void *arg)
 {
   root_sched_t *sched = malloc(sizeof(root_sched_t));
   spinlock_init(&sched->qlock);
@@ -139,7 +139,7 @@ void root_start(lithe_sched_t *__this)
 int main(int argc, char **argv)
 {
   printf("main start\n");
-  lithe_sched_start(&root_sched_funcs);
+  lithe_sched_start(&root_sched_funcs, NULL);
   printf("main finish\n");
   return 0;
 }
