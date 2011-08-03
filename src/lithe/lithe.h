@@ -134,8 +134,8 @@ int lithe_sched_start(const lithe_sched_funcs_t *funcs,
                       void *__sched, void *start_arg);
 
 /**
- * Return the a pointer to the current scheduler. I.e. the pointer passed in
- * when the scheduler was registered 
+ * Return a pointer to the current scheduler. I.e. the pointer passed in
+ * when the scheduler was started.
  */
 void *lithe_sched_current();
 
@@ -161,10 +161,24 @@ int lithe_vcore_grant(lithe_sched_t *child);
 void lithe_vcore_yield();
 
 /*
- * Initialize a new task. Returns the newly initialized task on success and
- * NULL on error.
+ * Create a new task with a set of attributes and a start function.  Passing
+ * NULL for both func and arg are valid, but require you to subsequently call
+ * lithe_task_set_entry() before running the task.  Returns the newly
+ * created task on success and NULL on error.
  */
 lithe_task_t *lithe_task_create(lithe_task_attr_t *attr, void (*func) (void *), void *arg); 
+
+/* 
+ * Destroy an existing task. This task should not be currently running on any
+ * vcore.  For currently running tasks, instead use lithe_task_exit().
+ */
+void lithe_task_destroy(lithe_task_t *task);
+
+/*
+ * Initialize a new start function for an existing task. Once the task is
+ * restarted it will run from this entry point. 
+ */
+void lithe_task_set_entry(lithe_task_t *task, void (*func) (void *), void *arg); 
 
 /*
  * Returns the currently executing task.
@@ -204,17 +218,12 @@ int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg);
 int lithe_task_unblock(lithe_task_t *task);
 
 /**
- * Invoke the specified function with the current task. Note that you
- * can not block without a valid task (i.e. you can not block when
- * executing in vcore context). Returns 0 on success (after the task
- * has been resumed) and -1 on error and sets errno appropriately.
-*/
+ * Cooperatively yield the current task.
+ */
 void lithe_task_yield();
 
 /*
- * Exit an existing task, freeing all of its data structures and meta data in
- * the process. Returns 0 on success and -1 on error and sets errno
- * appropriately.
+ * Exit the current task.
  */
 void lithe_task_exit();
 

@@ -477,21 +477,33 @@ void __lithe_task_run()
 
 lithe_task_t *lithe_task_create(lithe_task_attr_t *attr, void (*func) (void *), void *arg) 
 {
-  assert(func != NULL);
-
   lithe_task_t *task = (lithe_task_t*)uthread_create(NULL, attr);
+  assert(task);
+  task->tls = NULL;
+  if(func)
+    lithe_task_set_entry(task, func, arg);
+
+  return task;
+}
+
+void lithe_task_destroy(lithe_task_t *task)
+{
+  assert(task);
+  assert(task != current_task);
+  uthread_destroy(&task->uth);
+}
+
+void lithe_task_set_entry(lithe_task_t *task, void (*func) (void *), void *arg)
+{
   assert(task);
   assert(task->sp);
   assert(task->stack_size);
   init_uthread_stack(&task->uth, task->sp, task->stack_size);
   init_uthread_entry(&task->uth, __lithe_task_run);
+  uthread_set_tls_var(&task->uth, current_sched, current_sched);
 
   task->start_func = func;
   task->arg = arg;
-  task->tls = NULL;
-  uthread_set_tls_var(&task->uth, current_sched, current_sched);
-
-  return task;
 }
 
 lithe_task_t *lithe_task_self()
