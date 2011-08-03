@@ -16,7 +16,7 @@ typedef struct child_sched {
 } child_sched_t;
 
 static lithe_sched_t *child_construct(void *__sched);
-static void child_start(lithe_sched_t *__this);
+static void child_start(lithe_sched_t *__this, void *arg);
 static void child_vcore_enter(lithe_sched_t *__this);
 static void child_task_runnable(lithe_sched_t *__this, lithe_task_t *task); 
 
@@ -64,7 +64,7 @@ static void block_child(lithe_task_t *task, void *arg)
   sched->start_task = task;
 }
 
-static void child_start(lithe_sched_t *__this)
+static void child_start(lithe_sched_t *__this, void *arg)
 {
   printf("child_start start\n");
   lithe_task_block(block_child, NULL);
@@ -76,7 +76,7 @@ void child_main(void *arg)
   printf("child_main start\n");
   /* Start a child scheduler: Blocks until scheduler finishes */
   child_sched_t child_sched;
-  lithe_sched_start(&child_funcs, &child_sched);
+  lithe_sched_start(&child_funcs, &child_sched, NULL);
   printf("child_main finish\n");
 }
 
@@ -103,7 +103,7 @@ typedef struct root_sched {
 static lithe_sched_t *root_construct(void *__sched);
 static void root_destroy(lithe_sched_t *__this);
 int root_vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
-static void root_start(lithe_sched_t *__this);
+static void root_start(lithe_sched_t *__this, void *arg);
 static void root_vcore_enter(lithe_sched_t *this);
 void root_child_started(lithe_sched_t *__this, lithe_sched_t *child);
 void root_child_finished(lithe_sched_t *__this, lithe_sched_t *child);
@@ -238,7 +238,7 @@ static void block_root(lithe_task_t *task, void *arg)
   sched->start_task = task;
 }
 
-static void root_start(lithe_sched_t *__this)
+static void root_start(lithe_sched_t *__this, void *arg)
 {
   printf("root_start start\n");
   root_sched_t *sched = (root_sched_t*)__this;
@@ -256,7 +256,7 @@ int main()
   printf("root_main start\n");
   /* Start the root scheduler: Blocks until scheduler finishes */
   root_sched_t root_sched;
-  lithe_sched_start(&root_funcs, &root_sched);
+  lithe_sched_start(&root_funcs, &root_sched, NULL);
   printf("root_main finish\n");
   return 0;
 }

@@ -15,10 +15,10 @@ void __destroy(lithe_sched_t *__this)
   // Do nothing...
 }
 
-void __start(lithe_sched_t *__this)
+void __start(lithe_sched_t *__this, void *arg)
 {
   lithe_sched_cxx_t *sched = (lithe_sched_cxx_t*)__this;
-  (reinterpret_cast<Scheduler *>(sched->__this))->start();
+  (reinterpret_cast<Scheduler *>(sched->__this))->start(arg);
 }
 
 int __vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k)

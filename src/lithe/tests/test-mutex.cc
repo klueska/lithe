@@ -11,7 +11,7 @@ using namespace lithe;
 
 class RootScheduler : public Scheduler {
  protected:
-  void start();
+  void start(void *arg);
   void vcore_enter();
   void task_runnable(lithe_task_t *task);
 
@@ -66,7 +66,7 @@ void work(void *arg)
   lithe_mutex_unlock(&sched->mutex);
 }
 
-void RootScheduler::start()
+void RootScheduler::start(void *arg)
 {
   printf("RootScheduler start\n");
   /* Create a bunch of worker tasks */
@@ -94,7 +94,7 @@ int main(int argc, char **argv)
   printf("main start\n");
   RootScheduler sched;
   sched.task_count = 150000;
-  lithe_sched_start(&Scheduler::funcs, &sched);
+  lithe_sched_start(&Scheduler::funcs, &sched, NULL);
   printf("main finish\n");
   return 0;
 }

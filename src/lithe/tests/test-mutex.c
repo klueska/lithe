@@ -19,7 +19,7 @@ typedef struct root_sched {
 
 /* Scheduler functions */
 static lithe_sched_t *root_construct(void *arg);
-static void root_start(lithe_sched_t *__this);
+static void root_start(lithe_sched_t *__this, void *arg);
 static void root_vcore_enter(lithe_sched_t *__this);
 static lithe_task_t* root_task_create(lithe_sched_t *__this, void *udata);
 static void root_task_exit(lithe_sched_t *__this, lithe_task_t *task);
@@ -88,7 +88,7 @@ void work(void *arg)
 }
 
 
-void root_start(lithe_sched_t *__this)
+void root_start(lithe_sched_t *__this, void *arg)
 {
   printf("root_start start\n");
   root_sched_t *sched = (root_sched_t*)__this;
@@ -117,7 +117,7 @@ int main(int argc, char **argv)
   printf("main start\n");
   root_sched_t root_sched;
   root_sched.task_count = 150000;
-  lithe_sched_start(&root_sched_funcs, &root_sched);
+  lithe_sched_start(&root_sched_funcs, &root_sched, NULL);
   printf("main finish\n");
   return 0;
 }

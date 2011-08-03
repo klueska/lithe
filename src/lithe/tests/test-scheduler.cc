@@ -8,7 +8,7 @@ using namespace lithe;
 
 class TestScheduler : public Scheduler {
  protected:
-  void start();
+  void start(void *arg);
   void vcore_enter();
 
  public:
@@ -26,7 +26,7 @@ void TestScheduler::vcore_enter()
   lithe_vcore_yield();
 }
 
-void TestScheduler::start()
+void TestScheduler::start(void *arg)
 {
   printf("TestScheduler Started!\n");
   unsigned int *counter = &this->counter;
@@ -53,7 +53,7 @@ int main(int argc, char **argv)
 {
   printf("CXX Lithe Simple test starting\n");
   TestScheduler sched;
-  lithe_sched_start(&Scheduler::funcs, &sched);
+  lithe_sched_start(&Scheduler::funcs, &sched, NULL);
   printf("CXX Lithe Simple test finishing\n");
   return EXIT_SUCCESS;
 }

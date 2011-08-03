@@ -109,7 +109,7 @@ struct schedule_ops *sched_ops __attribute__((weak)) = &lithe_sched_ops;
 /* Lithe's base scheduler functions */
 static lithe_sched_t *base_construct(void *__sched);
 static void base_destroy(lithe_sched_t *__this);
-static void base_start(lithe_sched_t *__this);
+static void base_start(lithe_sched_t *__this, void *arg);
 static int base_vcore_request(lithe_sched_t *this, lithe_sched_t *child, int k);
 static void base_vcore_enter(lithe_sched_t *this);
 static void base_vcore_return(lithe_sched_t *this, lithe_sched_t *child);
@@ -287,7 +287,7 @@ static void base_destroy(lithe_sched_t *__this)
   fatal("Trying to destroy the base scheduler!\n");
 }
 
-static void base_start(lithe_sched_t *__this)
+static void base_start(lithe_sched_t *__this, void *arg)
 {
   fatal("Trying to restart the base scheduler!\n");
 }
@@ -383,7 +383,8 @@ void lithe_vcore_yield()
 }
 
 static void lithe_sched_finish();
-int lithe_sched_start(const lithe_sched_funcs_t *funcs, void *__sched)
+int lithe_sched_start(const lithe_sched_funcs_t *funcs, 
+                      void *__sched, void *start_arg)
 {
   assert(funcs);
   assert(!in_vcore_context());
@@ -415,7 +416,7 @@ int lithe_sched_start(const lithe_sched_funcs_t *funcs, void *__sched)
   /* Leave parent, join child, hijacking this task in the process. */
   current_sched = child;
   vcore_set_tls_var(vcore_id(), current_sched, current_sched);
-  current_sched->funcs->start(current_sched);
+  current_sched->funcs->start(current_sched, start_arg);
 
   /* Set up a function to run in vcore context to exit the child scheduler */
   lithe_vcore_func_t func = {lithe_sched_finish, NULL};

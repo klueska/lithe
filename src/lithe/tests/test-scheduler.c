@@ -25,7 +25,7 @@ typedef struct simple_sched {
 
 static lithe_sched_t *construct(void *arg);
 static void destroy(lithe_sched_t *__this);
-static void start(lithe_sched_t *__this);
+static void start(lithe_sched_t *__this, void *arg);
 static void vcore_enter(lithe_sched_t *__this);
 
 static const lithe_sched_funcs_t funcs = {
@@ -59,7 +59,7 @@ static void vcore_enter(lithe_sched_t *__this)
   lithe_vcore_yield();
 }
 
-static void start(lithe_sched_t *__this)
+static void start(lithe_sched_t *__this, void *arg)
 {
   printf("Scheduler Started!\n");
   unsigned int *counter = &((simple_sched_t*)__this)->counter;
@@ -86,7 +86,7 @@ int main()
 {
   printf("Lithe Simple test starting!\n");
   simple_sched_t sched;
-  lithe_sched_start(&funcs, &sched);
+  lithe_sched_start(&funcs, &sched, NULL);
   printf("Lithe Simple test exiting\n");
   return EXIT_SUCCESS;
 }

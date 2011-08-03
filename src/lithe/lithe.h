@@ -58,7 +58,7 @@ struct lithe_sched_funcs {
   void (*destroy) (lithe_sched_t *__this);
 
   /* Start function of the scheduler.  From here you can launch tasks, do whatever */
-  void (*start) (lithe_sched_t *__this);
+  void (*start) (lithe_sched_t *__this, void *arg);
 
   /* Function ultimately responsible for granting vcore requests from a child
    * scheduler. This function is automatically called when a child invokes
@@ -127,7 +127,8 @@ struct lithe_task {
  * until it is unregistered later on.  Once unregistered this call will
  * complete.  Returns -1 if there is an error and sets errno appropriately.
  */
-int lithe_sched_start(const lithe_sched_funcs_t *funcs, void *arg);
+int lithe_sched_start(const lithe_sched_funcs_t *funcs, 
+                      void *__sched, void *start_arg);
 
 /**
  * Return the a pointer to the current scheduler. I.e. the pointer passed in
