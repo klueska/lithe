@@ -50,10 +50,13 @@ class Scheduler {
     { return __task_exit_default((lithe_sched_t*)&csched, task); }
   virtual void task_runnable(lithe_task_t *task)
     { return __task_runnable_default((lithe_sched_t*)&csched, task); }
+
   
  public:
   lithe_sched_cxx_t csched;
   static const lithe_sched_funcs_t funcs;
+  virtual ~Scheduler() {}
+
 };
 
 }
