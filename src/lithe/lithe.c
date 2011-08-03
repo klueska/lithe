@@ -488,6 +488,7 @@ lithe_task_t *lithe_task_create(lithe_task_attr_t *attr, void (*func) (void *), 
 
   task->start_func = func;
   task->arg = arg;
+  task->tls = NULL;
   uthread_set_tls_var(&task->uth, current_sched, current_sched);
 
   return task;
@@ -496,6 +497,20 @@ lithe_task_t *lithe_task_create(lithe_task_attr_t *attr, void (*func) (void *), 
 lithe_task_t *lithe_task_self()
 {
   return current_task;
+}
+
+void lithe_task_settls(void *tls) 
+{
+  assert(current_task);
+  assert(!in_vcore_context());
+  current_task->tls = tls;
+}
+
+void *lithe_task_gettls()
+{
+  assert(current_task);
+  assert(!in_vcore_context());
+  return current_task->tls;
 }
 
 int lithe_task_run(lithe_task_t *task)

@@ -119,6 +119,9 @@ struct lithe_task {
 
   /* Pointer to the task's stack */
   void *sp;
+
+  /* Task local storage */
+  void *tls;
 };
 
 /**
@@ -167,6 +170,16 @@ lithe_task_t *lithe_task_create(lithe_task_attr_t *attr, void (*func) (void *), 
  * Returns the currently executing task.
  */
 lithe_task_t *lithe_task_self();
+
+/*
+ * Set the task local storage of the current task. 
+ */
+void lithe_task_settls(void *tls);
+
+/*
+ * Get the task local storage of the current task. 
+ */
+void *lithe_task_gettls();
 
 /*
  * Run the specified task.  It must have been precreated. This 
