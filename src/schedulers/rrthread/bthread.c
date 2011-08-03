@@ -148,7 +148,7 @@ struct uthread *pth_thread_create(void (*func)(void), void *udata)
 	 * bthread_create(). */
     init_uthread_stack(&bthread->uthread, bthread->stack, bthread->stacksize); 
     if(func != NULL)
-      init_uthread_entry(&bthread->uthread, func, 0);
+      init_uthread_entry(&bthread->uthread, func);
 	return (struct uthread*)bthread;
 }
 

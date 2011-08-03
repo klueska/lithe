@@ -484,7 +484,7 @@ lithe_task_t *lithe_task_create(lithe_task_attr_t *attr, void (*func) (void *), 
   assert(task->sp);
   assert(task->stack_size);
   init_uthread_stack(&task->uth, task->sp, task->stack_size);
-  init_uthread_entry(&task->uth, __lithe_task_run, 0);
+  init_uthread_entry(&task->uth, __lithe_task_run);
 
   task->start_func = func;
   task->arg = arg;

@@ -86,8 +86,11 @@ init_uthread_stack(uthread_t *uth, void *stack_top, uint32_t size)
   init_uthread_stack_ARCH(uth, stack_top, size);
 }
 
-#define init_uthread_entry(uth, entry, argc, ...) \
-	init_uthread_entry_ARCH((uth), entry, argc, ##__VA_ARGS__)
+static inline void
+init_uthread_entry(uthread_t *uth, void (*entry)(void))
+{
+	init_uthread_entry_ARCH(uth, entry);
+}
 
 #define uthread_set_tls_var(uthread, name, val)                   \
 {                                                                 \
