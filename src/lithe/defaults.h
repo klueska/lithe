@@ -51,8 +51,15 @@ static void __child_finished_default(lithe_sched_t *__this, lithe_sched_t *child
 static lithe_task_t* __task_create_default(lithe_sched_t *__this, void *udata)
 {
   lithe_task_t *task = (lithe_task_t*)malloc(sizeof(lithe_task_t));
-  task->stack.size = 4*getpagesize();
-  task->stack.sp = malloc(task->stack.size);
+  assert(task);
+  task->stack_size = 4*getpagesize();
+
+  lithe_task_attr_t *attr = (lithe_task_attr_t*)udata;
+  if(attr) {
+    if(attr->stack_size)
+      task->stack_size = attr->stack_size;
+  }
+  task->sp = malloc(task->stack_size);
   return task;
 }
 
@@ -65,8 +72,8 @@ static void __task_yield_default(lithe_sched_t *__this, lithe_task_t *task)
 static void __task_exit_default(lithe_sched_t *__this, lithe_task_t *task)
 {
   assert(task);
-  assert(task->stack.sp);
-  free(task->stack.sp);
+  assert(task->sp);
+  free(task->sp);
   free(task);
 }
 

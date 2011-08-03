@@ -468,23 +468,27 @@ int lithe_vcore_request(int k)
   return granted;
 }
 
-void __lithe_task_run(void (*func) (void *), void *udata) 
+void __lithe_task_run()
 {
-  func(udata);
+  current_task->start_func(current_task->arg);
   uthread_exit();
 }
 
-lithe_task_t *lithe_task_create(void (*func) (void*), void *udata) 
+lithe_task_t *lithe_task_create(lithe_task_attr_t *attr, void (*func) (void *), void *arg) 
 {
   assert(func != NULL);
 
-  lithe_task_t *task = (lithe_task_t*)uthread_create(NULL, udata);
+  lithe_task_t *task = (lithe_task_t*)uthread_create(NULL, attr);
   assert(task);
-  assert(task->stack.sp);
+  assert(task->sp);
+  assert(task->stack_size);
+  init_uthread_stack(&task->uth, task->sp, task->stack_size);
+  init_uthread_entry(&task->uth, __lithe_task_run, 0);
 
-  init_uthread_stack(&task->uth, task->stack.sp, task->stack.size);
-  init_uthread_entry(&task->uth, __lithe_task_run, 2, func, udata);
+  task->start_func = func;
+  task->arg = arg;
   uthread_set_tls_var(&task->uth, current_sched, current_sched);
+
   return task;
 }
 

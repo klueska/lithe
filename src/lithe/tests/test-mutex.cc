@@ -13,8 +13,6 @@ class RootScheduler : public Scheduler {
  protected:
   void start();
   void vcore_enter();
-  lithe_task_t *task_create(void *udata);
-  void task_exit(lithe_task_t *task);
   void task_runnable(lithe_task_t *task);
 
  public:
@@ -48,20 +46,6 @@ void RootScheduler::vcore_enter()
     lithe_task_run(task);
 }
 
-lithe_task_t* RootScheduler::task_create(void *udata)
-{
-  lithe_task_t *task = (lithe_task_t*)malloc(sizeof(lithe_task_t));
-  task->stack.size = 4096;
-  task->stack.sp = malloc(task->stack.size);
-  assert(task->stack.sp);
-  return task;
-}
-
-void RootScheduler::task_exit(lithe_task_t *task)
-{
-  free(task->stack.sp);
-}
-
 void RootScheduler::task_runnable(lithe_task_t *task)
 {
   spinlock_lock(&this->qlock);
@@ -87,7 +71,7 @@ void RootScheduler::start()
   printf("RootScheduler start\n");
   /* Create a bunch of worker tasks */
   for(unsigned int i=0; i < this->task_count; i++) {
-    lithe_task_t *task  = lithe_task_create(work, (void*)this);
+    lithe_task_t *task  = lithe_task_create(NULL, work, (void*)this);
     task_deque_enqueue(&this->taskq, task);
   }
 

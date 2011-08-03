@@ -34,9 +34,9 @@ static const lithe_sched_funcs_t root_sched_funcs = {
   .vcore_return    = __vcore_return_default,
   .child_started   = __child_started_default,
   .child_finished  = __child_finished_default,
-  .task_create     = root_task_create,
+  .task_create     = __task_create_default,
   .task_yield      = __task_yield_default,
-  .task_exit       = root_task_exit,
+  .task_exit       = __task_exit_default,
   .task_runnable   = root_task_runnable
 };
 
@@ -64,23 +64,6 @@ static void root_vcore_enter(lithe_sched_t *__this)
   else 
     lithe_task_run(task);
 }
-
-
-static lithe_task_t* root_task_create(lithe_sched_t *__this, void *udata)
-{
-  lithe_task_t *task = malloc(sizeof(lithe_task_t));
-  task->stack.size = 4096;
-  task->stack.sp = malloc(task->stack.size);
-  assert(task->stack.sp);
-  return task;
-}
-
-
-static void root_task_exit(lithe_sched_t *__this, lithe_task_t *task)
-{
-  free(task->stack.sp);
-}
-
 
 static void root_task_runnable(lithe_sched_t *__this, lithe_task_t *task)
 {
@@ -111,7 +94,7 @@ void root_start(lithe_sched_t *__this)
   root_sched_t *sched = (root_sched_t*)__this;
   /* Create a bunch of worker tasks */
   for(int i=0; i < sched->task_count; i++) {
-    lithe_task_t *task  = lithe_task_create(work, sched);
+    lithe_task_t *task  = lithe_task_create(NULL, work, sched);
     task_deque_enqueue(&sched->taskq, task);
   }
 

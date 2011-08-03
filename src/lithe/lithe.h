@@ -94,17 +94,13 @@ struct lithe_sched_funcs {
   void (*task_runnable) (lithe_sched_t *__this, lithe_task_t *task);
 
 };
+
+typedef struct {
+  /* Stack size for the lithe task */
+  ssize_t stack_size;
+
+} lithe_task_attr_t;
   
-/* Structure used to keep track of the stack used by a lithe task */
-struct lithe_task_stack {
-  /* Pointer to the stack */
-  void *sp;
-
-  /* Size of the stack */
-  size_t size;
-};
-typedef struct lithe_task_stack lithe_task_stack_t;
-
 /* Basic lithe task structure.  All derived scheduler tasks MUST have this as
  * their first field so that they can be cast properly within the lithe
  * scheduler. */
@@ -112,10 +108,18 @@ struct lithe_task {
   /* Userlevel thread context. */
   uthread_t uth;
 
-  /* The stack associated with this lithe task */
-  lithe_task_stack_t stack;
-};
+  /* Start function for the task */
+  void (*start_func) (void *);
 
+  /* Argument for the start function */
+  void *arg;
+
+  /* Size of the task's stack */
+  size_t stack_size;
+
+  /* Pointer to the task's stack */
+  void *sp;
+};
 
 /**
  * Registers the scheduler functions passed as a parameter to create a new
@@ -156,7 +160,7 @@ void lithe_vcore_yield();
  * Initialize a new task. Returns the newly initialized task on success and
  * NULL on error.
  */
-lithe_task_t *lithe_task_create(void (*func) (void *), void *arg); 
+lithe_task_t *lithe_task_create(lithe_task_attr_t *attr, void (*func) (void *), void *arg); 
 
 /*
  * Returns the currently executing task.

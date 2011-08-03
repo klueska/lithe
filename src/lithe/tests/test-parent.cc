@@ -178,7 +178,7 @@ void RootScheduler::vcore_enter()
 
   switch(state) {
     case STATE_CREATE: {
-      lithe_task_t *task = lithe_task_create(child_main, NULL);
+      lithe_task_t *task = lithe_task_create(NULL, child_main, NULL);
       lithe_task_run(task);
       break;
     }
