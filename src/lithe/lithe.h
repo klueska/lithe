@@ -125,13 +125,33 @@ struct lithe_task {
 };
 
 /**
- * Registers the scheduler functions passed as a parameter to create a new
- * lithe scheduler.  It also hands the current vcore over to this scheduler
- * until it is unregistered later on.  Once unregistered this call will
- * complete.  Returns -1 if there is an error and sets errno appropriately.
+ * Passes control to a new child scheduler with the specified 'funcs' as
+ * callback functions. It hands the current vcore over to this scheduler and
+ * runs the start() callback function, passing 'start_arg' as an argument. Once
+ * the start() function completes, control is returned back to the parent
+ * scheduler and we continue from where this function left off.  Returns -1 if
+ * there is an error and sets errno appropriately.
  */
 int lithe_sched_start(const lithe_sched_funcs_t *funcs, 
                       void *__sched, void *start_arg);
+
+/**
+ * Passes control to a new child scheduler with the specified 'funcs' as
+ * callback functions. It hands the current vcore over to this scheduler and
+ * then returns. Unlike, lithe_sched_spawn(), this function returns immediately
+ * - essentially highjacking the continuation to run inside the child
+ * scheduler.  To exit the child, a subsequent call to lithe_sched_exit() is
+ * needed. Only at this point will control be passed back to the parent
+ * scheduler. Returns -1 if there is an error and sets errno appropriately.
+ */
+int lithe_sched_enter(const lithe_sched_funcs_t *funcs, void *__sched);
+
+/**
+ * Exits the current scheduler, returning control to its parent. Must be paired
+ * with a previous call to lithe_sched_enter(). Returns -1 if there is an error
+ * and sets errno appropriately.
+ */
+int lithe_sched_exit();
 
 /**
  * Return a pointer to the current scheduler. I.e. the pointer passed in
