@@ -11,8 +11,12 @@ TESTS_DIR := $(SCHEDS_DIR)/tests
 TESTS_LDLIBS := -l$(LIBNAME) -lpthread -lparlib
 
 # Needed to point to installation of the scheduler directory where the
-# Makerules file is located.
-include $(SCHEDS_DIR)/Makerules
+# Makevars file is located.
+include $(SCHEDS_DIR)/Makevars
+
+# Needed to point to installation of the scheduler directory where the
+# Maketargets file is located.
+include $(SCHEDS_DIR)/Maketargets
 
 # Needed to point to installation of the scheduler directory where the 
 # tests subfolder is located, to build all bthread tests for this scheduler

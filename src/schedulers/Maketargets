@@ -1,0 +1,27 @@
+# Generic Maketargets file for all bthread based libraries
+
+all: $(FINALLIB)
+
+-include $(LIB_DEPS)
+
+$(OBJDIR)/%.o: $(SCHEDS_DIR)/%.c 
+	@echo + cc [$(LIBUCNAME)] $(<F)
+	@mkdir -p $(@D)
+	$(V)$(CC) $(LIB_CFLAGS) $(LIB_INCS) -o $@ -c $<
+
+$(OBJDIR)/%.o: $(LIB_SRCDIR)/%.c 
+	@echo + cc [$(LIBUCNAME)] $(<F)
+	@mkdir -p $(@D)
+	$(V)$(CC) $(LIB_CFLAGS) $(LIB_INCS) -o $@ -c $<
+
+$(FINALLIB): $(LIB_OBJS)
+	@echo + ar [$(LIBUCNAME)] $(@F)
+	@mkdir -p $(@D)
+	$(V)$(AR) rc $@ $(LIB_OBJS)
+
+tests_clean:
+
+clean: tests_clean
+	@echo + clean [$(LIBUCNAME)]
+	$(V)rm -rf $(OBJDIR)
+	

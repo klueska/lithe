@@ -1,0 +1,24 @@
+# Generic Makevars file for all bthread based libraries
+
+# These variables and function definitions are needed both within this
+# Makerules file as well as any others that are rleated to the compilation of
+# this library (i.e. tests/Makerules).  LIBNAME, SCHEDS_DIR, and PARLIB_DIR are
+# defined in the per library Makefile that includes this file
+uc = $(shell echo $(1) | tr a-z A-Z)
+LIB_SRCDIR := $(SCHEDS_DIR)/$(LIBNAME)
+OBJDIR     := $(LIB_SRCDIR)/obj
+FINALLIB   := $(OBJDIR)/lib$(LIBNAME).a
+LIBUCNAME  := $(call uc, $(LIBNAME))
+
+# These variables are specific just to the compilation of the library itself.
+LIB_CFLAGS   += -g -O2 -Wall -std=gnu99 -MMD -MP
+LIB_CFLAGS   += -fno-strict-aliasing
+LIB_CFLAGS   += -Wno-unused-function
+LIB_CXXFLAGS += $(filter-out -std=gnu99, $(LIB_CFLAGS))
+LIB_INCDIRS  := . $(PARLIB_DIR) $(SCHEDS_DIR)
+LIB_INCS     := $(patsubst %, -I%, $(LIB_INCDIRS))
+LIB_CFILES   := $(notdir $(wildcard $(SCHEDS_DIR)/*.c))
+LIB_CFILES   += $(notdir $(wildcard $(LIB_SRCDIR)/*.c))
+LIB_OBJS     := $(patsubst %.c, $(OBJDIR)/%.o, $(LIB_CFILES))
+LIB_DEPS     := $(patsubst %.o, %.d, $(LIB_OBJS))
+
