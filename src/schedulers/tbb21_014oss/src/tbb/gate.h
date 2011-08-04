@@ -32,7 +32,7 @@
 #include "itt_notify.h"
 
 #if USE_LITHE
-#include <lithe.hh>
+#include <lithe/lithe.hh>
 #include <spinlock.h>
 #include "tbb/deque.h"
 DECLARE_DEFINE_TYPED_DEQUE(task, lithe_task_t *);
@@ -57,7 +57,6 @@ private:
 	Gate *g = static_cast<Gate *>(arg);
 	task_deque_enqueue(&g->deque, task);
 	spinlock_unlock(&g->lock);
-	lithe_sched_reenter();
     }
 
 public:
@@ -89,7 +88,7 @@ public:
 		    }
 		    __TBB_ASSERT(task_deque_length(&deque) == 0, "worker deque not empty");
 		    if (request)
-			lithe_sched_request(k);
+			lithe_vcore_request(k);
 		}
 	    }
 	}

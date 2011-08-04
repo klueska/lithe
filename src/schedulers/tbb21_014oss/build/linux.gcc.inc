@@ -46,10 +46,10 @@ C_FLAGS = $(CPLUS_FLAGS) -x c
 INCLUDES += $(INCLUDE_KEY)$(LITHE_PREFIX)/include
 
 ifeq ($(cfg), release)
-        CPLUS_FLAGS = -DDO_ITT_NOTIFY -O2 -DUSE_LITHE
+        CPLUS_FLAGS = -DDO_ITT_NOTIFY -O2 
 endif
 ifeq ($(cfg), debug)
-        CPLUS_FLAGS = -DTBB_USE_DEBUG -DDO_ITT_NOTIFY -g -O0 -DUSE_LITHE
+        CPLUS_FLAGS = -DTBB_USE_DEBUG -DDO_ITT_NOTIFY -g -O0 
 endif
 
 ASM=

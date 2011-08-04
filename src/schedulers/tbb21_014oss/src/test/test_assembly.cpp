@@ -256,39 +256,6 @@ static void TestPause() {
 
 using namespace tbb;
 
-#if USE_LITHE
-extern "C" {
-
-void func(void *arg) {
-  if( Verbose ) 
-    printf("testing __TBB_(scheduler assists)\n");
-  GenericScheduler* scheduler = GetThreadSpecific();
-  scheduler->test_assembly_routines();
-}
-
-int main( int argc, char* argv[] ) {
-    lithe_initialize();
-    try {
-        ParseCommandLine( argc, argv );
-        TestLog2();
-        TestTinyLock();
-        TestCompareExchange();
-        TestAtomicCounter();
-        TestPause();
-
-	task_scheduler_init init(func, NULL, 1);
-
-    } catch(...) {
-        ASSERT(0,"unexpected exception");
-    }
-    printf("done\n");
-    return 0;
-}
-
-}
-
-#else
-
 int main( int argc, char* argv[] ) {
     try {
         ParseCommandLine( argc, argv );
@@ -312,4 +279,3 @@ int main( int argc, char* argv[] ) {
     return 0;
 }
 
-#endif /* USE_LITHE */

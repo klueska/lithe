@@ -45,13 +45,10 @@ tbb::task* volatile AbusedTask;
 //! Number of times that AbuseOneTask
 int AbuseOneTaskRan;
 
-#if USE_LITHE
-void __apply(void *arg);
-#endif /* USE_LITHE */
-
 //! Body used to create task in thread 0 and abuse it in thread 1.
 struct AbuseOneTask {
-    void apply(int) const {
+    void operator()( int ) const {
+        tbb::task_scheduler_init init;
         // Thread 1 attempts to incorrectly use the task created by thread 0.
         TRY_BAD_EXPR(AbusedTask->spawn(*AbusedTask),"owne");
         TRY_BAD_EXPR(AbusedTask->spawn_and_wait_for_all(*AbusedTask),"owne");
@@ -93,44 +90,13 @@ struct AbuseOneTask {
 
         ++AbuseOneTaskRan;
     }
-
-    void operator()( int ) const {
-#if USE_LITHE
-	tbb::task_scheduler_init init(__apply, (void *) this);
-#else
-        tbb::task_scheduler_init init;
-	apply();
-#endif /* USE_LITHE */
-    }
 };
-
-#if USE_LITHE
-void __apply(void *arg) {
-    struct AbuseOneTask *__this = static_cast<struct AbuseOneTask *>(arg);
-    __this->apply(0);
-}
-
-void __TestTaskAssertions(void *) {
-#if TBB_USE_ASSERT
-    // Create task to be abused
-    AbusedTask = new( tbb::task::allocate_root() ) tbb::empty_task;
-    NativeParallelFor( 1, AbuseOneTask() );
-    ASSERT( AbuseOneTaskRan==1, NULL );
-    AbusedTask->destroy(*AbusedTask);
-    // Restore normal assertion handling
-    tbb::set_assertion_handler( NULL );
-#endif /* TBB_USE_ASSERT */
-}
-#endif /* USE_LITHE */
 
 //! Test various __TBB_ASSERT assertions related to class tbb::task.
 void TestTaskAssertions() {
 #if TBB_USE_ASSERT
     // Catch assertion failures
     tbb::set_assertion_handler( AssertionFailureHandler );
-#if USE_LITHE
-    tbb::task_scheduler_init init(__TestTaskAssertions, NULL);
-#else
     tbb::task_scheduler_init init;
     // Create task to be abused
     AbusedTask = new( tbb::task::allocate_root() ) tbb::empty_task;
@@ -139,13 +105,8 @@ void TestTaskAssertions() {
     AbusedTask->destroy(*AbusedTask);
     // Restore normal assertion handling
     tbb::set_assertion_handler( NULL );
-#endif /* USE_LITHE */
 #endif /* TBB_USE_ASSERT */
 }
-
-#if USE_LITHE
-extern "C" {
-#endif /* USE_LITHE */
 
 //------------------------------------------------------------------------
 int main(int argc, char* argv[]) {
@@ -158,6 +119,3 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-#if USE_LITHE
-}
-#endif /* USE_LITHE */

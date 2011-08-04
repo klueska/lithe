@@ -88,11 +88,6 @@ void TestAlignedSpace() {
 #include "harness_m128.h"
 #include <cstdio>         // Inclusion of <cstdio> deferred, to improve odds of detecting accidental dependences on it.
 
-#if USE_LITHE
-#include <lithe.h>
-extern "C" {
-#endif /* USE_LITHE */
-
 int main() {
     TestAlignedSpace<char>();
     TestAlignedSpace<short>();
@@ -107,10 +102,6 @@ int main() {
     std::printf("done\n");
     return 0;
 }
-
-#if USE_LITHE
-}
-#endif /* USE_LITHE */
 
 #define HARNESS_NO_PARSE_COMMAND_LINE 1
 #include "harness.h"

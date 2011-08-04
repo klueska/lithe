@@ -448,11 +448,6 @@ class ArrayElement {
     char item[N];
 };
 
-#if USE_LITHE
-#include <lithe.h>
-extern "C" {
-#endif /* USE_LITHE */
-
 int main( int argc, char* argv[] ) {
     ParseCommandLine( argc, argv );
 #if defined(__INTEL_COMPILER)||!defined(_MSC_VER)||_MSC_VER>=1400
@@ -490,11 +485,6 @@ int main( int argc, char* argv[] ) {
     printf("done\n");
     return 0;
 }
-
-#if USE_LITHE
-}
-#endif /* USE_LITHE */
-
 
 template<typename T>
 struct FlagAndMessage {

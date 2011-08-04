@@ -37,6 +37,17 @@ tbb_root?=..
 BUILDING_PHASE:=0
 include ../build/common.inc
 
+V ?= @
+LIBNAME = tbb
+PARLIB_DIR ?= $(tbb_root)/../..
+PARLIB_LDDIR ?= $(PARLIB_DIR)/../obj
+SCHEDS_DIR := $(PARLIB_DIR)/schedulers
+include $(SCHEDS_DIR)/Makevars
+LDFLAGS += -L$(PARLIB_LDDIR)
+LIBS += -lparlib
+#CPLUS_FLAGS += -DUSE_PTHREAD
+CPLUS_FLAGS += -DUSE_LITHE
+
 #check, if tbb_root is not absolute path (the filter keeps only /* paths)
 ifeq ($(filter /% $(SLASH)%, $(subst :, ,$(tbb_root)) ),)
     # also changes related variables like work_dir
@@ -121,7 +132,7 @@ $(COMMON_TARGETS):: % : $(addsuffix %,$(EXAMPLES_DIRS))
 
 # proxy rule for calling appropriate example
 $(EXAMPLES_TARGETS)::
-	-$(MAKE) -C $(@D)  -f $(EXAMPLE_MAKEFILE) $(notdir $@) CXX="$(CPLUS)" CXXFLAGS="$(CXXFLAGS) -I$(HOME)/local/include -DUSE_LITHE -L$(HOME)/local/lib" LIBS="$(LIBS) -llithe -lht"
+	-$(MAKE) -C $(@D)  -f $(EXAMPLE_MAKEFILE) $(notdir $@) CXX="$(CPLUS)" CXXFLAGS="$(CXXFLAGS) -I$(HOME)/local/include -L$(HOME)/local/lib $(LDFLAGS)" LIBS="$(LIBS)"
 
 printenv:
 ifeq ($(tbb_os),windows)

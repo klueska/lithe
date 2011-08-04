@@ -76,7 +76,7 @@ include $(tbb_root)/build/common_rules.inc
 
 # Rule for generating executable test
 %.exe: %.$(OBJ) $(TBB.LIB)
-	$(CPLUS) $(OUTPUT_KEY)$@ $(CPLUS_FLAGS) $< $(LINK_TBB.LIB) -L$(LITHE_PREFIX)/lib -llithe -L$(HT_PREFIX)/lib -lht $(LIBS) $(LINK_FLAGS)
+	$(CPLUS) $(OUTPUT_KEY)$@ $(CPLUS_FLAGS) $< $(LINK_TBB.LIB) $(LIBS) $(LINK_FLAGS)
 
 # Rules for generating a test DLL
 %.$(DLL).$(OBJ): %.cpp
@@ -107,7 +107,7 @@ TASK_CPP_DIRECTLY_INCLUDED = test_eh_tasks.exe \
 $(TASK_CPP_DIRECTLY_INCLUDED): WARNING_KEY += $(WARNING_SUPPRESS)
 
 $(TASK_CPP_DIRECTLY_INCLUDED): %.exe : %.$(OBJ) $(TASK_CPP_DEPENDENCIES)
-	$(CPLUS) $(OUTPUT_KEY)$@ $(CPLUS_FLAGS) $^ $(LIBDL) $(LIBS) $(LINK_FLAGS) -L$(LITHE_PREFIX)/lib -llithe -L$(HT_PREFIX)/lib -lht
+	$(CPLUS) $(OUTPUT_KEY)$@ $(CPLUS_FLAGS) $^ $(LIBDL) $(LIBS) $(LINK_FLAGS) 
 
 test_handle_perror.exe: test_handle_perror.$(OBJ) tbb_misc.$(OBJ) $(TBB_ASM.OBJ)
 	$(CPLUS) $(OUTPUT_KEY)$@ $(CPLUS_FLAGS) $^ $(LINK_TBB.LIB) $(LIBS) $(LINK_FLAGS)

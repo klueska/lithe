@@ -32,7 +32,7 @@
 #include "tbb_stddef.h"
 
 #if USE_LITHE
-#include <lithe.hh>
+#include <lithe/lithe.hh>
 #include "deque.h"
 #endif /* USE_LITHE */
 
@@ -67,14 +67,11 @@ class task_scheduler_init: internal::no_copy {
     lithe_task_t task;
 
 protected:
-/*     friend void task_scheduler_init_enter_begin(void *arg); */
-
-    void enter();
-    void yield(lithe_sched_t *child);
-    void reg(lithe_sched_t *child);
-    void unreg(lithe_sched_t *child);
-    void request(lithe_sched_t *child, int k);
-    void unblock(lithe_task_t *task);
+    void vcore_enter();
+    void child_started(lithe_sched_t *child);
+    void child_finished(lithe_sched_t *child);
+    int vcore_request(lithe_sched_t *child, int k);
+    void task_runnable(lithe_task_t *task);
 
 #endif /* USE_LITHE */
 
@@ -105,24 +102,10 @@ public:
     void __TBB_EXPORTED_METHOD terminate();
 
     //! Shorthand for default constructor followed by call to intialize(number_of_threads).
-#if USE_LITHE
-    task_scheduler_init( int number_of_threads=automatic, stack_size_type thread_stack_size=0 );
-#else
-    task_scheduler_init( int number_of_threads=automatic, stack_size_type thread_stack_size=0 ) : my_scheduler(NULL)  {
-        initialize( number_of_threads, thread_stack_size );
-    }
-#endif
-  
+	task_scheduler_init( int number_of_threads=automatic, stack_size_type thread_stack_size=0);
+
     //! Destroy scheduler for this thread if thread has no other live task_scheduler_inits.
-#if USE_LITHE
-    ~task_scheduler_init();
-#else
-    ~task_scheduler_init() {
-        if( my_scheduler ) 
-            terminate();
-        internal::poison_pointer( my_scheduler );
-    }
-#endif /* USE_LITHE */
+	~task_scheduler_init();
 
     //! Returns the number of threads tbb scheduler would create if initialized by default.
     /** Result returned by this method does not depend on whether the scheduler 

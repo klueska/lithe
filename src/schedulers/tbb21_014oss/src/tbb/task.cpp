@@ -44,7 +44,7 @@
 
 #elif USE_LITHE
 
-    #include <lithe.hh>
+    #include <lithe/lithe.hh>
     #include <spinlock.h>
 
 #else
@@ -433,7 +433,7 @@ struct WorkerDescriptor {
     static const state_t RESUMABLE = -3;
     static const state_t TERMINATING = -4;
     lithe_task_t *task;
-    void *thread_handle;
+    lithe_task_t *thread_handle;
     size_t id;
 #else
     unsigned long dummy_handle;
@@ -982,9 +982,9 @@ static inline void SetThreadSpecific( GenericScheduler* s ) {
 #if USE_WINTHREAD
     TlsSetValue( TLS_Index, s );
 #elif USE_LITHE
-    lithe_task_t *task;
-    if (lithe_task_get(&task) != 0) {
-        handle_perror(errno, "lithe_task_get");
+    lithe_task_t *task = lithe_task_self();
+    if (task == NULL) {
+        handle_perror(errno, "lithe_task_self");
     }
     task->tls = s;
 #else
@@ -1008,9 +1008,9 @@ static inline GenericScheduler* GetThreadSpecific() {
 #if USE_WINTHREAD
     result = (GenericScheduler*)TlsGetValue( TLS_Index );
 #elif USE_LITHE
-    lithe_task_t *task;
-    if (lithe_task_get(&task) != 0) {
-        handle_perror(errno, "lithe_task_get");
+    lithe_task_t *task = lithe_task_self();
+    if (task == NULL) {
+        handle_perror(errno, "lithe_task_self");
     }
     result = (GenericScheduler*) task->tls;
 #else
@@ -1710,7 +1710,7 @@ void terminate_workers_helper(lithe_task_t *task, void *arg) {
     WorkerDescriptor *w = static_cast<WorkerDescriptor *>(arg);
     lithe_task_t *oldtask = w->task;
     w->task = task;
-    lithe_task_resume(oldtask);
+    lithe_task_run(oldtask);
 }
 #endif /* USE_LITHE */
 
@@ -2775,7 +2775,7 @@ GenericScheduler* GenericScheduler::create_worker( WorkerDescriptor& w ) {
         w.thread_handle = INVALID_HANDLE_VALUE;
     }
 #elif USE_LITHE
-    __TBB_store_with_release(w.thread_handle, intptr(1));
+    __TBB_store_with_release(w.thread_handle, lithe_task_self());
 #else /* USE_PTHREAD */
     w.thread_handle = pthread_self();
 #endif /* USE_PTHREAD */
@@ -2790,7 +2790,7 @@ GenericScheduler* GenericScheduler::create_worker( WorkerDescriptor& w ) {
         CloseHandle( w.thread_handle );
         w.thread_handle = (HANDLE)0;
 #elif USE_LITHE
-	__TBB_store_with_release(w.thread_handle, intptr(0));
+		__TBB_store_with_release(w.thread_handle, (lithe_task_t*)NULL);
 #else /* USE_PTHREAD */
         int status = pthread_detach( w.thread_handle );
         if( status )
@@ -2911,10 +2911,10 @@ void GenericScheduler::cleanup_worker_thread( void* arg ) {
     s.free_scheduler();
     a->remove_gc_reference();
 #if USE_LITHE
-    __TBB_store_with_release(w.thread_handle, intptr(0));
+    __TBB_store_with_release(w.thread_handle, (lithe_task_t*)NULL);
     if (w.state == WorkerDescriptor::TERMINATING)
 	return w.task;
-    else
+    else 
 	return NULL;
 #endif /* USE_LITHE */
 }
@@ -2936,7 +2936,7 @@ void WorkerDescriptor::start_one_worker_thread() {
         CloseHandle((HANDLE)status);
 #elif USE_LITHE
     __TBB_store_with_release(state, WorkerDescriptor::REQUESTED);
-    lithe_sched_request(1);
+    lithe_vcore_request(1);
 #else
     int status;
     pthread_attr_t stack_size;
@@ -3399,14 +3399,13 @@ const stack_size_type ThreadStackSize = 4*MByte;
 #if USE_LITHE
 
 void task_scheduler_init_enter_end(lithe_task_t *task, void *arg) {
-    free(task->ctx.uc_stack.ss_sp);
+	printf("task: %p\n", task);
     lithe_task_destroy(task);
-    free(task);
     task = static_cast<lithe_task_t *>(arg);
     if (task != NULL) {
-	lithe_task_resume(task);
+	lithe_task_run(task);
     }
-    lithe_sched_yield();
+    lithe_vcore_yield();
 }
 
 void task_scheduler_init_enter_begin(void *arg) {
@@ -3415,9 +3414,11 @@ void task_scheduler_init_enter_begin(void *arg) {
     lithe_task_block(task_scheduler_init_enter_end, task);
 }
 
-void task_scheduler_init::enter() {
-    // At this point, if we are terminating then we don't let any new hard threads come in (since it is unclear at what point we are terminating).
-    // TODO(benh): Possible BUG! We need to have atomicity with respect to 'my_scheduler' ... after the if check the object could be deallocated!
+void task_scheduler_init::vcore_enter() {
+	// At this point, if we are terminating then we don't let any new hard
+	// threads come in (since it is unclear at what point we are terminating).
+	// TODO(benh): Possible BUG! We need to have atomicity with respect to
+	// 'my_scheduler' ... after the if check the object could be deallocated!
     GenericScheduler* s = static_cast<GenericScheduler*>(my_scheduler);
     if (s) {
 	size_t num_workers = s->arena->prefix().number_of_workers;
@@ -3430,7 +3431,7 @@ void task_scheduler_init::enter() {
 		    lithe_task_t *task = w.task;
 		    w.task = NULL;
 		    __TBB_ASSERT (task, "task is missing");
-		    lithe_task_resume(task);
+		    lithe_task_run(task);
 		    // NEVER RETURNS!
 		    break;
 		}
@@ -3442,13 +3443,11 @@ void task_scheduler_init::enter() {
 	    __TBB_ASSERT (w.arena == s->arena, "WorkerDescriptor's 'arena' is wrong");
 	    if (w.state == WorkerDescriptor::REQUESTED) {
 		if (__TBB_CompareAndSwapW(&w.state, WorkerDescriptor::RUNNING, WorkerDescriptor::REQUESTED) == WorkerDescriptor::REQUESTED) {
-    		    w.id = i + 1;
-		    lithe_task_t *task = (lithe_task_t *) malloc(sizeof(lithe_task_t));
-		    stack_t stack;
-		    stack.ss_size = w.thread_stack_size ? w.thread_stack_size : ThreadStackSize;
-		    stack.ss_sp = malloc(stack.ss_size);
-		    lithe_task_init(task, &stack);
-		    lithe_task_do(task, task_scheduler_init_enter_begin, &w);
+    		w.id = i + 1;
+            lithe_task_attr_t attr;
+		    attr.stack_size = w.thread_stack_size ? w.thread_stack_size : ThreadStackSize;
+		    lithe_task_t *task = lithe_task_create(&attr, task_scheduler_init_enter_begin, &w);
+		    lithe_task_run(task);
 		    // NEVER RETURNS!
 		    break;
 		}
@@ -3463,7 +3462,7 @@ void task_scheduler_init::enter() {
 // 		    printf("%p says requested[%d] is %d\n", pthread_self(), id, request);
 		    if (__TBB_CompareAndSwapW(&requested[id], request - 1, request) == request) {
 // 			printf("%p entering child %p\n", pthread_self(), child);
-			lithe_sched_enter(child);
+			lithe_vcore_grant(child);
 		    }
 		    request = requested[id];
 		}
@@ -3472,15 +3471,10 @@ void task_scheduler_init::enter() {
     }
 
 //     printf("%p yielding from tbb\n", pthread_self());
-    lithe_sched_yield();
+    lithe_vcore_yield();
 }
 
-void task_scheduler_init::yield(lithe_sched_t *child) {
-//     printf("%p yield(%p)\n", pthread_self(), child);
-    lithe_sched_reenter();
-}
-
-void task_scheduler_init::reg(lithe_sched_t *child) {
+void task_scheduler_init::child_started(lithe_sched_t *child) {
     GenericScheduler* s = GetThreadSpecific();
     size_t id;
     if (!s->is_worker()) {
@@ -3495,7 +3489,7 @@ void task_scheduler_init::reg(lithe_sched_t *child) {
     requested[id] = 0;
 }
 
-void task_scheduler_init::unreg(lithe_sched_t *child) {
+void task_scheduler_init::child_finished(lithe_sched_t *child) {
     GenericScheduler* s = GetThreadSpecific();
     size_t id;
     if (!s->is_worker()) {
@@ -3511,7 +3505,7 @@ void task_scheduler_init::unreg(lithe_sched_t *child) {
     requested[id] = 0;
 }
 
-void task_scheduler_init::request(lithe_sched_t *child, int k) {
+int task_scheduler_init::vcore_request(lithe_sched_t *child, int k) {
 //     printf("%p request(%p, %d)\n", pthread_self(), child, k);
     GenericScheduler* s = static_cast<GenericScheduler*>(my_scheduler);
     size_t num_workers = s->arena->prefix().number_of_workers;
@@ -3521,15 +3515,15 @@ void task_scheduler_init::request(lithe_sched_t *child, int k) {
 	if (children[id] == child) {
 	    requested[id] = k;
 	    /* TODO(benh): Should we always do a request? */
-	    lithe_sched_request(k);
-	    return;
+	    return lithe_vcore_request(k);
 	}
     }
 
     handle_perror(EPERM, "request from orphaned child");
+	return -1;
 }
 
-void task_scheduler_init::unblock(lithe_task_t *task) {
+void task_scheduler_init::task_runnable(lithe_task_t *task) {
     GenericScheduler *s = (GenericScheduler*) task->tls;
     __TBB_ASSERT( s->is_worker(), "unblocking a non-worker" );
     WorkerDescriptor &w = *(s->w);
@@ -3538,17 +3532,17 @@ void task_scheduler_init::unblock(lithe_task_t *task) {
     __TBB_store_with_release(w.state, WorkerDescriptor::RESUMABLE);
 }
 
-task_scheduler_init::task_scheduler_init( int number_of_threads, stack_size_type thread_stack_size ) : my_scheduler(NULL)  {
+#endif /* USE_LITHE */
+
+task_scheduler_init::task_scheduler_init( int number_of_threads, stack_size_type thread_stack_size) : my_scheduler(NULL)  {
     initialize( number_of_threads, thread_stack_size );
 }
 
 task_scheduler_init::~task_scheduler_init() {
     if( my_scheduler ) 
-	terminate();
+        terminate();
     internal::poison_pointer( my_scheduler );
 }
-
-#endif /* USE_LITHE */
 
 void task_scheduler_init::initialize( int number_of_threads ) {
      initialize( number_of_threads, 0 );
@@ -3570,8 +3564,8 @@ void task_scheduler_init::initialize( int number_of_threads, stack_size_type thr
 	// been started, but we want to avoid a race with hard threads
 	// entering the scheduler (via 'enter') before we are
 	// completely initialized
-        if (lithe_sched_register_task(&funcs, this, &task) != 0) {
-	    handle_perror(errno, "lithe_sched_register");
+	if (lithe_sched_enter(&funcs, this) != 0) {
+		handle_perror(errno, "lithe_sched_enter");
 	}
 
 	Arena* a;
@@ -3642,9 +3636,7 @@ void task_scheduler_init::terminate() {
 	__TBB_ASSERT(a->prefix().number_of_masters == 0, "cleaning up an arena with too many masters" );
         s->free_scheduler();
 	a->terminate_workers();
-	lithe_task_t *unregistered_task;
-	lithe_sched_unregister_task(&unregistered_task);
-	__TBB_ASSERT(&task == unregistered_task, "unregister returned unknown task");
+	lithe_sched_exit();
 	free(children);
 	free(requested);
     } else {

@@ -125,11 +125,7 @@ struct Striker {
     }
 };
 
-#if USE_LITHE
-void ParallelTest(void *) {
-#else
 void ParallelTest() {
-#endif /* USE_LITHE */
     for( int i=0; i<N; i=i<3 ? i+1 : i*3 ) {
         for( int j=0; j<N; j=j<3 ? j+1 : j*3 ) {
             const tbb::blocked_range2d<int> r( 0, i, 7, 0, j, 5 );
@@ -146,28 +142,14 @@ void ParallelTest() {
 
 #include "tbb/task_scheduler_init.h"
 
-#if USE_LITHE
-extern "C" {
-#endif /* USE_LITHE */
-
 int main( int argc, char* argv[] ) {
-#if USE_LITHE
-    lithe_initialize();
-#endif /* USE_LITHE */
     ParseCommandLine(argc,argv);
     SerialTest();
     for( int p=MinThread; p<=MaxThread; ++p ) {
-#if USE_LITHE
-        tbb::task_scheduler_init init(ParallelTest, NULL, p);
-#else
         tbb::task_scheduler_init init(p);
         ParallelTest();
-#endif /* USE_LITHE */
     }
     printf("done\n");
     return 0;
 }
 
-#if USE_LITHE
-}
-#endif /* USE_LITHE */

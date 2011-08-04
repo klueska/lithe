@@ -24,6 +24,16 @@
 # invalidate any other reasons why the executable file might be covered by
 # the GNU General Public License.
 
+V ?= @
+LIBNAME = tbb
+PARLIB_DIR ?= $(tbb_root)/../..
+PARLIB_LDDIR ?= $(PARLIB_DIR)/../obj
+SCHEDS_DIR := $(PARLIB_DIR)/schedulers
+include $(SCHEDS_DIR)/Makevars
+LINK_FLAGS += -L$(PARLIB_LDDIR) -lparlib
+#CPLUS_FLAGS += -DUSE_PTHREAD
+CPLUS_FLAGS += -DUSE_LITHE
+
 .PRECIOUS: %.$(OBJ) %.$(DLL).$(OBJ) %.exe
 
 ifeq ($(tbb_strict),1)
@@ -35,8 +45,10 @@ ifeq ($(tbb_strict),1)
 endif
 
 INCLUDES += $(INCLUDE_KEY)$(tbb_root)/src $(INCLUDE_KEY)$(tbb_root)/include
+INCLUDES += $(LIB_INCS)
 
 CPLUS_FLAGS += $(WARNING_KEY) $(CXXFLAGS)
+CPLUS_FLAGS += $(LIB_CXXFLAGS)
 LINK_FLAGS += $(LDFLAGS) 
 LIB_LINK_FLAGS += $(LDFLAGS)
 CPLUS_FLAGS_NOSTRICT:=$(subst -strict_ansi,-ansi,$(CPLUS_FLAGS))
