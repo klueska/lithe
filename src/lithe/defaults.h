@@ -18,7 +18,7 @@ static void __destroy_default(lithe_sched_t *__this)
 {
 }
 
-static void __start_default(lithe_sched_t *__this)
+static void __start_default(lithe_sched_t *__this, void *arg)
 {
   fatal((char*)"Should not be calling start()");
 }
