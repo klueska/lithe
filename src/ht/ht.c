@@ -382,9 +382,9 @@ int ht_request_async(int k)
   int hts = 0;
   pthread_mutex_lock(&__ht_mutex);
   {
-    if (k <= 0) {
-      fprintf(stderr, "ht: you must request at least one hard thread ");
-      exit(1);
+    if (k == 0) {
+      pthread_mutex_unlock(&__ht_mutex);
+      return 0;
     } else {
       /* If this is the first ht requested, do something special */
       static int once = true;
