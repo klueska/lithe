@@ -31,9 +31,10 @@ class Scheduler {
   friend void __task_runnable(lithe_sched_t *__this, lithe_task_t *task);
   
  protected:
-  virtual void start(void *arg) = 0;
   virtual void vcore_enter() = 0;
 
+  virtual void start(void *arg)
+    { return __start_default((lithe_sched_t*)&csched, arg); }
   virtual int vcore_request(lithe_sched_t *child, int k) 
     { return __vcore_request_default((lithe_sched_t*)&csched, child, k); }
   virtual void vcore_return(lithe_sched_t *child)
