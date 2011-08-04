@@ -55,6 +55,6 @@ int main(int argc, char **argv)
   TestScheduler sched;
   lithe_sched_start(&Scheduler::funcs, &sched, NULL);
   printf("CXX Lithe Simple test finishing\n");
-  return EXIT_SUCCESS;
+  return 0;
 }
 

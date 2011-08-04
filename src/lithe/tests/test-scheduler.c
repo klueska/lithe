@@ -88,5 +88,5 @@ int main()
   simple_sched_t sched;
   lithe_sched_start(&funcs, &sched, NULL);
   printf("Lithe Simple test exiting\n");
-  return EXIT_SUCCESS;
+  return 0;
 }
