@@ -1,4 +1,4 @@
-#include <lithe/lithe.hh>
+#include <lithe/sched.hh>
 #include <stdlib.h>
 
 namespace lithe {
