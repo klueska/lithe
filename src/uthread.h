@@ -35,8 +35,7 @@ struct schedule_ops {
 	struct uthread *(*thread_create)(void (*func)(void), void *);
 	void (*thread_runnable)(struct uthread *);
 	void (*thread_yield)(struct uthread *);
-	void (*thread_exit)(struct uthread *);
-	unsigned int (*vcores_wanted)(void);
+	void (*thread_destroy)(struct uthread *);
 	/* Functions event handling wants */
 	void (*preempt_pending)(void);
 	void (*spawn_thread)(uintptr_t pc_start, void *data);	/* don't run yet */
@@ -58,18 +57,15 @@ int uthread_init();
  * what gets run, and if you want args, wrap it (like pthread) */
 struct uthread *uthread_create(void (*func)(void), void *udata);
 
-/* Destroys a uthread. Be careful not to call this on any currently running
- * threads */
+/* Destroys a uthread created by a call to uthread_create(). Be careful not to
+ * call this on any currently running uthreads. */
 void uthread_destroy(struct uthread *uthread);
 
 /* Function forcing a uthread to become runnable */
 void uthread_runnable(struct uthread *uthread);
 
 /* Function to yield a uthread - it can be made runnable again in the future */
-void uthread_yield(void);
-
-/* Function to exit a uthread completely */
-void uthread_exit(void);
+void uthread_yield(bool save_state);
 
 /* Utility function.  Event code also calls this. */
 bool check_preempt_pending(uint32_t vcoreid);

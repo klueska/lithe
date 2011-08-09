@@ -73,7 +73,7 @@ struct lithe_sched_funcs {
   void (*task_yield) (lithe_sched_t *__this, lithe_task_t *task);
 
   /* Callback for scheduler specific exiting of tasks */
-  void (*task_exit) (lithe_sched_t *__this, lithe_task_t *task);
+  void (*task_destroy) (lithe_sched_t *__this, lithe_task_t *task);
 
   /* Function letting this scheduler know that the provided task is runnable.
    * This could result from a blocked task being unblocked, or just after a

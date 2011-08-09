@@ -108,54 +108,38 @@ struct uthread *uthread_create(void (*func)(void), void *udata)
 	return new_thread;
 }
 
-void uthread_destroy(struct uthread *uthread)
-{
-	/* We alloc and manage the TLS, so lets get rid of it */
-	__uthread_free_tls(uthread);
-	/* Then call the scheduler specific exit function */
-	sched_ops->thread_exit(uthread);
-}
-
 void uthread_runnable(struct uthread *uthread)
 {
 	/* Allow the 2LS to make the thread runnable, and do whatever. */
 	assert(sched_ops->thread_runnable);
 	sched_ops->thread_runnable(uthread);
-	/* Ask the 2LS how many vcores it wants, and put in the request. */
-	assert(sched_ops->vcores_wanted);
-	vcore_request(sched_ops->vcores_wanted());
 }
 
 /* Need to have this as a separate, non-inlined function since we clobber the
  * stack pointer before calling it, and don't want the compiler to play games
- * with my hart. If exisiting, call sched_ops->thread_exit(), otherwise call
- * sched_ops->thread_yield() */
-static void __uthread_stop(bool exit, struct uthread *uthread)
+ * with my hart. */
+static void __attribute__((noinline, noreturn)) 
+__uthread_yield(void)
 {
 	assert(in_vcore_context());
-	assert(sched_ops->thread_exit);
 	assert(sched_ops->thread_yield);
 
-	/* If we are exiting the uthread, destroy it completely */
-	if(exit)
-		uthread_destroy(uthread);
-	/* Otherwise, we are just yielding, so call the scheduler specific
-     * yield function */
-	else 
-		sched_ops->thread_yield(uthread);
+	struct uthread *uthread = current_uthread;
+	/* 2LS will save the thread somewhere for restarting.  Later on,
+	 * we'll probably have a generic function for all sorts of waiting.
+	 */
+	sched_ops->thread_yield(uthread);
 
-	/* Set the current thread to NULL */
+	/* Leave the current vcore completely */
 	current_uthread = NULL;
-
 	/* Go back to the entry point, where we can handle notifications or
 	 * reschedule someone. */
 	uthread_vcore_entry();
-	assert(0);
 }
 
 /* Calling thread yields.  TODO: combine similar code with uthread_exit() (done
  * like this to ease the transition to the 2LS-ops */
-void uthread_yield(void)
+void uthread_yield(bool save_state)
 {
 	assert(!in_vcore_context());
 
@@ -168,8 +152,10 @@ void uthread_yield(void)
 	/* Take the current state and save it into uthread->uc when this pthread
 	 * restarts, it will continue from right after this, see yielding is false,
 	 * and short circuit the function. */
-	int ret = getcontext(&uthread->uc);
-	assert(ret == 0);
+	if(save_state) {
+		int ret = getcontext(&uthread->uc);
+		assert(ret == 0);
+	}
 	if (!yielding)
 		goto yield_return_path;
 	yielding = FALSE; /* for when it starts back up */
@@ -180,8 +166,8 @@ void uthread_yield(void)
 	/* After this, make sure you don't use local variables. */
 	set_stack_pointer(ht_context.uc_stack.ss_sp + ht_context.uc_stack.ss_size);
 	wrfence();
-	/* Finish exiting in another function. */
-	__uthread_stop(false, current_uthread);
+	/* Finish yielding in another function. */
+	__uthread_yield();
 	/* Should never get here */
 	assert(0);
 	/* Will jump here when the uthread's trapframe is restarted/popped. */
@@ -189,28 +175,16 @@ yield_return_path:
 	printd("[U] Uthread %08p returning from a yield!\n", uthread);
 }
 
-/* Exits from the uthread */
-void uthread_exit(void)
+/* Destroys the uthread.  If you want to destroy a currently running uthread,
+ * you'll want something like pthread_exit(), which yields, and calls this from
+ * its sched_ops yield. */
+void uthread_destroy(struct uthread *uthread)
 {
-	assert(!in_vcore_context());
-	struct uthread *uthread = current_uthread;
-	uint32_t vcoreid = vcore_id();
-	printd("[U] Uthread %08p is exiting on vcore %d\n", uthread, vcoreid);
-
-	/* Change to the transition context (both TLS and stack). */
-	set_tls_desc(ht_tls_descs[vcoreid], vcoreid);
-	assert(current_uthread == uthread);	
-	/* After this, make sure you don't use local variables.  Also, make sure the
-	 * compiler doesn't use them without telling you (TODO).
-	 *
-	 * In each arch's set_stack_pointer, make sure you subtract off as much room
-	 * as you need to any local vars that might be pushed before calling the
-	 * next function, or for whatever other reason the compiler/hardware might
-	 * walk up the stack a bit when calling a noreturn function. */
-	set_stack_pointer(ht_context.uc_stack.ss_sp + ht_context.uc_stack.ss_size);
-	wrfence();
-	/* Finish exiting in another function.  Ugh. */
-	__uthread_stop(true, current_uthread);
+	printd("[U] thread %08p on vcore %d is DYING!\n", uthread, vcore_id());
+	/* we alloc and manage the TLS, so lets get rid of it */
+	__uthread_free_tls(uthread);
+	assert(sched_ops->thread_destroy);
+	sched_ops->thread_destroy(uthread);
 }
 
 /* Saves the state of the current uthread from the point at which it is called */

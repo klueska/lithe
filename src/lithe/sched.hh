@@ -27,7 +27,7 @@ class Scheduler {
   friend void __child_finished(lithe_sched_t *__this, lithe_sched_t *child);
   friend lithe_task_t* __task_create(lithe_sched_t *__this, void *udata);
   friend void __task_yield(lithe_sched_t *__this, lithe_task_t *task);
-  friend void __task_exit(lithe_sched_t *__this, lithe_task_t *task);
+  friend void __task_destroy(lithe_sched_t *__this, lithe_task_t *task);
   friend void __task_runnable(lithe_sched_t *__this, lithe_task_t *task);
   
  protected:
@@ -47,8 +47,8 @@ class Scheduler {
     { return __task_create_default((lithe_sched_t*)&csched, udata); }
   virtual void task_yield(lithe_task_t *task)
     { return __task_yield_default((lithe_sched_t*)&csched, task); }
-  virtual void task_exit(lithe_task_t *task)
-    { return __task_exit_default((lithe_sched_t*)&csched, task); }
+  virtual void task_destroy(lithe_task_t *task)
+    { return __task_destroy_default((lithe_sched_t*)&csched, task); }
   virtual void task_runnable(lithe_task_t *task)
     { return __task_runnable_default((lithe_sched_t*)&csched, task); }
 

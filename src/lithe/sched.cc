@@ -63,10 +63,10 @@ void __task_yield(lithe_sched_t *__this, lithe_task_t *task)
   (reinterpret_cast<Scheduler *>(sched->__this))->task_yield(task);
 }
 
-void __task_exit(lithe_sched_t *__this, lithe_task_t *task)
+void __task_destroy(lithe_sched_t *__this, lithe_task_t *task)
 {
   lithe_sched_cxx_t *sched = (lithe_sched_cxx_t*)__this;
-  (reinterpret_cast<Scheduler *>(sched->__this))->task_exit(task);
+  (reinterpret_cast<Scheduler *>(sched->__this))->task_destroy(task);
 }
 
 void __task_runnable(lithe_sched_t *__this, lithe_task_t *task)
@@ -86,7 +86,7 @@ const lithe_sched_funcs_t Scheduler::funcs = {
   /*.child_finished  = */ __child_finished,
   /*.task_create     = */ __task_create,
   /*.task_yield      = */ __task_yield,
-  /*.task_exit       = */ __task_exit,
+  /*.task_destroy    = */ __task_destroy,
   /*.task_runnable   = */ __task_runnable
 };
  

@@ -88,8 +88,7 @@ static void         lithe_vcore_entry(void);
 static uthread_t*   lithe_thread_create(void (*func)(void), void *udata);
 static void         lithe_thread_runnable(uthread_t *uthread);
 static void         lithe_thread_yield(uthread_t *uthread);
-static void         lithe_thread_exit(uthread_t *uthread);
-static unsigned int lithe_vcores_wanted(void);
+static void         lithe_thread_destroy(uthread_t *uthread);
 
 /* Unique function pointer table required by uthread code */
 struct schedule_ops lithe_sched_ops = {
@@ -98,8 +97,7 @@ struct schedule_ops lithe_sched_ops = {
   .thread_create    = lithe_thread_create,
   .thread_runnable  = lithe_thread_runnable,
   .thread_yield     = lithe_thread_yield,
-  .thread_exit      = lithe_thread_exit,
-  .vcores_wanted    = lithe_vcores_wanted,
+  .thread_destroy   = lithe_thread_destroy,
   .preempt_pending  = NULL, /* lithe_preempt_pending, */
   .spawn_thread     = NULL, /* lithe_spawn_thread, */
 };
@@ -117,7 +115,7 @@ static void base_child_started(lithe_sched_t *this, lithe_sched_t *child);
 static void base_child_finished(lithe_sched_t *this, lithe_sched_t *child);
 static lithe_task_t* base_task_create(lithe_sched_t *__this, void *udata);
 static void base_task_yield(lithe_sched_t *__this, lithe_task_t *task);
-static void base_task_exit(lithe_sched_t *__this, lithe_task_t *task);
+static void base_task_destroy(lithe_sched_t *__this, lithe_task_t *task);
 static void base_task_runnable(lithe_sched_t *__this, lithe_task_t *task);
 
 static const lithe_sched_funcs_t base_funcs = {
@@ -131,7 +129,7 @@ static const lithe_sched_funcs_t base_funcs = {
   .child_finished  = base_child_finished,
   .task_create     = base_task_create,
   .task_yield      = base_task_yield,
-  .task_exit       = base_task_exit,
+  .task_destroy    = base_task_destroy,
   .task_runnable   = base_task_runnable
 };
 
@@ -255,27 +253,33 @@ static uthread_t* lithe_thread_create(void (*func)(void), void *udata)
 
 static void lithe_thread_runnable(struct uthread *uthread)
 {
-  assert(current_task);
-  current_sched->funcs->task_runnable(current_sched, current_task);
+  assert(uthread);
+  assert(current_sched);
+
+  lithe_task_t *task = (lithe_task_t*)uthread;
+  current_sched->funcs->task_runnable(current_sched, task);
 }
 
 static void lithe_thread_yield(struct uthread *uthread)
 {
-  assert(current_task);
-  current_sched->funcs->task_yield(current_sched, current_task);
+  assert(uthread);
+  assert(current_sched);
+
+  lithe_task_t *task = (lithe_task_t*)uthread;
+  if(task->finished)
+    uthread_destroy(uthread);
+  else
+    current_sched->funcs->task_yield(current_sched, task);
 }
 
-static void lithe_thread_exit(struct uthread *uthread)
+static void lithe_thread_destroy(struct uthread *uthread)
 {
-  assert(current_task);
-  current_sched->funcs->task_exit(current_sched, current_task);
-}
+  assert(uthread);
+  assert(current_sched);
 
-static unsigned int lithe_vcores_wanted(void)
-{
-  return 0;
+  lithe_task_t *task = (lithe_task_t*)uthread;
+  current_sched->funcs->task_destroy(current_sched, task);
 }
-
 
 static lithe_sched_t *base_construct(void *__sched)
 {
@@ -335,9 +339,9 @@ static void base_task_yield(lithe_sched_t *__this, lithe_task_t *task)
   // Do nothing.  The only task we should ever yield is the main task...
 }
 
-static void base_task_exit(lithe_sched_t *__this, lithe_task_t *task)
+static void base_task_destroy(lithe_sched_t *__this, lithe_task_t *task)
 {
-  fatal("The base scheduler should never have any tasks to be exiting!\n");
+  fatal("The base scheduler should never have any tasks to be destroying!\n");
 }
 
 static void base_task_runnable(lithe_sched_t *__this, lithe_task_t *task)
@@ -468,7 +472,7 @@ int lithe_vcore_request(int k)
 void __lithe_task_run()
 {
   current_task->start_func(current_task->arg);
-  uthread_exit();
+  uthread_yield(false);
 }
 
 lithe_task_t *lithe_task_create(lithe_task_attr_t *attr, void (*func) (void *), void *arg) 
@@ -485,7 +489,8 @@ lithe_task_t *lithe_task_create(lithe_task_attr_t *attr, void (*func) (void *), 
 void lithe_task_destroy(lithe_task_t *task)
 {
   assert(task);
-  assert(task != current_task);
+  if(!in_vcore_context())
+    assert(task != current_task);
   uthread_destroy(&task->uth);
 }
 
@@ -560,15 +565,31 @@ int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg)
   lithe_vcore_func_t real_func = {__lithe_task_block, &real_func_arg};
 
   vcore_set_tls_var(vcore_id(), next_func, &real_func);
-  uthread_yield();
+  uthread_yield(true);
   return 0;
 }
 
 int lithe_task_unblock(lithe_task_t *task)
 {
   assert(task);
-
   current_sched->funcs->task_runnable(current_sched, task);
   return 0;
+}
+
+void lithe_task_yield()
+{
+  assert(!in_vcore_context());
+  assert(current_sched);
+  assert(current_task);
+  uthread_yield(true);
+}
+
+void lithe_task_exit()
+{
+  assert(!in_vcore_context());
+  assert(current_sched);
+  assert(current_task);
+  current_task->finished = true;
+  uthread_yield(false);
 }
 

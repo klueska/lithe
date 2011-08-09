@@ -39,8 +39,7 @@ void pth_sched_entry(void);
 struct uthread *pth_thread_create(void (*func)(void), void *udata);
 void pth_thread_runnable(struct uthread *uthread);
 void pth_thread_yield(struct uthread *uthread);
-void pth_thread_exit(struct uthread *uthread);
-unsigned int pth_vcores_wanted(void);
+void pth_thread_destroy(struct uthread *uthread);
 void pth_preempt_pending(void);
 void pth_spawn_thread(uintptr_t pc_start, void *data);
 
@@ -50,8 +49,7 @@ struct schedule_ops bthread_sched_ops = {
 	pth_thread_create,
 	pth_thread_runnable,
 	pth_thread_yield,
-	pth_thread_exit,
-	pth_vcores_wanted,
+	pth_thread_destroy,
 	0, /* pth_preempt_pending, */
 	0, /* pth_spawn_thread, */
 };
@@ -132,6 +130,7 @@ struct uthread *pth_thread_create(void (*func)(void), void *udata)
 	bthread->stacksize = BTHREAD_STACK_SIZE;	/* default */
 	bthread->id = get_next_pid();
 	bthread->detached = FALSE;				/* default */
+	bthread->flags = 0;
 	bthread->finished = FALSE;				/* default */
 	/* Respect the attributes */
 	if (attr) {
@@ -162,6 +161,7 @@ void pth_thread_runnable(struct uthread *uthread)
 	TAILQ_INSERT_TAIL(&ready_queue, bthread, next);
 	threads_ready++;
 	mcs_lock_unlock(&queue_lock, &local_qn);
+	vcore_request(threads_ready);
 }
 
 /* The calling thread is yielding.  Do what you need to do to restart (like put
@@ -171,48 +171,34 @@ void pth_thread_yield(struct uthread *uthread)
 {
 	struct bthread_tcb *bthread = (struct bthread_tcb*)uthread;
 	struct mcs_lock_qnode local_qn = {0};
-	/* Take from the active list, and put on the ready list (tail).  Don't do
-	 * this until we are done completely with the thread, since it can be
-	 * restarted somewhere else. */
+	/* Remove from the active list, whether exiting or yielding.  We're holding
+	 * the lock throughout both list modifications (if applicable). */
 	mcs_lock_lock(&queue_lock, &local_qn);
 	threads_active--;
 	TAILQ_REMOVE(&active_queue, bthread, next);
-	threads_ready++;
-	TAILQ_INSERT_TAIL(&ready_queue, bthread, next);
-	mcs_lock_unlock(&queue_lock, &local_qn);
+	if (bthread->flags & PTHREAD_EXITING) {
+		mcs_lock_unlock(&queue_lock, &local_qn);
+		uthread_destroy(uthread);
+	} else {
+		/* Put it on the ready list (tail).  Don't do this until we are done
+		 * completely with the thread, since it can be restarted somewhere else.
+		 * */
+		threads_ready++;
+		TAILQ_INSERT_TAIL(&ready_queue, bthread, next);
+		mcs_lock_unlock(&queue_lock, &local_qn);
+	}
 }
-
-/* Thread is exiting, do your 2LS specific stuff.  You're in vcore context.
- * Don't use the thread's TLS or stack or anything. */
-void pth_thread_exit(struct uthread *uthread)
+	
+void pth_thread_destroy(struct uthread *uthread)
 {
 	struct bthread_tcb *bthread = (struct bthread_tcb*)uthread;
-	struct mcs_lock_qnode local_qn = {0};
-	/* Remove from the active runqueue */
-	mcs_lock_lock(&queue_lock, &local_qn);
-	threads_active--;
-	TAILQ_REMOVE(&active_queue, bthread, next);
 	/* Cleanup, mirroring pth_thread_create() */
 	__bthread_free_stack(bthread);
-	mcs_lock_unlock(&queue_lock, &local_qn);
-
 	/* TODO: race on detach state */
-	if (bthread->detached) {
+	if (bthread->detached)
 		free(bthread);
-	}
-	else {
-		/* Once we do this, our joiner can free us.  He won't free us if we're
-		 * detached, but there is still a potential race there (since he's accessing
-		 * someone who is freed.) */
-		bthread->finished = TRUE;
-	}
-}
-
-/* Returns how many *more* vcores we want.  Smarter schedulers should look at
- * the num_vcores() and how much work is going on to make this decision. */
-unsigned int pth_vcores_wanted(void)
-{
-	return 1;
+	else
+		bthread->finished = 1;
 }
 
 void pth_preempt_pending(void)
@@ -308,7 +294,7 @@ int bthread_join(bthread_t thread, void** retval)
 
 int bthread_yield(void)
 {
-	uthread_yield();
+	uthread_yield(true);
 	return 0;
 }
 
@@ -487,7 +473,9 @@ void bthread_exit(void *ret)
 {
 	struct bthread_tcb *bthread = bthread_self();
 	bthread->retval = ret;
-	uthread_exit();
+	/* So our pth_thread_yield knows we want to exit */
+	bthread->flags |= PTHREAD_EXITING;
+	uthread_yield(false);
 }
 
 int bthread_once(bthread_once_t* once_control, void (*init_routine)(void))

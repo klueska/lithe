@@ -43,6 +43,10 @@ typedef struct lithe_task {
 
   /* Task local storage */
   void *tls;
+
+  /* Flag indicating if the task is finished and should be destroyed or not */
+  bool finished;
+
 } lithe_task_t;
 
 #ifdef __cplusplus

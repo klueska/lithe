@@ -31,7 +31,7 @@ static const lithe_sched_funcs_t child_funcs = {
   .child_finished  = __child_finished_default,
   .task_create     = __task_create_default,
   .task_yield      = __task_yield_default,
-  .task_exit       = __task_exit_default,
+  .task_destroy    = __task_destroy_default,
   .task_runnable   = child_task_runnable
 };
 
@@ -120,7 +120,7 @@ static const lithe_sched_funcs_t root_funcs = {
   .child_finished  = root_child_finished,
   .task_create     = __task_create_default,
   .task_yield      = __task_yield_default,
-  .task_exit       = __task_exit_default,
+  .task_destroy    = __task_destroy_default,
   .task_runnable   = root_task_runnable
 };
 

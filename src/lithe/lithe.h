@@ -118,9 +118,10 @@ void lithe_task_settls(void *tls);
 void *lithe_task_gettls();
 
 /*
- * Run the specified task.  It must have been precreated. This 
- * function never returns on success and returns -1 on error and sets
- * errno appropriately.
+ * Run the specified task.  Upon completion, the task is yielded, and must be
+ * explicitly destroyed via a call to lithe_task_detroy() to free any memory
+ * associated with it. It must have been precreated. This function never
+ * returns on success and returns -1 on error and sets errno appropriately.
  */
 int lithe_task_run(lithe_task_t *task);
 

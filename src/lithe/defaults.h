@@ -60,16 +60,16 @@ static lithe_task_t* __task_create_default(lithe_sched_t *__this, void *udata)
       task->stack_size = attr->stack_size;
   }
   task->sp = malloc(task->stack_size);
+  assert(task->sp);
+  task->finished = false;
   return task;
 }
 
 static void __task_yield_default(lithe_sched_t *__this, lithe_task_t *task)
 {
-  // Default yield does nothing special, just passes through.
-  // Override to cleanup state upon yield
 }
 
-static void __task_exit_default(lithe_sched_t *__this, lithe_task_t *task)
+static void __task_destroy_default(lithe_sched_t *__this, lithe_task_t *task)
 {
   assert(task);
   assert(task->sp);

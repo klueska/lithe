@@ -21,6 +21,9 @@
   extern "C" {
 #endif
 
+/* Flags */
+#define PTHREAD_EXITING		0x001
+
 /* Pthread struct.  First has to be the uthread struct, which the vcore code
  * will access directly (as if bthread_tcb is a struct uthread). */
 struct bthread_tcb {
@@ -28,6 +31,7 @@ struct bthread_tcb {
 	TAILQ_ENTRY(bthread_tcb) next;
 	int finished;
 	bool detached;
+	int flags;
 	uint32_t id;
 	uint32_t stacksize;
 	void *(*start_routine)(void*);
