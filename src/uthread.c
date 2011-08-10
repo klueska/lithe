@@ -90,22 +90,35 @@ struct uthread *uthread_create(void (*func)(void), void *udata)
 	assert(sched_ops->thread_create);
 	/* Call the thread_create op to create a new 'scheduler specific' thread */
 	struct uthread *new_thread = sched_ops->thread_create(func, udata);
-
-	/* Allocate a new tls region and associate it with the newly created thread */
-	assert(current_tls_desc);
-    /* Grab a reference to the vcoreid for future use */
-	uint32_t vcoreid = vcore_id();
-	/* Get a TLS for the new thread */
-	assert(!__uthread_allocate_tls(new_thread));
-	/* Switch into the new guys TLS and let it know who it is */
-    void *temp_tls_desc = current_tls_desc;
-	set_tls_desc(new_thread->tls_desc, vcoreid);
-	/* Save the new_thread to the current_thread in that uthread's TLS */
-	current_uthread = new_thread;
-	/* Switch back to the caller */
-	set_tls_desc(temp_tls_desc, vcoreid);
-
+	uthread_construct(new_thread);
 	return new_thread;
+}
+
+/* Destroys the uthread.  If you want to destroy a currently running uthread,
+ * you'll want something like pthread_exit(), which yields, and calls this from
+ * its sched_ops yield. */
+void uthread_destroy(struct uthread *uthread)
+{
+	printd("[U] thread %08p on vcore %d is DYING!\n", uthread, vcore_id());
+	/* we alloc and manage the TLS, so lets get rid of it */
+	uthread_destruct(uthread);
+	assert(sched_ops->thread_destroy);
+	sched_ops->thread_destroy(uthread);
+}
+
+void uthread_construct(struct uthread *uthread)
+{
+	/* Get a TLS for the new thread */
+	assert(!__uthread_allocate_tls(uthread));
+	/* Set the thread's internal tls variable for current_uthread to itself */
+	uthread_set_tls_var(uthread, current_uthread, uthread);
+}
+
+void uthread_destruct(struct uthread *uthread)
+{
+	/* Free the uthread's tls descriptor */
+	assert(uthread->tls_desc);
+	__uthread_free_tls(uthread);
 }
 
 void uthread_runnable(struct uthread *uthread)
@@ -175,23 +188,26 @@ yield_return_path:
 	printd("[U] Uthread %08p returning from a yield!\n", uthread);
 }
 
-/* Destroys the uthread.  If you want to destroy a currently running uthread,
- * you'll want something like pthread_exit(), which yields, and calls this from
- * its sched_ops yield. */
-void uthread_destroy(struct uthread *uthread)
-{
-	printd("[U] thread %08p on vcore %d is DYING!\n", uthread, vcore_id());
-	/* we alloc and manage the TLS, so lets get rid of it */
-	__uthread_free_tls(uthread);
-	assert(sched_ops->thread_destroy);
-	sched_ops->thread_destroy(uthread);
-}
-
 /* Saves the state of the current uthread from the point at which it is called */
 void save_current_uthread(struct uthread *uthread)
 {
 	int ret = getcontext(&uthread->uc);
 	assert(ret == 0);
+}
+
+/* Simply sets current uthread to be whatever the value of uthread is.  This
+ * can be called from outside of sched_entry() to highjack the current context,
+ * and make sure that the new uthread struct is used to store this context upon
+ * yielding, etc. USE WITH EXTREME CAUTION!
+*/
+void set_current_uthread(struct uthread *uthread)
+{
+	assert(uthread != current_uthread);
+	assert(uthread->tls_desc);
+
+	uint32_t vcoreid = vcore_id();
+	vcore_set_tls_var(vcoreid, current_uthread, uthread);
+	set_tls_desc(uthread->tls_desc, vcoreid);
 }
 
 /* Runs whatever thread is vcore's current_uthread */
@@ -209,12 +225,7 @@ void run_current_uthread(void)
 /* Launches the uthread on the vcore.  Don't call this on current_uthread. */
 void run_uthread(struct uthread *uthread)
 {
-	assert(uthread != current_uthread);
-	assert(uthread->tls_desc);
-
-	uint32_t vcoreid = vcore_id();
-	vcore_set_tls_var(vcoreid, current_uthread, uthread);
-	set_tls_desc(uthread->tls_desc, vcoreid);
+	set_current_uthread(uthread);
 	setcontext(&uthread->uc);
 	assert(0);
 }

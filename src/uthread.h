@@ -61,6 +61,14 @@ struct uthread *uthread_create(void (*func)(void), void *udata);
  * call this on any currently running uthreads. */
 void uthread_destroy(struct uthread *uthread);
 
+/* Construct a uthread that's already been created by some means (possibly)
+ * other than a direct call to uthread_create() */
+void uthread_construct(struct uthread *uthread);
+
+/* Destruct a uthread that's already been constructed by a direct call to
+ * uthread_construct() */
+void uthread_destruct(struct uthread *uthread);
+
 /* Function forcing a uthread to become runnable */
 void uthread_runnable(struct uthread *uthread);
 
@@ -72,6 +80,7 @@ bool check_preempt_pending(uint32_t vcoreid);
 
 /* Helpers, which sched_entry() can call */
 void save_current_uthread(struct uthread *uthread);
+void set_current_uthread(struct uthread *uthread);
 void run_current_uthread(void) __attribute((noreturn));
 void run_uthread(struct uthread *uthread) __attribute((noreturn));
 void swap_uthreads(struct uthread *__old, struct uthread *__new);
