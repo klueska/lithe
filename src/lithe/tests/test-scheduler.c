@@ -18,20 +18,18 @@
 #include <lithe/defaults.h>
 #include <ht/atomic.h>
 
-typedef struct simple_sched {
+typedef struct test_sched {
   lithe_sched_t sched;
   unsigned int counter;
-} simple_sched_t;
+} test_sched_t;
 
 static lithe_sched_t *construct(void *arg);
 static void destroy(lithe_sched_t *__this);
-static void start(lithe_sched_t *__this, void *arg);
 static void vcore_enter(lithe_sched_t *__this);
 
 static const lithe_sched_funcs_t funcs = {
   .construct       = construct,
   .destroy         = __destroy_default,
-  .start           = start,
   .vcore_request   = __vcore_request_default,
   .vcore_enter     = vcore_enter,
   .vcore_return    = __vcore_return_default,
@@ -45,38 +43,38 @@ static const lithe_sched_funcs_t funcs = {
 
 static lithe_sched_t *construct(void *__sched)
 {
-  simple_sched_t *sched = (simple_sched_t*)__sched;
+  test_sched_t *sched = (test_sched_t*)__sched;
   sched->counter = 0;
   return (lithe_sched_t*)sched;
 }
 
 static void vcore_enter(lithe_sched_t *__this)
 {
-  unsigned int *counter = &((simple_sched_t*)__this)->counter;
+  unsigned int *counter = &((test_sched_t*)__this)->counter;
   printf("enter() on vcore %d\n", vcore_id());
   fetch_and_add(counter, 1);
   printf("counter: %d\n", *counter);
   lithe_vcore_yield();
 }
 
-static void start(lithe_sched_t *__this, void *arg)
+static void test_run()
 {
   printf("Scheduler Started!\n");
-  unsigned int *counter = &((simple_sched_t*)__this)->counter;
+  test_sched_t *sched = lithe_sched_current();
   for(int i=0; i<100; i++) {
     int limit, cur;
     do {
       limit = max_vcores();
       cur = num_vcores();
     } while(!(limit - cur));
-    *counter = 0;
-    printf("counter: \n");
+    sched->counter = 0;
+    printf("counter: %d\n", sched->counter);
     printf("max_vcores: %d\n", limit);
     printf("num_vcores: %d\n", cur);
     printf("Requesting vcores\n");
     lithe_vcore_request(limit - cur);
     printf("Waiting for counter to reach: %d\n", (limit - cur));
-    while (coherent_read(*counter) < (limit - cur));
+    while (coherent_read(sched->counter) < (limit - cur));
     printf("All vcores returned\n");
   }
   printf("Scheduler finishing!\n");
@@ -85,8 +83,10 @@ static void start(lithe_sched_t *__this, void *arg)
 int main()
 {
   printf("Lithe Simple test starting!\n");
-  simple_sched_t sched;
-  lithe_sched_start(&funcs, &sched, NULL);
+  test_sched_t sched;
+  lithe_sched_enter(&funcs, &sched);
+  test_run();
+  lithe_sched_exit();
   printf("Lithe Simple test exiting\n");
   return 0;
 }

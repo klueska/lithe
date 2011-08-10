@@ -29,20 +29,7 @@ extern "C" {
 /**
  * Passes control to a new child scheduler with the specified 'funcs' as
  * callback functions. It hands the current vcore over to this scheduler and
- * runs the start() callback function, passing 'start_arg' as an argument. Once
- * the start() function completes, control is returned back to the parent
- * scheduler and we continue from where this function left off.  Returns -1 if
- * there is an error and sets errno appropriately.
- */
-int lithe_sched_start(const lithe_sched_funcs_t *funcs, 
-                      void *__sched, void *start_arg);
-
-/**
- * Passes control to a new child scheduler with the specified 'funcs' as
- * callback functions. It hands the current vcore over to this scheduler and
- * then returns. Unlike, lithe_sched_spawn(), this function returns immediately
- * - essentially highjacking the continuation to run inside the child
- * scheduler.  To exit the child, a subsequent call to lithe_sched_exit() is
+ * then returns. To exit the child, a subsequent call to lithe_sched_exit() is
  * needed. Only at this point will control be passed back to the parent
  * scheduler. Returns -1 if there is an error and sets errno appropriately.
  */

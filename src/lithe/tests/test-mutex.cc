@@ -11,7 +11,6 @@ using namespace lithe;
 
 class RootScheduler : public Scheduler {
  protected:
-  void start(void *arg);
   void vcore_enter();
   void task_runnable(lithe_task_t *task);
 
@@ -66,13 +65,15 @@ void work(void *arg)
   lithe_mutex_unlock(&sched->mutex);
 }
 
-void RootScheduler::start(void *arg)
+void root_run(int task_count)
 {
-  printf("RootScheduler start\n");
+  printf("root_run start\n");
   /* Create a bunch of worker tasks */
-  for(unsigned int i=0; i < this->task_count; i++) {
-    lithe_task_t *task  = lithe_task_create(NULL, work, (void*)this);
-    task_deque_enqueue(&this->taskq, task);
+  RootScheduler *sched = (RootScheduler*)lithe_sched_current();
+  sched->task_count = task_count;
+  for(unsigned int i=0; i < sched->task_count; i++) {
+    lithe_task_t *task  = lithe_task_create(NULL, work, (void*)sched);
+    task_deque_enqueue(&sched->taskq, task);
   }
 
   /* Start up some more vcores to do our work for us */
@@ -80,21 +81,22 @@ void RootScheduler::start(void *arg)
 
   /* Wait for all the workers to run */
   while(1) {
-    lithe_mutex_lock(&this->mutex);
-      if(this->task_count == 0)
+    lithe_mutex_lock(&sched->mutex);
+      if(sched->task_count == 0)
         break;
-    lithe_mutex_unlock(&this->mutex);
+    lithe_mutex_unlock(&sched->mutex);
   }
-  lithe_mutex_unlock(&this->mutex);
-  printf("RootScheduler finish\n");
+  lithe_mutex_unlock(&sched->mutex);
+  printf("root_run finish\n");
 }
 
 int main(int argc, char **argv)
 {
   printf("main start\n");
   RootScheduler sched;
-  sched.task_count = 150000;
-  lithe_sched_start(&Scheduler::funcs, &sched, NULL);
+  lithe_sched_enter(&Scheduler::funcs, &sched);
+  root_run(150000);
+  lithe_sched_exit();
   printf("main finish\n");
   return 0;
 }

@@ -19,7 +19,6 @@ class Scheduler {
  private:
   friend lithe_sched_t* __create(void *arg);
   friend void __destroy(lithe_sched_t *__this);
-  friend void __start(lithe_sched_t *__this, void *arg);
   friend int __vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
   friend void __vcore_enter(lithe_sched_t *__this);
   friend void __vcore_return(lithe_sched_t *__this, lithe_sched_t *child);
@@ -33,8 +32,6 @@ class Scheduler {
  protected:
   virtual void vcore_enter() = 0;
 
-  virtual void start(void *arg)
-    { return __start_default((lithe_sched_t*)&csched, arg); }
   virtual int vcore_request(lithe_sched_t *child, int k) 
     { return __vcore_request_default((lithe_sched_t*)&csched, child, k); }
   virtual void vcore_return(lithe_sched_t *child)

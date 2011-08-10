@@ -18,11 +18,6 @@ static void __destroy_default(lithe_sched_t *__this)
 {
 }
 
-static void __start_default(lithe_sched_t *__this, void *arg)
-{
-  fatal((char*)"Should not be calling start()");
-}
-
 static int __vcore_request_default(lithe_sched_t *__this, lithe_sched_t *child, int k)
 {
   return lithe_vcore_request(k);

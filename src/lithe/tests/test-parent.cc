@@ -14,7 +14,6 @@ using namespace lithe;
 
 class ChildScheduler : public Scheduler {
  protected:
-  void start(void *arg);
   void vcore_enter();
   void task_runnable(lithe_task_t *task); 
 
@@ -50,11 +49,12 @@ static void block_child(lithe_task_t *task, void *arg)
   sched->start_task = task;
 }
 
-void ChildScheduler::start(void *arg)
+static void child_run()
 {
-  printf("ChildScheduler::start start\n");
-  lithe_task_block(block_child, this);
-  printf("ChildScheduler::start finish\n");
+  printf("child_run start\n");
+  ChildScheduler *sched = (ChildScheduler*)lithe_sched_current();
+  lithe_task_block(block_child, sched);
+  printf("child_run finish\n");
 }
 
 void child_main(void *arg)
@@ -62,7 +62,9 @@ void child_main(void *arg)
   printf("child_main start\n");
   /* Start a child scheduler: Blocks until scheduler finishes */
   ChildScheduler child_sched;
-  lithe_sched_start(&Scheduler::funcs, &child_sched, NULL);
+  lithe_sched_enter(&Scheduler::funcs, &child_sched);
+  child_run();
+  lithe_sched_exit();
   printf("child_main finish\n");
 }
 
@@ -77,7 +79,6 @@ typedef struct sched_vcore_request_list sched_vcore_request_list_t;
 
 class RootScheduler : public Scheduler {
  protected:
-  void start(void *arg);
   void vcore_enter();
   int vcore_request(lithe_sched_t *child, int k);
   void child_started(lithe_sched_t *child);
@@ -204,16 +205,17 @@ static void block_root(lithe_task_t *task, void *arg)
   sched->start_task = task;
 }
 
-void RootScheduler::start(void *arg)
+static void root_run()
 {
-  printf("RootScheduler::start start\n");
-  spinlock_lock(&this->lock);
-    this->vcores = lithe_vcore_request(max_vcores()) + 1;
-    this->children_expected = this->vcores;
-    printf("children_expected: %d\n", this->children_expected);
-  spinlock_unlock(&this->lock);
-  lithe_task_block(block_root, this);
-  printf("RootScheduler::start finish\n");
+  printf("root_run start\n");
+  RootScheduler *sched = (RootScheduler*)lithe_sched_current();
+  spinlock_lock(&sched->lock);
+    sched->vcores = lithe_vcore_request(max_vcores()) + 1;
+    sched->children_expected = sched->vcores;
+    printf("children_expected: %d\n", sched->children_expected);
+  spinlock_unlock(&sched->lock);
+  lithe_task_block(block_root, sched);
+  printf("root_run finish\n");
 }
 
 int main()
@@ -221,7 +223,9 @@ int main()
   printf("main start\n");
   /* Start the root scheduler: Blocks until scheduler finishes */
   RootScheduler root_sched;
-  lithe_sched_start(&Scheduler::funcs, &root_sched, NULL);
+  lithe_sched_enter(&Scheduler::funcs, &root_sched);
+  root_run();
+  lithe_sched_exit();
   printf("main finish\n");
   return 0;
 }

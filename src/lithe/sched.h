@@ -44,9 +44,6 @@ struct lithe_sched_funcs {
   /* Destructor function called just before this scheduler is deregistered */
   void (*destroy) (lithe_sched_t *__this);
 
-  /* Start function of the scheduler.  From here you can launch tasks, do whatever */
-  void (*start) (lithe_sched_t *__this, void *arg);
-
   /* Function ultimately responsible for granting vcore requests from a child
    * scheduler. This function is automatically called when a child invokes
    * lithe_sched_request() from within it's current scheduler */

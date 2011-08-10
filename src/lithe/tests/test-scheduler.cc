@@ -8,7 +8,6 @@ using namespace lithe;
 
 class TestScheduler : public Scheduler {
  protected:
-  void start(void *arg);
   void vcore_enter();
 
  public:
@@ -26,34 +25,36 @@ void TestScheduler::vcore_enter()
   lithe_vcore_yield();
 }
 
-void TestScheduler::start(void *arg)
+void test_run()
 {
-  printf("TestScheduler Started!\n");
-  unsigned int *counter = &this->counter;
+  printf("TestScheduler Starting!\n");
+  TestScheduler *sched = (TestScheduler*)lithe_sched_current();
   for(int i=0; i<100; i++) {
     unsigned int limit, cur;
     do {
       limit = max_vcores();
       cur = num_vcores();
     } while(!(limit - cur));
-    *counter = 0;
-    printf("counter: %d\n", *counter);
+    sched->counter = 0;
+    printf("counter: %d\n", sched->counter);
     printf("max_vcores: %d\n", limit);
     printf("num_vcores: %d\n", cur);
     printf("Wait for counter to reach: %d\n", (limit - cur));
     printf("Requesting vcores\n");
     lithe_vcore_request(limit - cur);
-    while (coherent_read(*counter) < (limit - cur));
+    while (coherent_read(sched->counter) < (limit - cur));
     printf("All vcores returned\n");
   }
-  printf("TestScheduler finishing!\n");
+  printf("TestScheduler Finishing!\n");
 }
 
 int main(int argc, char **argv)
 {
   printf("CXX Lithe Simple test starting\n");
   TestScheduler sched;
-  lithe_sched_start(&Scheduler::funcs, &sched, NULL);
+  lithe_sched_enter(&Scheduler::funcs, &sched);
+  test_run();
+  lithe_sched_exit();
   printf("CXX Lithe Simple test finishing\n");
   return 0;
 }

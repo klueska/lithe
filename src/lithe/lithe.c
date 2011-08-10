@@ -107,7 +107,6 @@ struct schedule_ops *sched_ops __attribute__((weak)) = &lithe_sched_ops;
 /* Lithe's base scheduler functions */
 static lithe_sched_t *base_construct(void *__sched);
 static void base_destroy(lithe_sched_t *__this);
-static void base_start(lithe_sched_t *__this, void *arg);
 static int base_vcore_request(lithe_sched_t *this, lithe_sched_t *child, int k);
 static void base_vcore_enter(lithe_sched_t *this);
 static void base_vcore_return(lithe_sched_t *this, lithe_sched_t *child);
@@ -121,7 +120,6 @@ static void base_task_runnable(lithe_sched_t *__this, lithe_task_t *task);
 static const lithe_sched_funcs_t base_funcs = {
   .construct       = base_construct,
   .destroy         = base_destroy,
-  .start           = base_start,
   .vcore_request   = base_vcore_request,
   .vcore_enter     = base_vcore_enter,
   .vcore_return    = base_vcore_return,
@@ -384,15 +382,6 @@ void lithe_vcore_yield()
   current_sched = parent;
   parent->funcs->vcore_return(parent, child);
   __lithe_sched_reenter();
-}
-
-int lithe_sched_start(const lithe_sched_funcs_t *funcs, 
-                      void *__sched, void *start_arg)
-{
-  lithe_sched_enter(funcs, __sched);
-  current_sched->funcs->start(current_sched, start_arg);
-  lithe_sched_exit();
-  return 0;
 }
 
 int lithe_sched_enter(const lithe_sched_funcs_t *funcs, void *__sched)

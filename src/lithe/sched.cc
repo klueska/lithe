@@ -15,12 +15,6 @@ void __destroy(lithe_sched_t *__this)
   // Do nothing...
 }
 
-void __start(lithe_sched_t *__this, void *arg)
-{
-  lithe_sched_cxx_t *sched = (lithe_sched_cxx_t*)__this;
-  (reinterpret_cast<Scheduler *>(sched->__this))->start(arg);
-}
-
 int __vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
 {
   lithe_sched_cxx_t *sched = (lithe_sched_cxx_t*)__this;
@@ -78,7 +72,6 @@ void __task_runnable(lithe_sched_t *__this, lithe_task_t *task)
 const lithe_sched_funcs_t Scheduler::funcs = {
   /*.create          = */ __create,
   /*.destroy         = */ __destroy,
-  /*.start           = */ __start,
   /*.vcore_request   = */ __vcore_request,
   /*.vcore_enter     = */ __vcore_enter,
   /*.vcore_return    = */ __vcore_return,
