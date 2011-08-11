@@ -15,30 +15,29 @@ typedef struct child_sched {
   lithe_task_t *start_task;
 } child_sched_t;
 
-static lithe_sched_t *child_construct(void *__sched);
+static void child_sched_ctor(child_sched_t *sched)
+{
+  sched->start_task = NULL;
+}
+
+static void child_sched_dtor(child_sched_t *sched)
+{
+}
+
 static void child_vcore_enter(lithe_sched_t *__this);
 static void child_task_runnable(lithe_sched_t *__this, lithe_task_t *task); 
 
 static const lithe_sched_funcs_t child_funcs = {
-  .construct       = child_construct,
-  .destroy         = __destroy_default,
   .vcore_request   = __vcore_request_default,
   .vcore_enter     = child_vcore_enter,
   .vcore_return    = __vcore_return_default,
   .child_started   = __child_started_default,
   .child_finished  = __child_finished_default,
   .task_create     = __task_create_default,
-  .task_yield      = __task_yield_default,
   .task_destroy    = __task_destroy_default,
-  .task_runnable   = child_task_runnable
+  .task_runnable   = child_task_runnable,
+  .task_yield      = __task_yield_default
 };
-
-static lithe_sched_t *child_construct(void *__sched)
-{
-  child_sched_t *sched = (child_sched_t*)__sched;
-  sched->start_task = NULL;
-  return (lithe_sched_t*)sched;
-}
 
 static void child_task_runnable(lithe_sched_t *__this, lithe_task_t *task) 
 {
@@ -58,7 +57,7 @@ void child_vcore_enter(lithe_sched_t *__this)
 static void block_child(lithe_task_t *task, void *arg)
 {
   printf("block_child\n");
-  child_sched_t *sched = lithe_sched_current();
+  child_sched_t *sched = (child_sched_t*)lithe_sched_current();
   sched->start_task = task;
 }
 
@@ -74,9 +73,11 @@ void child_main(void *arg)
   printf("child_main start\n");
   /* Start a child scheduler: Blocks until scheduler finishes */
   child_sched_t child_sched;
-  lithe_sched_enter(&child_funcs, &child_sched);
+  child_sched_ctor(&child_sched);
+  lithe_sched_enter(&child_funcs, (lithe_sched_t*)&child_sched);
   child_run();
   lithe_sched_exit();
+  child_sched_dtor(&child_sched);
   printf("child_main finish\n");
 }
 
@@ -100,7 +101,20 @@ typedef struct root_sched {
   lithe_task_t *start_task;
 } root_sched_t;
 
-static lithe_sched_t *root_construct(void *__sched);
+static void root_sched_ctor(root_sched_t *sched)
+{
+  spinlock_init(&sched->lock);
+  sched->children_expected = 0;
+  sched->children_started = 0;
+  sched->children_finished = 0;
+  LIST_INIT(&sched->needy_children);
+  sched->start_task = NULL;
+}
+
+static void root_sched_dtor(root_sched_t *sched)
+{
+}
+
 int root_vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
 static void root_vcore_enter(lithe_sched_t *this);
 void root_child_started(lithe_sched_t *__this, lithe_sched_t *child);
@@ -108,30 +122,16 @@ void root_child_finished(lithe_sched_t *__this, lithe_sched_t *child);
 static void root_task_runnable(lithe_sched_t *__this, lithe_task_t *task);
 
 static const lithe_sched_funcs_t root_funcs = {
-  .construct       = root_construct,
-  .destroy         = __destroy_default,
   .vcore_request   = root_vcore_request,
   .vcore_enter     = root_vcore_enter,
   .vcore_return    = __vcore_return_default,
   .child_started   = root_child_started,
   .child_finished  = root_child_finished,
   .task_create     = __task_create_default,
-  .task_yield      = __task_yield_default,
   .task_destroy    = __task_destroy_default,
-  .task_runnable   = root_task_runnable
+  .task_runnable   = root_task_runnable,
+  .task_yield      = __task_yield_default
 };
-
-static lithe_sched_t *root_construct(void *__sched)
-{
-  root_sched_t *sched = (root_sched_t*)__sched;
-  spinlock_init(&sched->lock);
-  sched->children_expected = 0;
-  sched->children_started = 0;
-  sched->children_finished = 0;
-  LIST_INIT(&sched->needy_children);
-  sched->start_task = NULL;
-  return (lithe_sched_t*)sched;
-}
 
 int root_vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
 {
@@ -231,14 +231,14 @@ static void root_vcore_enter(lithe_sched_t *__sched)
 static void block_root(lithe_task_t *task, void *arg)
 {
   printf("block_root\n");
-  root_sched_t *sched = lithe_sched_current();
+  root_sched_t *sched = (root_sched_t*)lithe_sched_current();
   sched->start_task = task;
 }
 
 static void root_run()
 {
   printf("root_run start\n");
-  root_sched_t *sched = lithe_sched_current();
+  root_sched_t *sched = (root_sched_t*)lithe_sched_current();
   spinlock_lock(&sched->lock);
     sched->vcores = lithe_vcore_request(max_vcores()) + 1;
     sched->children_expected = sched->vcores;
@@ -253,9 +253,11 @@ int main()
   printf("root_main start\n");
   /* Start the root scheduler: Blocks until scheduler finishes */
   root_sched_t root_sched;
-  lithe_sched_enter(&root_funcs, &root_sched);
+  root_sched_ctor(&root_sched);
+  lithe_sched_enter(&root_funcs, (lithe_sched_t*)&root_sched);
   root_run();
   lithe_sched_exit();
+  root_sched_dtor(&root_sched);
   printf("root_main finish\n");
   return 0;
 }

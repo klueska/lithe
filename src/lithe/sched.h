@@ -32,18 +32,13 @@ struct lithe_sched {
 
   /* Scheduler state, managed internally by lithe */
   lithe_sched_idata_t *idata;
+
 };
 typedef struct lithe_sched lithe_sched_t;
 
 
 /* Lithe scheduler callbacks/entrypoints. */
 struct lithe_sched_funcs {
-  /* Initialization function called when this scheduler is first registered */
-  lithe_sched_t* (*construct) (void *__sched);
-
-  /* Destructor function called just before this scheduler is deregistered */
-  void (*destroy) (lithe_sched_t *__this);
-
   /* Function ultimately responsible for granting vcore requests from a child
    * scheduler. This function is automatically called when a child invokes
    * lithe_sched_request() from within it's current scheduler */
@@ -66,9 +61,6 @@ struct lithe_sched_funcs {
   /* Callback for scheduler specific task creation. */
   lithe_task_t* (*task_create) (lithe_sched_t *__this, void *udata);
 
-  /* Callback for scheduler specific yielding of tasks */
-  void (*task_yield) (lithe_sched_t *__this, lithe_task_t *task);
-
   /* Callback for scheduler specific exiting of tasks */
   void (*task_destroy) (lithe_sched_t *__this, lithe_task_t *task);
 
@@ -76,6 +68,9 @@ struct lithe_sched_funcs {
    * This could result from a blocked task being unblocked, or just after a
    * task is first created and is to be run for the first time */
   void (*task_runnable) (lithe_sched_t *__this, lithe_task_t *task);
+
+  /* Callback for scheduler specific yielding of tasks */
+  void (*task_yield) (lithe_sched_t *__this, lithe_task_t *task);
 
 };
 

@@ -17,35 +17,35 @@ typedef struct root_sched {
   struct task_deque taskq;
 } root_sched_t;
 
+static void root_sched_ctor(root_sched_t* sched)
+{
+  sched->task_count = 0;
+  lithe_mutex_init(&sched->mutex);
+  spinlock_init(&sched->qlock);
+  task_deque_init(&sched->taskq);
+}
+
+static void root_sched_dtor(root_sched_t* sched)
+{
+}
+
 /* Scheduler functions */
-static lithe_sched_t *root_construct(void *arg);
 static void root_vcore_enter(lithe_sched_t *__this);
 static lithe_task_t* root_task_create(lithe_sched_t *__this, void *udata);
 static void root_task_exit(lithe_sched_t *__this, lithe_task_t *task);
 static void root_task_runnable(lithe_sched_t *__this, lithe_task_t *task);
 
 static const lithe_sched_funcs_t root_sched_funcs = {
-  .construct       = root_construct,
-  .destroy         = __destroy_default,
   .vcore_request   = __vcore_request_default,
   .vcore_enter     = root_vcore_enter,
   .vcore_return    = __vcore_return_default,
   .child_started   = __child_started_default,
   .child_finished  = __child_finished_default,
   .task_create     = __task_create_default,
-  .task_yield      = __task_yield_default,
   .task_destroy    = __task_destroy_default,
-  .task_runnable   = root_task_runnable
+  .task_runnable   = root_task_runnable,
+  .task_yield      = __task_yield_default
 };
-
-static lithe_sched_t *root_construct(void *__sched)
-{
-  root_sched_t *sched = (root_sched_t*)__sched;
-  lithe_mutex_init(&sched->mutex);
-  spinlock_init(&sched->qlock);
-  task_deque_init(&sched->taskq);
-  return (lithe_sched_t*)sched;
-}
 
 static void root_vcore_enter(lithe_sched_t *__this)
 {
@@ -89,7 +89,7 @@ void work(void *arg)
 void root_run(int task_count)
 {
   printf("root_run start\n");
-  root_sched_t *sched = lithe_sched_current();
+  root_sched_t *sched = (root_sched_t*)lithe_sched_current();
   /* Create a bunch of worker tasks */
   sched->task_count = task_count;
   for(int i=0; i < sched->task_count; i++) {
@@ -115,9 +115,11 @@ int main(int argc, char **argv)
 {
   printf("main start\n");
   root_sched_t root_sched;
-  lithe_sched_enter(&root_sched_funcs, &root_sched);
+  root_sched_ctor(&root_sched);
+  lithe_sched_enter(&root_sched_funcs, (lithe_sched_t*)&root_sched);
   root_run(150000);
   lithe_sched_exit();
+  root_sched_dtor(&root_sched);
   printf("main finish\n");
   return 0;
 }

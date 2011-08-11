@@ -33,7 +33,7 @@ extern "C" {
  * needed. Only at this point will control be passed back to the parent
  * scheduler. Returns -1 if there is an error and sets errno appropriately.
  */
-int lithe_sched_enter(const lithe_sched_funcs_t *funcs, void *__sched);
+int lithe_sched_enter(const lithe_sched_funcs_t *funcs, lithe_sched_t *child);
 
 /**
  * Exits the current scheduler, returning control to its parent. Must be paired
@@ -46,7 +46,7 @@ int lithe_sched_exit();
  * Return a pointer to the current scheduler. I.e. the pointer passed in
  * when the scheduler was started.
  */
-void *lithe_sched_current();
+lithe_sched_t *lithe_sched_current();
 
 /**
  * Request the specified number of vcores from the parent. Note that the parent

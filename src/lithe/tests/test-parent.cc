@@ -52,7 +52,7 @@ static void block_child(lithe_task_t *task, void *arg)
 static void child_run()
 {
   printf("child_run start\n");
-  ChildScheduler *sched = (ChildScheduler*)lithe_sched_current();
+  ChildScheduler *sched = (ChildScheduler*)(Scheduler::cppcast(lithe_sched_current()));
   lithe_task_block(block_child, sched);
   printf("child_run finish\n");
 }
@@ -62,7 +62,7 @@ void child_main(void *arg)
   printf("child_main start\n");
   /* Start a child scheduler: Blocks until scheduler finishes */
   ChildScheduler child_sched;
-  lithe_sched_enter(&Scheduler::funcs, &child_sched);
+  lithe_sched_enter(&Scheduler::funcs, Scheduler::ccast(&child_sched));
   child_run();
   lithe_sched_exit();
   printf("child_main finish\n");
@@ -208,7 +208,7 @@ static void block_root(lithe_task_t *task, void *arg)
 static void root_run()
 {
   printf("root_run start\n");
-  RootScheduler *sched = (RootScheduler*)lithe_sched_current();
+  RootScheduler *sched = (RootScheduler*)Scheduler::cppcast(lithe_sched_current());
   spinlock_lock(&sched->lock);
     sched->vcores = lithe_vcore_request(max_vcores()) + 1;
     sched->children_expected = sched->vcores;
@@ -223,7 +223,7 @@ int main()
   printf("main start\n");
   /* Start the root scheduler: Blocks until scheduler finishes */
   RootScheduler root_sched;
-  lithe_sched_enter(&Scheduler::funcs, &root_sched);
+  lithe_sched_enter(&Scheduler::funcs, Scheduler::ccast(&root_sched));
   root_run();
   lithe_sched_exit();
   printf("main finish\n");

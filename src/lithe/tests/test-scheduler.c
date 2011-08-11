@@ -23,13 +23,18 @@ typedef struct test_sched {
   unsigned int counter;
 } test_sched_t;
 
-static lithe_sched_t *construct(void *arg);
-static void destroy(lithe_sched_t *__this);
+static void test_sched_ctor(test_sched_t *sched)
+{
+  sched->counter = 0;
+}
+
+static void test_sched_dtor(test_sched_t *sched)
+{
+}
+
 static void vcore_enter(lithe_sched_t *__this);
 
 static const lithe_sched_funcs_t funcs = {
-  .construct       = construct,
-  .destroy         = __destroy_default,
   .vcore_request   = __vcore_request_default,
   .vcore_enter     = vcore_enter,
   .vcore_return    = __vcore_return_default,
@@ -40,13 +45,6 @@ static const lithe_sched_funcs_t funcs = {
   .task_destroy    = __task_destroy_default,
   .task_runnable   = __task_runnable_default
 };
-
-static lithe_sched_t *construct(void *__sched)
-{
-  test_sched_t *sched = (test_sched_t*)__sched;
-  sched->counter = 0;
-  return (lithe_sched_t*)sched;
-}
 
 static void vcore_enter(lithe_sched_t *__this)
 {
@@ -60,7 +58,7 @@ static void vcore_enter(lithe_sched_t *__this)
 static void test_run()
 {
   printf("Scheduler Started!\n");
-  test_sched_t *sched = lithe_sched_current();
+  test_sched_t *sched = (test_sched_t*)lithe_sched_current();
   for(int i=0; i<100; i++) {
     int limit, cur;
     do {
@@ -83,10 +81,12 @@ static void test_run()
 int main()
 {
   printf("Lithe Simple test starting!\n");
-  test_sched_t sched;
-  lithe_sched_enter(&funcs, &sched);
+  test_sched_t test_sched;
+  test_sched_ctor(&test_sched);
+  lithe_sched_enter(&funcs, (lithe_sched_t*)&test_sched);
   test_run();
   lithe_sched_exit();
+  test_sched_dtor(&test_sched);
   printf("Lithe Simple test exiting\n");
   return 0;
 }

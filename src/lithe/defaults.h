@@ -9,15 +9,6 @@
 extern "C" {
 #endif
 
-static lithe_sched_t *__construct_default(void *__sched)
-{
-  return (lithe_sched_t*)__sched;
-}
-
-static void __destroy_default(lithe_sched_t *__this)
-{
-}
-
 static int __vcore_request_default(lithe_sched_t *__this, lithe_sched_t *child, int k)
 {
   return lithe_vcore_request(k);

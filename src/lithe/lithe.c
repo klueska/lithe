@@ -70,9 +70,6 @@ struct lithe_sched_idata {
   /* Parent task from which this scheduler was started. */
   lithe_task_t *parent_task;
 
-  /* Copy of the __sched variable passed in via a call to lithe_sched_start().
-   * This variable is returned upon subsequent calls to lithe_sched_current() */
-  void *real_sched;
 };
 
 /* Struct to hold the function pointer and argument of a function to be called
@@ -105,7 +102,7 @@ struct schedule_ops lithe_sched_ops = {
 struct schedule_ops *sched_ops __attribute__((weak)) = &lithe_sched_ops;
 
 /* Lithe's base scheduler functions */
-static lithe_sched_t *base_construct(void *__sched);
+static lithe_sched_t *base_create(void *__sched);
 static void base_destroy(lithe_sched_t *__this);
 static int base_vcore_request(lithe_sched_t *this, lithe_sched_t *child, int k);
 static void base_vcore_enter(lithe_sched_t *this);
@@ -118,17 +115,15 @@ static void base_task_destroy(lithe_sched_t *__this, lithe_task_t *task);
 static void base_task_runnable(lithe_sched_t *__this, lithe_task_t *task);
 
 static const lithe_sched_funcs_t base_funcs = {
-  .construct       = base_construct,
-  .destroy         = base_destroy,
   .vcore_request   = base_vcore_request,
   .vcore_enter     = base_vcore_enter,
   .vcore_return    = base_vcore_return,
   .child_started   = base_child_started,
   .child_finished  = base_child_finished,
   .task_create     = base_task_create,
-  .task_yield      = base_task_yield,
   .task_destroy    = base_task_destroy,
-  .task_runnable   = base_task_runnable
+  .task_runnable   = base_task_runnable,
+  .task_yield      = base_task_yield
 };
 
 static lithe_sched_idata_t base_idata = {
@@ -283,7 +278,7 @@ static void lithe_thread_destroy(struct uthread *uthread)
   current_sched->funcs->task_destroy(current_sched, task);
 }
 
-static lithe_sched_t *base_construct(void *__sched)
+static lithe_sched_t *base_create(void *__sched)
 {
   fatal("Trying to recreate the base scheduler!\n");
 }
@@ -351,9 +346,9 @@ static void base_task_runnable(lithe_sched_t *__this, lithe_task_t *task)
   fatal("Tasks created by the base scheduler should never need to be made runnable!\n");
 }
 
-void *lithe_sched_current()
+lithe_sched_t *lithe_sched_current()
 {
-  return current_sched->idata->real_sched;
+  return current_sched;
 }
 
 int lithe_vcore_grant(lithe_sched_t *child)
@@ -388,7 +383,7 @@ void lithe_vcore_yield()
   __lithe_sched_reenter();
 }
 
-int lithe_sched_enter(const lithe_sched_funcs_t *funcs, void *__sched)
+int lithe_sched_enter(const lithe_sched_funcs_t *funcs, lithe_sched_t *child)
 {
   assert(funcs);
   assert(!in_vcore_context());
@@ -397,8 +392,6 @@ int lithe_sched_enter(const lithe_sched_funcs_t *funcs, void *__sched)
   /* Set the parent to be the current scheduler */
   lithe_sched_t *parent = current_sched;
 
-  /* Call the constructor on the child scheduler */
-  lithe_sched_t *child = funcs->construct(__sched);
   /* Create the childs sched_idata and set up the pointer to it */
   lithe_sched_idata_t *child_idata = (lithe_sched_idata_t*)malloc(sizeof(lithe_sched_idata_t));
   child->idata = child_idata;
@@ -408,7 +401,6 @@ int lithe_sched_enter(const lithe_sched_funcs_t *funcs, void *__sched)
   child->idata->vcores = 0;
   child->idata->parent = parent;
   child->idata->parent_task = current_task;
-  child->idata->real_sched = __sched;
 
   /* Inform parent. */
   parent->funcs->child_started(parent, child);
@@ -459,7 +451,6 @@ int lithe_sched_exit()
   uthread_destruct(&child_task->uth);
   free(child_task);
   free(child->idata);
-  child->funcs->destroy(child);
   return 0;
 }
 
