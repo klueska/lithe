@@ -59,7 +59,7 @@ struct lithe_sched_funcs {
   void (*child_exited) (lithe_sched_t *__this, lithe_sched_t *child);
 
   /* Callback for scheduler specific task creation. */
-  lithe_task_t* (*task_create) (lithe_sched_t *__this, void *udata);
+  lithe_task_t* (*task_create) (lithe_sched_t *__this, lithe_task_attr_t *attr);
 
   /* Callback for scheduler specific exiting of tasks */
   void (*task_destroy) (lithe_sched_t *__this, lithe_task_t *task);

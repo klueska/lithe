@@ -28,9 +28,9 @@ void __child_exited(lithe_sched_t *__this, lithe_sched_t *child)
   Scheduler::cppcast(__this)->child_exited(child);
 }
 
-lithe_task_t* __task_create(lithe_sched_t *__this, void *udata)
+lithe_task_t* __task_create(lithe_sched_t *__this, lithe_task_attr_t *attr)
 {
-  return Scheduler::cppcast(__this)->task_create(udata);
+  return Scheduler::cppcast(__this)->task_create(attr);
 }
 
 void __task_yield(lithe_sched_t *__this, lithe_task_t *task)

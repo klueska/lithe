@@ -72,7 +72,7 @@ void lithe_vcore_yield();
 /*
  * Create a new task with a set of attributes and a start function.  Passing
  * NULL for both func and arg are valid, but require you to subsequently call
- * lithe_task_set_entry() before running the task.  Returns the newly
+ * lithe_task_init() before running the task.  Returns the newly
  * created task on success and NULL on error.
  */
 lithe_task_t *lithe_task_create(lithe_task_attr_t *attr, void (*func) (void *), void *arg); 
@@ -81,7 +81,13 @@ lithe_task_t *lithe_task_create(lithe_task_attr_t *attr, void (*func) (void *), 
  * Initialize a new start function for an existing task. Once the task is
  * restarted it will run from this entry point. 
  */
-void lithe_task_set_entry(lithe_task_t *task, void (*func) (void *), void *arg); 
+void lithe_task_init(lithe_task_t *task, void (*func) (void *), void *arg); 
+
+/* 
+ * Destroy an existing task. This task should not be currently running on any
+ * vcore.  For currently running tasks, instead use lithe_task_exit().
+ */
+void lithe_task_destroy(lithe_task_t *task);
 
 /*
  * Returns the currently executing task.
@@ -130,12 +136,6 @@ void lithe_task_yield();
  * Exit the current task.
  */
 void lithe_task_exit();
-
-/* 
- * Destroy an existing task. This task should not be currently running on any
- * vcore.  For currently running tasks, instead use lithe_task_exit().
- */
-void lithe_task_destroy(lithe_task_t *task);
 
 #ifdef __cplusplus
 }

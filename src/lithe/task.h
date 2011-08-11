@@ -17,7 +17,17 @@ extern "C" {
 #endif
 
 typedef struct {
-  /* Stack size for the lithe task */
+  /* Stack top for the lithe task. If stack_top == NULL, then the lithe task
+  * should allocate a new stack of size stack_size.  If stack_top != NULL, then
+  * the task should use this stack rather than allocating a new one; stack_size
+  * must be set to the size of this stack. */
+  void *stack_top;
+
+  /* Stack size for the lithe task. if stack_top == NULL, stack_size indicates
+   * the size of the stack the lithe_task should allocate; if it is 0, then
+   * allocate some default size.  If stack_top != NULL, this must contain the
+   * size of the stack pointed to by stack_top; if it is 0 there is an error.
+   * */
   ssize_t stack_size;
 
 } lithe_task_attr_t;
@@ -35,17 +45,20 @@ typedef struct lithe_task {
   /* Argument for the start function */
   void *arg;
 
+  /* Pointer to the task's stack */
+  void *stack_top;
+
   /* Size of the task's stack */
   size_t stack_size;
-
-  /* Pointer to the task's stack */
-  void *sp;
 
   /* Task local storage */
   void *tls;
 
   /* Flag indicating if the task is finished and should be destroyed or not */
   bool finished;
+
+  /* Flag indicating if the stack should be automatically freed or not */
+  bool free_stack;
 
 } lithe_task_t;
 
