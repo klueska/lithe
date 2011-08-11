@@ -383,50 +383,104 @@ void lithe_vcore_yield()
   __lithe_sched_reenter();
 }
 
-int lithe_sched_enter(const lithe_sched_funcs_t *funcs, lithe_sched_t *child)
+static void __lithe_sched_enter(void *arg)
 {
-  assert(funcs);
-  assert(!in_vcore_context());
-  assert(current_sched);
+  assert(in_vcore_context());
 
-  /* Set the parent to be the current scheduler */
-  lithe_sched_t *parent = current_sched;
+  /* Unpack the real arguments to this function */
+  struct { 
+    lithe_sched_t* parent;
+    lithe_task_t*  parent_task;
+    lithe_sched_t* child;
+    lithe_task_t*  child_task;
+  } *real_arg = arg;
+  lithe_sched_t* parent      = real_arg->parent;
+  lithe_task_t*  parent_task = real_arg->parent_task;
+  lithe_sched_t* child       = real_arg->child;
+  lithe_task_t*  child_task  = real_arg->child_task;
+
+  assert(parent);
+  assert(parent_task);
+  assert(child);
+  assert(child_task);
 
   /* Create the childs sched_idata and set up the pointer to it */
   lithe_sched_idata_t *child_idata = (lithe_sched_idata_t*)malloc(sizeof(lithe_sched_idata_t));
   child->idata = child_idata;
 
   /* Set-up child scheduler */
-  child->funcs = funcs;
   child->idata->vcores = 0;
   child->idata->parent = parent;
-  child->idata->parent_task = current_task;
+  child->idata->parent_task = parent_task;
+
+  /* Update the current scheduler to be the the child */
+  current_sched = child;
+  uthread_set_tls_var(child_task, current_sched, current_sched);
+
+  /* Update the number of vcores now owned by this child */
+  __sync_fetch_and_add(&(child->idata->vcores), 1);
 
   /* Inform parent. */
   parent->funcs->child_started(parent, child);
+
+  /* Return to to the vcore_entry point to continue running the child task now
+   * that it has been properly setup */
+  next_task = child_task;
+  lithe_vcore_entry();
+}
+
+int lithe_sched_enter(const lithe_sched_funcs_t *funcs, lithe_sched_t *child)
+{
+  assert(funcs);
+  assert(!in_vcore_context());
+  assert(current_sched);
+
+  /* Associate the constant scheduler funcs with the child scheduler */
+  child->funcs = funcs;
 
   /* Create a child task to highjack the current task's context */
   lithe_task_t *child_task = (lithe_task_t*)malloc(sizeof(lithe_task_t));
   uthread_construct(&child_task->uth);
   __lithe_task_construct(child_task);
 
-  /* Leave parent, join child, hijacking this task in the process. */
-  set_current_uthread(&child_task->uth);
-  current_sched = child;
-  vcore_set_tls_var(vcore_id(), current_sched, current_sched);
+  /* Set up a function to run in vcore context to actually setup and start the
+   * child scheduler in the task we are about to highjack */
+  struct { 
+    lithe_sched_t* parent;
+    lithe_task_t*  parent_task;
+    lithe_sched_t* child;
+    lithe_task_t*  child_task;
+  } real_arg = {current_sched, current_task, child, child_task};
+  lithe_vcore_func_t real_func = {__lithe_sched_enter, &real_arg};
+  vcore_set_tls_var(vcore_id(), next_func, &real_func);
 
-  /* Update the number of vcores now owned by this child */
-  __sync_fetch_and_add(&(child->idata->vcores), 1);
+  /* Hijack the current task with the newly created one. */
+  set_current_uthread(&child_task->uth);
+
+  /* Yield this task to vcore context to run the function we just set up. Once
+   * we return from the yield we will be fully inside the child scheduler
+   * running the child task. */
+  uthread_yield(true);
   return 0;
 }
 
-int lithe_sched_exit()
+void __lithe_sched_exit(void *arg)
 {
-  assert(!in_vcore_context());
-  assert(current_sched);
+  struct { 
+    lithe_sched_t* parent;
+    lithe_task_t*  parent_task;
+    lithe_sched_t* child;
+    lithe_task_t*  child_task;
+  } *real_arg = arg;
+  lithe_sched_t* parent      = real_arg->parent;
+  lithe_task_t*  parent_task = real_arg->parent_task;
+  lithe_sched_t* child       = real_arg->child;
+  lithe_task_t*  child_task  = real_arg->child_task;
 
-  lithe_sched_t *parent = current_sched->idata->parent;
-  lithe_sched_t *child = current_sched;
+  assert(parent);
+  assert(parent_task);
+  assert(child);
+  assert(child_task);
 
   /* Don't actually end this scheduler until all vcores have been yielded
    * (except this one of course) */
@@ -435,22 +489,51 @@ int lithe_sched_exit()
   /* Update child's vcore count */
   __sync_fetch_and_add(&(child->idata->vcores), -1);
 
-  /* Grab a reference to the current child task */
-  lithe_task_t *child_task = current_task;
-
   /* Give control back to the parent */
-  set_current_uthread(&child->idata->parent_task->uth);
   current_sched = parent;
-  vcore_set_tls_var(vcore_id(), current_sched, current_sched);
+  uthread_set_tls_var(parent_task, current_sched, current_sched);
 
   /* Inform the parent that this child scheduler has finished */
   parent->funcs->child_finished(parent, child);
 
-  /* Destroy the child completely */
+  /* Destroy the child's idata */
+  free(child->idata);
+
+  /* Symetrically, the child task should be destroyed in the 'real'
+   * lithe_task_exit() since it was created in the 'real' lithe_task_enter(),
+   * but doing so would require us to retain a superfluous reference to it in
+   * the body of lithe_task_exit().  To avoid this, we just destroy it here. */
   __lithe_task_destruct(child_task);
   uthread_destruct(&child_task->uth);
   free(child_task);
-  free(child->idata);
+
+  /* Return to the original parent task */
+  next_task = parent_task;
+  lithe_vcore_entry();
+}
+
+int lithe_sched_exit()
+{
+  assert(!in_vcore_context());
+  assert(current_sched);
+
+  struct { 
+    lithe_sched_t* parent;
+    lithe_task_t*  parent_task;
+    lithe_sched_t* child;
+    lithe_task_t*  child_task;
+  } real_arg = {current_sched->idata->parent, current_sched->idata->parent_task, 
+                current_sched, current_task};
+  lithe_vcore_func_t real_func = {__lithe_sched_exit, &real_arg};
+  vcore_set_tls_var(vcore_id(), next_func, &real_func);
+
+  /* Hijack the current task giving it back to the original parent task */
+  set_current_uthread(&current_sched->idata->parent_task->uth);
+
+  /* Yield this task to vcore context to run the function we just set up. Once
+   * we return from the yield we will be fully back in the parent scheduler
+   * running the original parent task. */
+  uthread_yield(true);
   return 0;
 }
 
@@ -468,6 +551,7 @@ int lithe_vcore_request(int k)
 
 static void __lithe_task_construct(lithe_task_t *task)
 {
+  uthread_set_tls_var(&task->uth, current_sched, current_sched);
   task->tls = NULL;
   task->finished = false;
 }
@@ -539,7 +623,7 @@ int lithe_task_run(lithe_task_t *task)
   assert(task);
   assert(in_vcore_context());
 
-  vcore_set_tls_var(vcore_id(), next_task, task);
+  next_task = task;
   lithe_vcore_entry();
   return -1;
 }
@@ -553,9 +637,9 @@ void __lithe_task_block(void *arg)
     void (*func) (lithe_task_t *, void *); 
     lithe_task_t *task;
     void *arg;
-  } *real_func = arg;
+  } *real_arg = arg;
 
-  real_func->func(real_func->task, real_func->arg);
+  real_arg->func(real_arg->task, real_arg->arg);
   __lithe_sched_reenter();
 }
 
@@ -569,8 +653,8 @@ int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg)
     void (*func) (lithe_task_t *, void *); 
     lithe_task_t *task;
     void *arg;
-  } real_func_arg = {func, current_task, arg};
-  lithe_vcore_func_t real_func = {__lithe_task_block, &real_func_arg};
+  } real_arg = {func, current_task, arg};
+  lithe_vcore_func_t real_func = {__lithe_task_block, &real_arg};
 
   vcore_set_tls_var(vcore_id(), next_func, &real_func);
   uthread_yield(true);
