@@ -3445,6 +3445,7 @@ void task_scheduler_init::vcore_enter() {
 		if (__TBB_CompareAndSwapW(&w.state, WorkerDescriptor::RUNNING, WorkerDescriptor::REQUESTED) == WorkerDescriptor::REQUESTED) {
     		w.id = i + 1;
             lithe_task_attr_t attr;
+			attr.stack_bot = NULL;
 		    attr.stack_size = w.thread_stack_size ? w.thread_stack_size : ThreadStackSize;
 		    lithe_task_t *task = lithe_task_create(&attr, task_scheduler_init_enter_begin, &w);
 		    lithe_task_run(task);

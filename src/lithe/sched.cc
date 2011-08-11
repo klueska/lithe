@@ -28,24 +28,24 @@ void __child_exited(lithe_sched_t *__this, lithe_sched_t *child)
   Scheduler::cppcast(__this)->child_exited(child);
 }
 
-lithe_task_t* __task_create(lithe_sched_t *__this, lithe_task_attr_t *attr)
+lithe_task_t* __task_create(lithe_sched_t *__this, lithe_task_attr_t *attr, bool create_stack)
 {
-  return Scheduler::cppcast(__this)->task_create(attr);
+  return Scheduler::cppcast(__this)->task_create(attr, create_stack);
 }
 
-void __task_yield(lithe_sched_t *__this, lithe_task_t *task)
+void __task_destroy(lithe_sched_t *__this, lithe_task_t *task, bool free_stack)
 {
-  Scheduler::cppcast(__this)->task_yield(task);
-}
-
-void __task_destroy(lithe_sched_t *__this, lithe_task_t *task)
-{
-  Scheduler::cppcast(__this)->task_destroy(task);
+  Scheduler::cppcast(__this)->task_destroy(task, free_stack);
 }
 
 void __task_runnable(lithe_sched_t *__this, lithe_task_t *task)
 {
   Scheduler::cppcast(__this)->task_runnable(task);
+}
+
+void __task_yield(lithe_sched_t *__this, lithe_task_t *task)
+{
+  Scheduler::cppcast(__this)->task_yield(task);
 }
 
 const lithe_sched_funcs_t Scheduler::funcs = {

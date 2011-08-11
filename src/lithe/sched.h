@@ -59,10 +59,10 @@ struct lithe_sched_funcs {
   void (*child_exited) (lithe_sched_t *__this, lithe_sched_t *child);
 
   /* Callback for scheduler specific task creation. */
-  lithe_task_t* (*task_create) (lithe_sched_t *__this, lithe_task_attr_t *attr);
+  lithe_task_t* (*task_create) (lithe_sched_t *__this, lithe_task_attr_t *attr, bool create_stack);
 
   /* Callback for scheduler specific exiting of tasks */
-  void (*task_destroy) (lithe_sched_t *__this, lithe_task_t *task);
+  void (*task_destroy) (lithe_sched_t *__this, lithe_task_t *task, bool free_stack);
 
   /* Function letting this scheduler know that the provided task is runnable.
    * This could result from a blocked task being unblocked, or just after a

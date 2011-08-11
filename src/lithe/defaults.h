@@ -34,49 +34,32 @@ static void __child_exited_default(lithe_sched_t *__this, lithe_sched_t *child)
   // Do nothing special by default when a child is exited
 }
 
-static lithe_task_t* __task_create_default(lithe_sched_t *__this, lithe_task_attr_t *attr)
+static lithe_task_t* __task_create_default(lithe_sched_t *__this, lithe_task_attr_t *attr, bool create_stack)
 {
   lithe_task_t *task = (lithe_task_t*)malloc(sizeof(lithe_task_t));
   assert(task);
-  task->finished = false;
-  task->free_stack = false;
 
-  ssize_t default_stack_size = 4*getpagesize();
-  if(attr) {
-    if(attr->stack_top) {
-      assert(attr->stack_size);
-      task->stack_top = attr->stack_top;
+  if(create_stack) {
+    if(!attr || attr->stack_size == 0)
+      task->stack_size = 4*getpagesize();
+    else
       task->stack_size = attr->stack_size;
-      return task;
-    }
-    else {
-      if(attr->stack_size)
-        task->stack_size = attr->stack_size;
-      else
-        task->stack_size = default_stack_size;
-    }
+    task->stack_bot = malloc(task->stack_size);
   }
-  else  {
-    task->stack_size = default_stack_size;
-  }
-  task->stack_top = malloc(task->stack_size);
-  task->free_stack = true;
-
-  assert(task->stack_top);
-  assert(task->stack_size);
   return task;
 }
 
 static void __task_yield_default(lithe_sched_t *__this, lithe_task_t *task)
 {
+  // Do nothing special by default when a task is yielded
 }
 
-static void __task_destroy_default(lithe_sched_t *__this, lithe_task_t *task)
+static void __task_destroy_default(lithe_sched_t *__this, lithe_task_t *task, bool free_stack)
 {
   assert(task);
-  if(task->free_stack) {
-    assert(task->stack_top);
-    free(task->stack_top);
+  if(free_stack) {
+    assert(task->stack_bot);
+    free(task->stack_bot);
   }
   free(task);
 }
