@@ -28,7 +28,7 @@ void TestScheduler::vcore_enter()
 void test_run()
 {
   printf("TestScheduler Starting!\n");
-  TestScheduler *sched = (TestScheduler*)Scheduler::cppcast(lithe_sched_current());
+  TestScheduler *sched = (TestScheduler*)lithe_sched_current();
   for(int i=0; i<100; i++) {
     unsigned int limit, cur;
     do {
@@ -52,7 +52,7 @@ int main(int argc, char **argv)
 {
   printf("CXX Lithe Simple test starting\n");
   TestScheduler test_sched;
-  lithe_sched_enter(&Scheduler::funcs, Scheduler::ccast(&test_sched));
+  lithe_sched_enter(&Scheduler::funcs, &test_sched);
   test_run();
   lithe_sched_exit();
   printf("CXX Lithe Simple test finishing\n");

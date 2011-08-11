@@ -5,47 +5,47 @@ namespace lithe {
 
 int __vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
 {
-  return Scheduler::cppcast(__this)->vcore_request(child, k);
+  return ((Scheduler*)__this)->vcore_request(child, k);
 }
 
 void __vcore_enter(lithe_sched_t *__this)
 {
-  Scheduler::cppcast(__this)->vcore_enter();
+  ((Scheduler*)__this)->vcore_enter();
 }
 
 void __vcore_return(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  Scheduler::cppcast(__this)->vcore_return(child);
+  ((Scheduler*)__this)->vcore_return(child);
 }
 
 void __child_entered(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  Scheduler::cppcast(__this)->child_entered(child);
+  ((Scheduler*)__this)->child_entered(child);
 }
 
 void __child_exited(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  Scheduler::cppcast(__this)->child_exited(child);
+  ((Scheduler*)__this)->child_exited(child);
 }
 
 lithe_task_t* __task_create(lithe_sched_t *__this, lithe_task_attr_t *attr, bool create_stack)
 {
-  return Scheduler::cppcast(__this)->task_create(attr, create_stack);
+  return ((Scheduler*)__this)->task_create(attr, create_stack);
 }
 
 void __task_destroy(lithe_sched_t *__this, lithe_task_t *task, bool free_stack)
 {
-  Scheduler::cppcast(__this)->task_destroy(task, free_stack);
+  ((Scheduler*)__this)->task_destroy(task, free_stack);
 }
 
 void __task_runnable(lithe_sched_t *__this, lithe_task_t *task)
 {
-  Scheduler::cppcast(__this)->task_runnable(task);
+  ((Scheduler*)__this)->task_runnable(task);
 }
 
 void __task_yield(lithe_sched_t *__this, lithe_task_t *task)
 {
-  Scheduler::cppcast(__this)->task_yield(task);
+  ((Scheduler*)__this)->task_yield(task);
 }
 
 const lithe_sched_funcs_t Scheduler::funcs = {

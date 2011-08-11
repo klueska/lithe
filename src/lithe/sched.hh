@@ -8,17 +8,7 @@ namespace lithe {
 
 class Scheduler;
 
-extern "C" {
-typedef struct {
-  lithe_sched_t csched;
-  Scheduler *cppsched;
-} lithe_sched_cpp_t;
-}
-
-class Scheduler {
- private:
-  lithe_sched_cpp_t icsched;
-  lithe_sched_t *csched;
+class Scheduler : public lithe_sched_t {
  public:
   static const lithe_sched_funcs_t funcs;
 
@@ -37,39 +27,24 @@ class Scheduler {
   virtual void vcore_enter() = 0;
 
   virtual int vcore_request(lithe_sched_t *child, int k) 
-    { return __vcore_request_default(csched, child, k); }
+    { return __vcore_request_default(this, child, k); }
   virtual void vcore_return(lithe_sched_t *child)
-    { return __vcore_return_default(csched, child); }
+    { return __vcore_return_default(this, child); }
   virtual void child_entered(lithe_sched_t *child)
-    { return __child_entered_default(csched, child); }
+    { return __child_entered_default(this, child); }
   virtual void child_exited(lithe_sched_t *child)
-    { return __child_exited_default(csched, child); }
+    { return __child_exited_default(this, child); }
   virtual lithe_task_t* task_create(lithe_task_attr_t *attr, bool create_stack)
-    { return __task_create_default(csched, attr, create_stack); }
+    { return __task_create_default(this, attr, create_stack); }
   virtual void task_destroy(lithe_task_t *task, bool free_stack)
-    { return __task_destroy_default(csched, task, free_stack); }
+    { return __task_destroy_default(this, task, free_stack); }
   virtual void task_runnable(lithe_task_t *task)
-    { return __task_runnable_default(csched, task); }
+    { return __task_runnable_default(this, task); }
   virtual void task_yield(lithe_task_t *task)
-    { return __task_yield_default(csched, task); }
+    { return __task_yield_default(this, task); }
 
  public:
-  Scheduler() 
-  { 
-    icsched.cppsched = this;
-    csched = &icsched.csched;
-  }
   virtual ~Scheduler() {}
-
-  static Scheduler *cppcast(lithe_sched_t *sched)
-  {
-    return ((lithe_sched_cpp_t*)sched)->cppsched;
-  }
-
-  static lithe_sched_t *ccast(Scheduler *sched)
-  {
-    return sched->csched;
-  }
 };
 
 }
