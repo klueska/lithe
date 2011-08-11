@@ -24,14 +24,14 @@ static void __vcore_return_default(lithe_sched_t *__this, lithe_sched_t *child)
   lithe_vcore_yield();
 }
 
-static void __child_started_default(lithe_sched_t *__this, lithe_sched_t *child)
+static void __child_entered_default(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  // Do nothing special by default when a child is started
+  // Do nothing special by default when a child is entered
 }
 
-static void __child_finished_default(lithe_sched_t *__this, lithe_sched_t *child)
+static void __child_exited_default(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  // Do nothing special by default when a child is finished
+  // Do nothing special by default when a child is exited
 }
 
 static lithe_task_t* __task_create_default(lithe_sched_t *__this, void *udata)

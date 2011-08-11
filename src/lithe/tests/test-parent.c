@@ -31,8 +31,8 @@ static const lithe_sched_funcs_t child_funcs = {
   .vcore_request   = __vcore_request_default,
   .vcore_enter     = child_vcore_enter,
   .vcore_return    = __vcore_return_default,
-  .child_started   = __child_started_default,
-  .child_finished  = __child_finished_default,
+  .child_entered   = __child_entered_default,
+  .child_exited    = __child_exited_default,
   .task_create     = __task_create_default,
   .task_destroy    = __task_destroy_default,
   .task_runnable   = child_task_runnable,
@@ -117,16 +117,16 @@ static void root_sched_dtor(root_sched_t *sched)
 
 int root_vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
 static void root_vcore_enter(lithe_sched_t *this);
-void root_child_started(lithe_sched_t *__this, lithe_sched_t *child);
-void root_child_finished(lithe_sched_t *__this, lithe_sched_t *child);
+void root_child_entered(lithe_sched_t *__this, lithe_sched_t *child);
+void root_child_exited(lithe_sched_t *__this, lithe_sched_t *child);
 static void root_task_runnable(lithe_sched_t *__this, lithe_task_t *task);
 
 static const lithe_sched_funcs_t root_funcs = {
   .vcore_request   = root_vcore_request,
   .vcore_enter     = root_vcore_enter,
   .vcore_return    = __vcore_return_default,
-  .child_started   = root_child_started,
-  .child_finished  = root_child_finished,
+  .child_entered   = root_child_entered,
+  .child_exited    = root_child_exited,
   .task_create     = __task_create_default,
   .task_destroy    = __task_destroy_default,
   .task_runnable   = root_task_runnable,
@@ -147,18 +147,18 @@ int root_vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
   return k;
 }
 
-void root_child_started(lithe_sched_t *__this, lithe_sched_t *child)
+void root_child_entered(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  printf("root_child_started\n");
+  printf("root_child_entered\n");
   root_sched_t *sched = (root_sched_t *)__this;
   spinlock_lock(&sched->lock);
     sched->children_started++;
   spinlock_unlock(&sched->lock);
 }
 
-void root_child_finished(lithe_sched_t *__this, lithe_sched_t *child)
+void root_child_exited(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  printf("root_child_finished\n");
+  printf("root_child_exited\n");
   root_sched_t *sched = (root_sched_t *)__this;
   spinlock_lock(&sched->lock);
     sched->children_finished++;

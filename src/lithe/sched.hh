@@ -26,8 +26,8 @@ class Scheduler {
   friend int __vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
   friend void __vcore_enter(lithe_sched_t *__this);
   friend void __vcore_return(lithe_sched_t *__this, lithe_sched_t *child);
-  friend void __child_started(lithe_sched_t *__this, lithe_sched_t *child);
-  friend void __child_finished(lithe_sched_t *__this, lithe_sched_t *child);
+  friend void __child_entered(lithe_sched_t *__this, lithe_sched_t *child);
+  friend void __child_exited(lithe_sched_t *__this, lithe_sched_t *child);
   friend lithe_task_t* __task_create(lithe_sched_t *__this, void *udata);
   friend void __task_destroy(lithe_sched_t *__this, lithe_task_t *task);
   friend void __task_runnable(lithe_sched_t *__this, lithe_task_t *task);
@@ -40,10 +40,10 @@ class Scheduler {
     { return __vcore_request_default(csched, child, k); }
   virtual void vcore_return(lithe_sched_t *child)
     { return __vcore_return_default(csched, child); }
-  virtual void child_started(lithe_sched_t *child)
-    { return __child_started_default(csched, child); }
-  virtual void child_finished(lithe_sched_t *child)
-    { return __child_finished_default(csched, child); }
+  virtual void child_entered(lithe_sched_t *child)
+    { return __child_entered_default(csched, child); }
+  virtual void child_exited(lithe_sched_t *child)
+    { return __child_exited_default(csched, child); }
   virtual lithe_task_t* task_create(void *udata)
     { return __task_create_default(csched, udata); }
   virtual void task_yield(lithe_task_t *task)

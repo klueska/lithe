@@ -53,10 +53,10 @@ struct lithe_sched_funcs {
   void (*vcore_return) (lithe_sched_t *__this, lithe_sched_t *child);
 
   /* Callback to inform of a successfully registered child. */
-  void (*child_started) (lithe_sched_t *__this, lithe_sched_t *child);
+  void (*child_entered) (lithe_sched_t *__this, lithe_sched_t *child);
 
   /* Callback to inform of a sucessfully unregistered child. */
-  void (*child_finished) (lithe_sched_t *__this, lithe_sched_t *child);
+  void (*child_exited) (lithe_sched_t *__this, lithe_sched_t *child);
 
   /* Callback for scheduler specific task creation. */
   lithe_task_t* (*task_create) (lithe_sched_t *__this, void *udata);

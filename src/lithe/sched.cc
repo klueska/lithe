@@ -18,14 +18,14 @@ void __vcore_return(lithe_sched_t *__this, lithe_sched_t *child)
   Scheduler::cppcast(__this)->vcore_return(child);
 }
 
-void __child_started(lithe_sched_t *__this, lithe_sched_t *child)
+void __child_entered(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  Scheduler::cppcast(__this)->child_started(child);
+  Scheduler::cppcast(__this)->child_entered(child);
 }
 
-void __child_finished(lithe_sched_t *__this, lithe_sched_t *child)
+void __child_exited(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  Scheduler::cppcast(__this)->child_finished(child);
+  Scheduler::cppcast(__this)->child_exited(child);
 }
 
 lithe_task_t* __task_create(lithe_sched_t *__this, void *udata)
@@ -52,8 +52,8 @@ const lithe_sched_funcs_t Scheduler::funcs = {
   /*.vcore_request   = */ __vcore_request,
   /*.vcore_enter     = */ __vcore_enter,
   /*.vcore_return    = */ __vcore_return,
-  /*.child_started   = */ __child_started,
-  /*.child_finished  = */ __child_finished,
+  /*.child_entered   = */ __child_entered,
+  /*.child_exited    = */ __child_exited,
   /*.task_create     = */ __task_create,
   /*.task_destroy    = */ __task_destroy,
   /*.task_runnable   = */ __task_runnable,

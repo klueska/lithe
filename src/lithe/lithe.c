@@ -107,8 +107,8 @@ static void base_destroy(lithe_sched_t *__this);
 static int base_vcore_request(lithe_sched_t *this, lithe_sched_t *child, int k);
 static void base_vcore_enter(lithe_sched_t *this);
 static void base_vcore_return(lithe_sched_t *this, lithe_sched_t *child);
-static void base_child_started(lithe_sched_t *this, lithe_sched_t *child);
-static void base_child_finished(lithe_sched_t *this, lithe_sched_t *child);
+static void base_child_entered(lithe_sched_t *this, lithe_sched_t *child);
+static void base_child_exited(lithe_sched_t *this, lithe_sched_t *child);
 static lithe_task_t* base_task_create(lithe_sched_t *__this, void *udata);
 static void base_task_yield(lithe_sched_t *__this, lithe_task_t *task);
 static void base_task_destroy(lithe_sched_t *__this, lithe_task_t *task);
@@ -118,8 +118,8 @@ static const lithe_sched_funcs_t base_funcs = {
   .vcore_request   = base_vcore_request,
   .vcore_enter     = base_vcore_enter,
   .vcore_return    = base_vcore_return,
-  .child_started   = base_child_started,
-  .child_finished  = base_child_finished,
+  .child_entered   = base_child_entered,
+  .child_exited  = base_child_exited,
   .task_create     = base_task_create,
   .task_destroy    = base_task_destroy,
   .task_runnable   = base_task_runnable,
@@ -307,13 +307,13 @@ static void base_vcore_return(lithe_sched_t *__this, lithe_sched_t *sched)
   vcore_yield();
 }
 
-static void base_child_started(lithe_sched_t *__this, lithe_sched_t *sched)
+static void base_child_entered(lithe_sched_t *__this, lithe_sched_t *sched)
 {
   assert(root_sched == NULL);
   root_sched = sched;
 }
 
-static void base_child_finished(lithe_sched_t *__this, lithe_sched_t *sched)
+static void base_child_exited(lithe_sched_t *__this, lithe_sched_t *sched)
 {
   assert(root_sched == sched);
   root_sched = NULL;
@@ -421,7 +421,7 @@ static void __lithe_sched_enter(void *arg)
   __sync_fetch_and_add(&(child->idata->vcores), 1);
 
   /* Inform parent. */
-  parent->funcs->child_started(parent, child);
+  parent->funcs->child_entered(parent, child);
 
   /* Return to to the vcore_entry point to continue running the child task now
    * that it has been properly setup */
@@ -494,7 +494,7 @@ void __lithe_sched_exit(void *arg)
   uthread_set_tls_var(parent_task, current_sched, current_sched);
 
   /* Inform the parent that this child scheduler has finished */
-  parent->funcs->child_finished(parent, child);
+  parent->funcs->child_exited(parent, child);
 
   /* Destroy the child's idata */
   free(child->idata);

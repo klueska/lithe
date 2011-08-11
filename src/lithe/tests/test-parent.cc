@@ -81,8 +81,8 @@ class RootScheduler : public Scheduler {
  protected:
   void vcore_enter();
   int vcore_request(lithe_sched_t *child, int k);
-  void child_started(lithe_sched_t *child);
-  void child_finished(lithe_sched_t *child);
+  void child_entered(lithe_sched_t *child);
+  void child_exited(lithe_sched_t *child);
   void task_runnable(lithe_task_t *task);
 
  public:
@@ -121,17 +121,17 @@ int RootScheduler::vcore_request(lithe_sched_t *child, int k)
   return k;
 }
 
-void RootScheduler::child_started(lithe_sched_t *child)
+void RootScheduler::child_entered(lithe_sched_t *child)
 {
-  printf("RootScheduler::child_started\n");
+  printf("RootScheduler::child_entered\n");
   spinlock_lock(&this->lock);
     this->children_started++;
   spinlock_unlock(&this->lock);
 }
 
-void RootScheduler::child_finished(lithe_sched_t *child)
+void RootScheduler::child_exited(lithe_sched_t *child)
 {
-  printf("RootScheduler::child_finished\n");
+  printf("RootScheduler::child_exited\n");
   spinlock_lock(&this->lock);
     this->children_finished++;
   spinlock_unlock(&this->lock);
