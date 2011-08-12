@@ -17,18 +17,20 @@ extern "C" {
 #endif
 
 typedef struct {
-  /* Stack top for the lithe task. If stack_bot == NULL, then the lithe task
-  * should allocate a new stack of size stack_size.  If stack_bot != NULL, then
-  * the task should use this stack rather than allocating a new one; stack_size
-  * must be set to the size of this stack. */
-  void *stack_bot;
+  /* Stack bottom for a lithe task. */
+  void *bottom;
 
-  /* Stack size for the lithe task. if stack_bot == NULL, stack_size indicates
-   * the size of the stack the lithe_task should allocate; if it is 0, then
-   * allocate some default size.  If stack_bot != NULL, this must contain the
-   * size of the stack pointed to by stack_bot; if it is 0 there is an error.
-   * */
-  ssize_t stack_size;
+  /* Stack size for a lithe task. */
+  ssize_t size;
+
+} lithe_task_stack_t;
+
+typedef struct {
+  /* The stack to initialize a lithe task to. If both stack_bot and stack_size
+   * are set, initialize the lithe task with this stack. If stack_bot == NULL,
+   * allocate a stack of size stack_size.  If stack_size == 0, allocate some
+   * default stack size. */
+  lithe_task_stack_t stack;
 
 } lithe_task_attr_t;
   
@@ -45,11 +47,8 @@ typedef struct lithe_task {
   /* Argument for the start function */
   void *arg;
 
-  /* Pointer to the task's stack */
-  void *stack_bot;
-
-  /* Size of the task's stack */
-  size_t stack_size;
+  /* The task_stack associated with this task */
+  lithe_task_stack_t stack;
 
   /* Task local storage */
   void *tls;
@@ -57,7 +56,8 @@ typedef struct lithe_task {
   /* Flag indicating if the task is finished and should be destroyed or not */
   bool finished;
 
-  /* Flag indicating if the stack should be automatically freed or not */
+  /* Flag indicating if the stack was provided or we need to ask the scheduler
+   * to destroy it */
   bool free_stack;
 
 } lithe_task_t;

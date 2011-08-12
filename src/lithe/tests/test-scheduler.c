@@ -35,15 +35,17 @@ static void test_sched_dtor(test_sched_t *sched)
 static void vcore_enter(lithe_sched_t *__this);
 
 static const lithe_sched_funcs_t funcs = {
-  .vcore_request   = __vcore_request_default,
-  .vcore_enter     = vcore_enter,
-  .vcore_return    = __vcore_return_default,
-  .child_entered   = __child_entered_default,
-  .child_exited    = __child_exited_default,
-  .task_create     = __task_create_default,
-  .task_yield      = __task_yield_default,
-  .task_destroy    = __task_destroy_default,
-  .task_runnable   = __task_runnable_default
+  .vcore_request      = __vcore_request_default,
+  .vcore_enter        = vcore_enter,
+  .vcore_return       = __vcore_return_default,
+  .child_entered      = __child_entered_default,
+  .child_exited       = __child_exited_default,
+  .task_create        = __task_create_default,
+  .task_destroy       = __task_destroy_default,
+  .task_stack_create  = __task_stack_create_default,
+  .task_stack_destroy = __task_stack_destroy_default,
+  .task_runnable      = __task_runnable_default,
+  .task_yield         = __task_yield_default
 };
 
 static void vcore_enter(lithe_sched_t *__this)

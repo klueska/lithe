@@ -36,15 +36,17 @@ static void root_task_exit(lithe_sched_t *__this, lithe_task_t *task);
 static void root_task_runnable(lithe_sched_t *__this, lithe_task_t *task);
 
 static const lithe_sched_funcs_t root_sched_funcs = {
-  .vcore_request   = __vcore_request_default,
-  .vcore_enter     = root_vcore_enter,
-  .vcore_return    = __vcore_return_default,
-  .child_entered   = __child_entered_default,
-  .child_exited    = __child_exited_default,
-  .task_create     = __task_create_default,
-  .task_destroy    = __task_destroy_default,
-  .task_runnable   = root_task_runnable,
-  .task_yield      = __task_yield_default
+  .vcore_request      = __vcore_request_default,
+  .vcore_enter        = root_vcore_enter,
+  .vcore_return       = __vcore_return_default,
+  .child_entered      = __child_entered_default,
+  .child_exited       = __child_exited_default,
+  .task_create        = __task_create_default,
+  .task_destroy       = __task_destroy_default,
+  .task_stack_create  = __task_stack_create_default,
+  .task_stack_destroy = __task_stack_destroy_default,
+  .task_runnable      = root_task_runnable,
+  .task_yield         = __task_yield_default
 };
 
 static void root_vcore_enter(lithe_sched_t *__this)

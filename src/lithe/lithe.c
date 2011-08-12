@@ -109,21 +109,25 @@ static void base_vcore_enter(lithe_sched_t *this);
 static void base_vcore_return(lithe_sched_t *this, lithe_sched_t *child);
 static void base_child_entered(lithe_sched_t *this, lithe_sched_t *child);
 static void base_child_exited(lithe_sched_t *this, lithe_sched_t *child);
-static lithe_task_t* base_task_create(lithe_sched_t *__this, lithe_task_attr_t *attr, bool create_stack);
-static void base_task_destroy(lithe_sched_t *__this, lithe_task_t *task, bool free_stack);
+static lithe_task_t* base_task_create(lithe_sched_t *__this, lithe_task_attr_t *attr);
+static void base_task_destroy(lithe_sched_t *__this, lithe_task_t *task);
+static void base_task_stack_create(lithe_sched_t *__this, lithe_task_stack_t *stack);
+static void base_task_stack_destroy(lithe_sched_t *__this, lithe_task_stack_t *stack);
 static void base_task_yield(lithe_sched_t *__this, lithe_task_t *task);
 static void base_task_runnable(lithe_sched_t *__this, lithe_task_t *task);
 
 static const lithe_sched_funcs_t base_funcs = {
-  .vcore_request   = base_vcore_request,
-  .vcore_enter     = base_vcore_enter,
-  .vcore_return    = base_vcore_return,
-  .child_entered   = base_child_entered,
-  .child_exited    = base_child_exited,
-  .task_create     = base_task_create,
-  .task_destroy    = base_task_destroy,
-  .task_runnable   = base_task_runnable,
-  .task_yield      = base_task_yield
+  .vcore_request      = base_vcore_request,
+  .vcore_enter        = base_vcore_enter,
+  .vcore_return       = base_vcore_return,
+  .child_entered      = base_child_entered,
+  .child_exited       = base_child_exited,
+  .task_create        = base_task_create,
+  .task_destroy       = base_task_destroy,
+  .task_stack_create  = base_task_stack_create,
+  .task_stack_destroy = base_task_stack_destroy,
+  .task_runnable      = base_task_runnable,
+  .task_yield         = base_task_yield
 };
 
 static lithe_sched_idata_t base_idata = {
@@ -178,8 +182,8 @@ static uthread_t* lithe_init()
   /* Fill in the main task stack info with some data. This data is garbage,
    * and only necessary so as to keep lithe_sched_entry from allocating a new
    * stack when creating a task to run the first scheduler it enters. */
-  main_task->stack_bot = (void*)0xdeadbeef;
-  main_task->stack_size = (ssize_t)-1;
+  main_task->stack.bottom = (void*)0xdeadbeef;
+  main_task->stack.size = (ssize_t)-1;
 
   /* Set the scheduler associated with the task to be the base scheduler */
   current_sched = &base_sched;
@@ -195,6 +199,7 @@ static void __attribute__((noreturn)) __lithe_sched_reenter()
   assert(in_vcore_context());
 
   /* Enter current scheduler. */
+  assert(current_sched->funcs->vcore_enter);
   current_sched->funcs->vcore_enter(current_sched);
   fatal("lithe: returned from enter");
 }
@@ -247,25 +252,12 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
 
 static uthread_t* lithe_thread_create(void (*func)(void), void *udata)
 {
-  lithe_task_attr_t *attr = udata;
-  bool create_stack = true;
-  if(attr)
-    if(attr->stack_bot) {
-      assert(attr->stack_size);
-      create_stack = false;
-    }
+  assert(current_sched);
+  assert(current_sched->funcs->task_create);
 
-  lithe_task_t* task = current_sched->funcs->task_create(current_sched, attr, create_stack);
+  lithe_task_t* task = current_sched->funcs->task_create(current_sched, udata);
   assert(task);
 
-  if(!create_stack) {
-    task->stack_bot = attr->stack_bot;
-    task->stack_size = attr->stack_size;
-  }
-  assert(task->stack_bot);
-  assert(task->stack_size);
-  task->free_stack = create_stack;
-  task->finished = false;
   return (uthread_t*)task;
 }
 
@@ -273,15 +265,17 @@ static void lithe_thread_destroy(struct uthread *uthread)
 {
   assert(uthread);
   assert(current_sched);
+  assert(current_sched->funcs->task_destroy);
 
   lithe_task_t *task = (lithe_task_t*)uthread;
-  current_sched->funcs->task_destroy(current_sched, task, task->free_stack);
+  current_sched->funcs->task_destroy(current_sched, task);
 }
 
 static void lithe_thread_runnable(struct uthread *uthread)
 {
   assert(uthread);
   assert(current_sched);
+  assert(current_sched->funcs->task_runnable);
 
   lithe_task_t *task = (lithe_task_t*)uthread;
   current_sched->funcs->task_runnable(current_sched, task);
@@ -294,10 +288,13 @@ static void lithe_thread_yield(struct uthread *uthread)
 
   lithe_task_t *task = (lithe_task_t*)uthread;
   if(task->finished) {
+    assert(current_sched->funcs->task_destroy);
     uthread_destroy(uthread);
   }
-  else
+  else {
+    assert(current_sched->funcs->task_yield);
     current_sched->funcs->task_yield(current_sched, task);
+  }
 }
 
 static lithe_sched_t *base_create(void *__sched)
@@ -347,15 +344,25 @@ static int base_vcore_request(lithe_sched_t *__this, lithe_sched_t *sched, int k
   return vcore_request(k);
 }
 
-static lithe_task_t* base_task_create(lithe_sched_t *__this, lithe_task_attr_t *attr, bool create_stack)
+static lithe_task_t* base_task_create(lithe_sched_t *__this, lithe_task_attr_t *attr)
 {
   fatal("The base scheduler should never be creating tasks of its own!\n");
   return NULL;
 }
 
-static void base_task_destroy(lithe_sched_t *__this, lithe_task_t *task, bool free_stack)
+static void base_task_destroy(lithe_sched_t *__this, lithe_task_t *task)
 {
   fatal("The base scheduler should never have any tasks to be destroying!\n");
+}
+
+static void base_task_stack_create(lithe_sched_t *__this, lithe_task_stack_t *stack)
+{
+  fatal("The base scheduler should never be creating task stacks of its own!\n");
+}
+
+static void base_task_stack_destroy(lithe_sched_t *__this, lithe_task_stack_t *stack)
+{
+  fatal("The base scheduler should never have any task stacks to be destroying!\n");
 }
 
 static void base_task_yield(lithe_sched_t *__this, lithe_task_t *task)
@@ -401,7 +408,8 @@ void lithe_vcore_yield()
 
   /* Yield the vcore to the parent */
   current_sched = parent;
-  parent->funcs->vcore_return(parent, child);
+  assert(current_sched->funcs->vcore_return);
+  current_sched->funcs->vcore_return(parent, child);
   __lithe_sched_reenter();
 }
 
@@ -443,6 +451,7 @@ static void __lithe_sched_enter(void *arg)
   __sync_fetch_and_add(&(child->idata->vcores), 1);
 
   /* Inform parent. */
+  assert(parent->funcs->child_entered);
   parent->funcs->child_entered(parent, child);
 
   /* Return to to the vcore_entry point to continue running the child task now
@@ -464,11 +473,10 @@ int lithe_sched_enter(const lithe_sched_funcs_t *funcs, lithe_sched_t *child)
   lithe_task_t*  parent_task = current_task;
 
   /* Create a child task to highjack the current task's context */
-  assert(current_task->stack_bot);
-  assert(current_task->stack_size);
+  assert(current_task->stack.bottom);
+  assert(current_task->stack.size);
   lithe_task_attr_t attr;
-  attr.stack_bot = current_task->stack_bot;
-  attr.stack_size = current_task->stack_size;
+  attr.stack = current_task->stack;
   current_sched = child;
   lithe_task_t *child_task = lithe_task_create(&attr, NULL, NULL);
   current_sched = parent;
@@ -530,6 +538,7 @@ void __lithe_sched_exit(void *arg)
   uthread_set_tls_var(parent_task, current_sched, current_sched);
 
   /* Inform the parent that this child scheduler has finished */
+  assert(parent->funcs->child_exited);
   parent->funcs->child_exited(parent, child);
 
   /* Destroy the child's idata */
@@ -572,45 +581,96 @@ int lithe_vcore_request(int k)
   lithe_sched_t *child = current_sched;
 
   current_sched = parent;
+  assert(parent->funcs->vcore_request);
   int granted = parent->funcs->vcore_request(parent, child, k);
   current_sched = child;
   return granted;
 }
 
-void __lithe_task_run()
+static void __lithe_task_run()
 {
   current_task->start_func(current_task->arg);
   uthread_yield(false);
 }
 
-static void __lithe_task_init_bare(lithe_task_t *task)
+static void __lithe_task_init_bare(lithe_task_t *task, lithe_task_attr_t *attr)
 {
   uthread_set_tls_var(&task->uth, current_sched, current_sched);
+  task->stack = attr->stack;
   task->tls = NULL;
   task->finished = false;
+  task->free_stack = false;
 }
 
-lithe_task_t *lithe_task_create(lithe_task_attr_t *attr, void (*func) (void *), void *arg) 
+void lithe_task_attr_init(lithe_task_attr_t *attr)
 {
-  lithe_task_t *task = (lithe_task_t*)uthread_create(NULL, attr);
+  attr->stack.bottom = 0;
+  attr->stack.size = 0;
+}
+
+lithe_task_t *lithe_task_create(lithe_task_attr_t *__attr, void (*func) (void *), void *arg) 
+{
+  /* If attr is NULL, then create one and initialize it so it can be used
+   * properly in the task initialization functions to follow */
+  lithe_task_attr_t *attr;
+  if(__attr == NULL) {
+    lithe_task_attr_t _attr;
+    lithe_task_attr_init(&_attr);
+    attr = &_attr;
+  }
+  /* Otherwise, just use the attr that was passed in */
+  else attr = __attr;
+
+  /* Create the new task */
+  lithe_task_t *task = (lithe_task_t*)uthread_create(NULL, &attr);
   assert(task);
+
+  /* If a stack bottom is already set in the attributes, then just pass this
+   * along as the stack to use for the newly created task */
+  bool created_stack = false;
+  if(attr->stack.bottom) {
+    assert(attr->stack.size);
+    task->stack = attr->stack;
+  }
+  /* Otherwise, create a new stack for the task */
+  else {
+    assert(current_sched->funcs->task_stack_create);
+    current_sched->funcs->task_stack_create(current_sched, &attr->stack);
+    task->stack = attr->stack;
+    created_stack = true;
+  }
+
+  /* If a func was passed in, go through the full initialization process. In
+   * both cases, the stack for the task MUST already have been setup somehow */
   if(func)
-    lithe_task_init(task, func, arg);
+    lithe_task_init(task, attr, func, arg);
+  /* Otherwise do a bare initialization */
   else
-    __lithe_task_init_bare(task);
+    __lithe_task_init_bare(task, attr);
+
+  /* Need to set task->free_stack AFTER calling lithe_task_init(). Otherwise it
+   * gets reset in the body of that function */
+  if(created_stack)
+    task->free_stack = true;
+
+  assert(task->stack.bottom);
+  assert(task->stack.size);
   return task;
 }
 
-void lithe_task_init(lithe_task_t *task, void (*func) (void *), void *arg)
+void lithe_task_init(lithe_task_t *task, lithe_task_attr_t *attr, void (*func) (void *), void *arg)
 {
   assert(task);
-  assert(task->stack_bot);
-  assert(task->stack_size);
-  init_uthread_stack(&task->uth, task->stack_bot, task->stack_size);
-  init_uthread_entry(&task->uth, __lithe_task_run);
-  __lithe_task_init_bare(task);
+  assert(attr);
+  assert(attr->stack.bottom);
+  assert(attr->stack.size);
+
+  __lithe_task_init_bare(task, attr);
   task->start_func = func;
   task->arg = arg;
+
+  init_uthread_stack(&task->uth, task->stack.bottom, task->stack.size);
+  init_uthread_entry(&task->uth, __lithe_task_run);
 }
 
 void lithe_task_destroy(lithe_task_t *task)
@@ -618,6 +678,10 @@ void lithe_task_destroy(lithe_task_t *task)
   assert(task);
   if(!in_vcore_context())
     assert(task != current_task);
+  if(task->free_stack) {
+    assert(current_sched->funcs->task_stack_destroy);
+    current_sched->funcs->task_stack_destroy(current_sched, &task->stack);
+  }
   uthread_destroy(&task->uth);
 }
 
@@ -686,6 +750,7 @@ int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg)
 int lithe_task_unblock(lithe_task_t *task)
 {
   assert(task);
+  assert(current_sched->funcs->task_runnable);
   current_sched->funcs->task_runnable(current_sched, task);
   return 0;
 }

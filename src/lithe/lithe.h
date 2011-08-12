@@ -70,6 +70,12 @@ int lithe_vcore_grant(lithe_sched_t *child);
 void lithe_vcore_yield();
 
 /*
+ * Initialize the attributes used to create / initialize a lithe task. Must be
+ * called on all attribute variables before passing them to either
+ * lithe_task_create() or lithe_task_init(). 
+ */
+void lithe_task_attr_init(lithe_task_attr_t *attr);
+/*
  * Create a new task with a set of attributes and a start function.  Passing
  * NULL for both func and arg are valid, but require you to subsequently call
  * lithe_task_init() before running the task.  Returns the newly
@@ -78,10 +84,11 @@ void lithe_vcore_yield();
 lithe_task_t *lithe_task_create(lithe_task_attr_t *attr, void (*func) (void *), void *arg); 
 
 /*
- * Initialize a new start function for an existing task. Once the task is
- * restarted it will run from this entry point. 
+ * Initialize a new state for an existing task. The attr parameter MUST contain
+ * a valid stack pointer and stack size. Once the task is restarted it will run
+ * from the entry point specified.
  */
-void lithe_task_init(lithe_task_t *task, void (*func) (void *), void *arg); 
+void lithe_task_init(lithe_task_t *task, lithe_task_attr_t *attr, void (*func) (void *), void *arg);
 
 /* 
  * Destroy an existing task. This task should not be currently running on any
