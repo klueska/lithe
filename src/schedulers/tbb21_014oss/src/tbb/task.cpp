@@ -3399,7 +3399,6 @@ const stack_size_type ThreadStackSize = 4*MByte;
 #if USE_LITHE
 
 void task_scheduler_init_enter_end(lithe_task_t *task, void *arg) {
-	printf("task: %p\n", task);
     lithe_task_destroy(task);
     task = static_cast<lithe_task_t *>(arg);
     if (task != NULL) {
