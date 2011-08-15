@@ -45,8 +45,8 @@ SCHEDS_DIR := $(PARLIB_DIR)/schedulers
 include $(SCHEDS_DIR)/Makevars
 LDFLAGS += -L$(PARLIB_LDDIR)
 LIBS += -lparlib
-#CPLUS_FLAGS += -DUSE_PTHREAD
-CPLUS_FLAGS += -DUSE_LITHE
+#CXXFLAGS += -DUSE_PTHREAD
+CXXFLAGS += -DUSE_LITHE -I$(PARLIB_DIR)
 
 #check, if tbb_root is not absolute path (the filter keeps only /* paths)
 ifeq ($(filter /% $(SLASH)%, $(subst :, ,$(tbb_root)) ),)
