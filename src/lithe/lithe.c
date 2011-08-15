@@ -102,8 +102,6 @@ struct schedule_ops lithe_sched_ops = {
 struct schedule_ops *sched_ops __attribute__((weak)) = &lithe_sched_ops;
 
 /* Lithe's base scheduler functions */
-static lithe_sched_t *base_create(void *__sched);
-static void base_destroy(lithe_sched_t *__this);
 static int base_vcore_request(lithe_sched_t *this, lithe_sched_t *child, int k);
 static void base_vcore_enter(lithe_sched_t *this);
 static void base_vcore_return(lithe_sched_t *this, lithe_sched_t *child);
@@ -214,8 +212,6 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   if(current_sched == NULL) {
     /* Set the current scheduler as the base scheduler */
     current_sched = &base_sched;
-    /* Up our vcore count for the base scheduler */
-    __sync_fetch_and_add(&base_sched.idata->vcores, 1);
   }
 
   /* If current_task is set, then just resume it. This will happen in one of 2
@@ -297,21 +293,6 @@ static void lithe_thread_yield(struct uthread *uthread)
   }
 }
 
-static lithe_sched_t *base_create(void *__sched)
-{
-  fatal("Trying to recreate the base scheduler!\n");
-}
-
-static void base_destroy(lithe_sched_t *__this)
-{
-  fatal("Trying to destroy the base scheduler!\n");
-}
-
-static void base_start(lithe_sched_t *__this, void *arg)
-{
-  fatal("Trying to restart the base scheduler!\n");
-}
-
 static void base_vcore_enter(lithe_sched_t *__this)
 {
   assert(root_sched != NULL);
@@ -341,7 +322,9 @@ static void base_child_exited(lithe_sched_t *__this, lithe_sched_t *sched)
 static int base_vcore_request(lithe_sched_t *__this, lithe_sched_t *sched, int k)
 {
   assert(root_sched == sched);
-  return vcore_request(k);
+  int granted = vcore_request(k);
+  __sync_fetch_and_add(&base_sched.idata->vcores, granted);
+  return granted;
 }
 
 static lithe_task_t* base_task_create(lithe_sched_t *__this, lithe_task_attr_t *attr)
@@ -388,7 +371,6 @@ int lithe_vcore_grant(lithe_sched_t *child)
   /* Leave parent, join child. */
   assert(child != &base_sched);
   current_sched = child;
-  __sync_fetch_and_add(&(child->idata->vcores), 1);
 
   /* Enter the child scheduler */
   __lithe_sched_reenter();
@@ -524,7 +506,7 @@ void __lithe_sched_exit(void *arg)
    * (except this one of course) */
   while (coherent_read(child->idata->vcores) != 1);
 
-  /* Update child's vcore count */
+  /* Update child's vcore count (to 0) */
   __sync_fetch_and_add(&(child->idata->vcores), -1);
 
   /* Symetrically, the child task should be destroyed in the 'real'
@@ -583,6 +565,7 @@ int lithe_vcore_request(int k)
   current_sched = parent;
   assert(parent->funcs->vcore_request);
   int granted = parent->funcs->vcore_request(parent, child, k);
+  __sync_fetch_and_add(&child->idata->vcores, granted);
   current_sched = child;
   return granted;
 }
