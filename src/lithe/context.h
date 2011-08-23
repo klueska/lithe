@@ -51,7 +51,7 @@ typedef struct lithe_context {
   lithe_context_stack_t stack;
 
   /* Context local storage */
-  void *tls;
+  void *cls;
 
   /* Flag indicating if the context is finished and should be destroyed or not */
   bool finished;

@@ -102,16 +102,6 @@ void lithe_context_destroy(lithe_context_t *context);
 lithe_context_t *lithe_context_self();
 
 /*
- * Set the context local storage of the current context. 
- */
-void lithe_context_settls(void *tls);
-
-/*
- * Get the context local storage of the current context. 
- */
-void *lithe_context_gettls();
-
-/*
  * Run the specified context.  Upon completion, the context is yielded, and must be
  * explicitly destroyed via a call to lithe_context_detroy() to free any memory
  * associated with it. It must have been precreated. This function never
@@ -143,6 +133,16 @@ void lithe_context_yield();
  * Exit the current context.
  */
 void lithe_context_exit();
+
+/*
+ * Set the context local storage of the current context. 
+ */
+void lithe_context_set_cls(lithe_context_t *context, void *cls);
+
+/*
+ * Get the context local storage of the current context. 
+ */
+void *lithe_context_get_cls(lithe_context_t *context);
 
 #ifdef __cplusplus
 }

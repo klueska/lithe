@@ -986,7 +986,7 @@ static inline void SetThreadSpecific( GenericScheduler* s ) {
     if (context == NULL) {
         handle_perror(errno, "lithe_context_self");
     }
-    context->tls = s;
+    lithe_context_set_cls(context, s);
 #else
     pthread_setspecific( TLS_Key, s );
 #endif /* USE_WINTHREAD */
@@ -1012,7 +1012,7 @@ static inline GenericScheduler* GetThreadSpecific() {
     if (context == NULL) {
         handle_perror(errno, "lithe_context_self");
     }
-    result = (GenericScheduler*) context->tls;
+    result = (GenericScheduler*) lithe_context_get_cls(context);
 #else
     result = (GenericScheduler*)pthread_getspecific( TLS_Key );
 #endif /* USE_WINTHREAD */
@@ -3524,7 +3524,7 @@ int task_scheduler_init::vcore_request(lithe_sched_t *child, int k) {
 }
 
 void task_scheduler_init::context_runnable(lithe_context_t *context) {
-    GenericScheduler *s = (GenericScheduler*) context->tls;
+    GenericScheduler *s = (GenericScheduler*) lithe_context_get_cls(context);
     __TBB_ASSERT( s->is_worker(), "unblocking a non-worker" );
     WorkerDescriptor &w = *(s->w);
     w.context = context;

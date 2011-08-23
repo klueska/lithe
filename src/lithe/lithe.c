@@ -160,8 +160,8 @@ static __thread struct {
 
 } lithe_tls = {NULL, NULL, NULL};
 #define next_context     (lithe_tls.next_context)
-#define next_func     (lithe_tls.next_func)
-#define current_sched (lithe_tls.current_sched)
+#define next_func        (lithe_tls.next_func)
+#define current_sched    (lithe_tls.current_sched)
 #define current_context  ((lithe_context_t*)current_uthread)
 
 void vcore_ready()
@@ -580,7 +580,7 @@ static void __lithe_context_init_bare(lithe_context_t *context, lithe_context_at
 {
   uthread_set_tls_var(&context->uth, current_sched, current_sched);
   context->stack = attr->stack;
-  context->tls = NULL;
+  context->cls = NULL;
   context->finished = false;
   context->free_stack = false;
 }
@@ -673,20 +673,6 @@ lithe_context_t *lithe_context_self()
   return current_context;
 }
 
-void lithe_context_settls(void *tls) 
-{
-  assert(current_context);
-  assert(!in_vcore_context());
-  current_context->tls = tls;
-}
-
-void *lithe_context_gettls()
-{
-  assert(current_context);
-  assert(!in_vcore_context());
-  return current_context->tls;
-}
-
 int lithe_context_run(lithe_context_t *context)
 {
   assert(context);
@@ -753,5 +739,17 @@ void lithe_context_exit()
   assert(current_context);
   current_context->finished = true;
   uthread_yield(false);
+}
+
+void lithe_context_set_cls(lithe_context_t *context, void *cls) 
+{
+  assert(context);
+  context->cls = cls;
+}
+
+void *lithe_context_get_cls(lithe_context_t *context)
+{
+  assert(context);
+  return context->cls;
 }
 
