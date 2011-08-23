@@ -27,7 +27,7 @@ static int __uthread_allocate_tls(struct uthread *uthread);
 static void __uthread_free_tls(struct uthread *uthread);
 
 /* Gets called once out of uthread_create().  Can also do this in a ctor. */
-int uthread_init(void)
+int uthread_lib_init(void)
 {
 	/* Only do this initialization once, every time after, just return 0 */
 	static bool first = TRUE;
@@ -78,44 +78,23 @@ void __attribute__((noreturn)) uthread_vcore_entry(void)
 	assert(0);
 }
 
-/* Creates a uthread.  Will pass udata to sched_ops's thread_create.  For now,
- * the vcore/default 2ls code handles start routines and args.  Mostly because
- * this is used when initing a ucontext, which is vcore specific for now. */
-struct uthread *uthread_create(void (*func)(void), void *udata)
+void uthread_init(struct uthread *uthread)
 {
 	/* Make sure we are initialized */
-	assert(uthread_init() == 0);
+	assert(uthread_lib_init() == 0);
 
-    /* Make sure we have a thread_create op registered */
-	assert(sched_ops->thread_create);
-	/* Call the thread_create op to create a new 'scheduler specific' thread */
-	struct uthread *new_thread = sched_ops->thread_create(func, udata);
-	uthread_construct(new_thread);
-	return new_thread;
-}
-
-/* Destroys the uthread.  If you want to destroy a currently running uthread,
- * you'll want something like pthread_exit(), which yields, and calls this from
- * its sched_ops yield. */
-void uthread_destroy(struct uthread *uthread)
-{
-	printd("[U] thread %08p on vcore %d is DYING!\n", uthread, vcore_id());
-	/* we alloc and manage the TLS, so lets get rid of it */
-	uthread_destruct(uthread);
-	assert(sched_ops->thread_destroy);
-	sched_ops->thread_destroy(uthread);
-}
-
-void uthread_construct(struct uthread *uthread)
-{
+	/* If a tls regions alredy exists for this uthread, free it */
+	if(uthread->tls_desc)
+      __uthread_free_tls(uthread);
 	/* Get a TLS for the new thread */
 	assert(!__uthread_allocate_tls(uthread));
 	/* Set the thread's internal tls variable for current_uthread to itself */
 	uthread_set_tls_var(uthread, current_uthread, uthread);
 }
 
-void uthread_destruct(struct uthread *uthread)
+void uthread_cleanup(struct uthread *uthread)
 {
+	printd("[U] thread %08p on vcore %d is DYING!\n", uthread, vcore_id());
 	/* Free the uthread's tls descriptor */
 	assert(uthread->tls_desc);
 	__uthread_free_tls(uthread);

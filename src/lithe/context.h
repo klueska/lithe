@@ -24,15 +24,6 @@ typedef struct {
   ssize_t size;
 
 } lithe_context_stack_t;
-
-typedef struct {
-  /* The stack to initialize a lithe context to. If both stack_bot and stack_size
-   * are set, initialize the lithe context with this stack. If stack_bot == NULL,
-   * allocate a stack of size stack_size.  If stack_size == 0, allocate some
-   * default stack size. */
-  lithe_context_stack_t stack;
-
-} lithe_context_attr_t;
   
 /* Basic lithe context structure.  All derived scheduler contexts MUST have this as
  * their first field so that they can be cast properly within the lithe
@@ -53,12 +44,11 @@ typedef struct lithe_context {
   /* Context local storage */
   void *cls;
 
-  /* Flag indicating if the context is finished and should be destroyed or not */
+  /* Flag to indicate that this context has run to completion */
   bool finished;
 
-  /* Flag indicating if the stack was provided or we need to ask the scheduler
-   * to destroy it */
-  bool free_stack;
+  /* Flag to indicate that this context has been blocked */
+  bool blocked;
 
 } lithe_context_t;
 

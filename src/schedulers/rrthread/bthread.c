@@ -36,20 +36,16 @@ static inline void spin_to_sleep(unsigned int spins, unsigned int *spun);
 /* Pthread 2LS operations */
 struct uthread *pth_init(void);
 void pth_sched_entry(void);
-struct uthread *pth_thread_create(void (*func)(void), void *udata);
 void pth_thread_runnable(struct uthread *uthread);
 void pth_thread_yield(struct uthread *uthread);
-void pth_thread_destroy(struct uthread *uthread);
 void pth_preempt_pending(void);
 void pth_spawn_thread(uintptr_t pc_start, void *data);
 
 struct schedule_ops bthread_sched_ops = {
 	pth_init,
 	pth_sched_entry,
-	pth_thread_create,
 	pth_thread_runnable,
 	pth_thread_yield,
-	pth_thread_destroy,
 	0, /* pth_preempt_pending, */
 	0, /* pth_spawn_thread, */
 };
@@ -120,37 +116,6 @@ static void __bthread_run(void)
 	bthread_exit(me->start_routine(me->arg));
 }
 
-/* Responible for creating the uthread and initializing its user trap frame */
-struct uthread *pth_thread_create(void (*func)(void), void *udata)
-{
-	struct bthread_tcb *bthread;
-	bthread_attr_t *attr = (bthread_attr_t*)udata;
-	bthread = (bthread_t)calloc(1, sizeof(struct bthread_tcb));
-	assert(bthread);
-	bthread->stacksize = BTHREAD_STACK_SIZE;	/* default */
-	bthread->id = get_next_pid();
-	bthread->detached = FALSE;				/* default */
-	bthread->flags = 0;
-	bthread->finished = FALSE;				/* default */
-	/* Respect the attributes */
-	if (attr) {
-		if (attr->stacksize)					/* don't set a 0 stacksize */
-			bthread->stacksize = attr->stacksize;
-		if (attr->detachstate == BTHREAD_CREATE_DETACHED)
-			bthread->detached = TRUE;
-	}
-	/* allocate a stack */
-	if (__bthread_allocate_stack(bthread))
-		printf("We're fucked\n");
-	/* Set the u_tf to start up in __bthread_run, which will call the real
-	 * start_routine and pass it the arg.  Note those aren't set until later in
-	 * bthread_create(). */
-    init_uthread_stack(&bthread->uthread, bthread->stack, bthread->stacksize); 
-    if(func != NULL)
-      init_uthread_entry(&bthread->uthread, func);
-	return (struct uthread*)bthread;
-}
-
 void pth_thread_runnable(struct uthread *uthread)
 {
 	struct bthread_tcb *bthread = (struct bthread_tcb*)uthread;
@@ -162,6 +127,20 @@ void pth_thread_runnable(struct uthread *uthread)
 	threads_ready++;
 	mcs_lock_unlock(&queue_lock, &local_qn);
 	vcore_request(threads_ready);
+}
+
+static void __bthread_destroy(struct bthread_tcb *bthread)
+{
+	/* Cleanup the underlying uthread */
+	uthread_cleanup(&bthread->uthread);
+
+	/* Cleanup, mirroring bthread_create() */
+	__bthread_free_stack(bthread);
+	/* TODO: race on detach state */
+	if (bthread->detached)
+		free(bthread);
+	else
+		bthread->finished = 1;
 }
 
 /* The calling thread is yielding.  Do what you need to do to restart (like put
@@ -178,7 +157,7 @@ void pth_thread_yield(struct uthread *uthread)
 	TAILQ_REMOVE(&active_queue, bthread, next);
 	if (bthread->flags & PTHREAD_EXITING) {
 		mcs_lock_unlock(&queue_lock, &local_qn);
-		uthread_destroy(uthread);
+		__bthread_destroy(bthread);
 	} else {
 		/* Put it on the ready list (tail).  Don't do this until we are done
 		 * completely with the thread, since it can be restarted somewhere else.
@@ -189,18 +168,6 @@ void pth_thread_yield(struct uthread *uthread)
 	}
 }
 	
-void pth_thread_destroy(struct uthread *uthread)
-{
-	struct bthread_tcb *bthread = (struct bthread_tcb*)uthread;
-	/* Cleanup, mirroring pth_thread_create() */
-	__bthread_free_stack(bthread);
-	/* TODO: race on detach state */
-	if (bthread->detached)
-		free(bthread);
-	else
-		bthread->finished = 1;
-}
-
 void pth_preempt_pending(void)
 {
 }
@@ -261,13 +228,41 @@ int bthread_attr_getstacksize(const bthread_attr_t *attr, size_t *stacksize)
 	return 0;
 }
 
+/* Responible for creating the bthread and initializing its user trap frame */
 int bthread_create(bthread_t* thread, const bthread_attr_t* attr,
                    void *(*start_routine)(void *), void* arg)
 {
-	struct bthread_tcb *bthread =
-	       (struct bthread_tcb*)uthread_create(__bthread_run, (void*)attr);
-	if (!bthread)
-		return -1;
+	/* Create a bthread struct */
+	struct bthread_tcb *bthread;
+	bthread = (bthread_t)calloc(1, sizeof(struct bthread_tcb));
+	assert(bthread);
+
+	/* Initialize the basics of the underlying uthread */
+	uthread_init(&bthread->uthread);
+
+	/* Initialize bthread state */
+	bthread->stacksize = BTHREAD_STACK_SIZE;	/* default */
+	bthread->id = get_next_pid();
+	bthread->detached = FALSE;				/* default */
+	bthread->flags = 0;
+	bthread->finished = FALSE;				/* default */
+	/* Respect the attributes */
+	if (attr) {
+		if (attr->stacksize)					/* don't set a 0 stacksize */
+			bthread->stacksize = attr->stacksize;
+		if (attr->detachstate == BTHREAD_CREATE_DETACHED)
+			bthread->detached = TRUE;
+	}
+	/* allocate a stack */
+	if (__bthread_allocate_stack(bthread))
+		printf("We're fucked\n");
+
+	/* Set the u_tf to start up in __bthread_run, which will call the real
+	 * start_routine and pass it the arg.  Note those aren't set until later in
+	 * bthread_create(). */
+    init_uthread_stack(&bthread->uthread, bthread->stack, bthread->stacksize); 
+    init_uthread_entry(&bthread->uthread, __bthread_run);
+
 	bthread->start_routine = start_routine;
 	bthread->arg = arg;
 	uthread_runnable((struct uthread*)bthread);

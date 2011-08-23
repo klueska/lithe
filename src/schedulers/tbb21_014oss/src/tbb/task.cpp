@@ -3399,7 +3399,12 @@ const stack_size_type ThreadStackSize = 4*MByte;
 #if USE_LITHE
 
 void task_scheduler_init_enter_end(lithe_context_t *context, void *arg) {
-    lithe_context_destroy(context);
+    lithe_context_cleanup(context);
+	assert(context->stack.bottom);
+	//free(context->stack.bottom);
+	assert(context);
+	//free(context);
+
     context = static_cast<lithe_context_t *>(arg);
     if (context != NULL) {
 	lithe_context_run(context);
@@ -3443,10 +3448,13 @@ void task_scheduler_init::vcore_enter() {
 	    if (w.state == WorkerDescriptor::REQUESTED) {
 		if (__TBB_CompareAndSwapW(&w.state, WorkerDescriptor::RUNNING, WorkerDescriptor::REQUESTED) == WorkerDescriptor::REQUESTED) {
     		w.id = i + 1;
-            lithe_context_attr_t attr;
-			lithe_context_attr_init(&attr);
-		    attr.stack.size = w.thread_stack_size ? w.thread_stack_size : ThreadStackSize;
-		    lithe_context_t *context = lithe_context_create(&attr, task_scheduler_init_enter_begin, &w);
+
+			lithe_context_t *context = (lithe_context_t*)calloc(1, sizeof(lithe_context_t));
+			assert(context);
+			context->stack.size = w.thread_stack_size ? w.thread_stack_size : ThreadStackSize;
+			context->stack.bottom = malloc(context->stack.size);
+			assert(context->stack.bottom);
+			lithe_context_init(context, task_scheduler_init_enter_begin, &w);
 		    lithe_context_run(context);
 		    // NEVER RETURNS!
 		    break;
@@ -3523,7 +3531,7 @@ int task_scheduler_init::vcore_request(lithe_sched_t *child, int k) {
 	return -1;
 }
 
-void task_scheduler_init::context_runnable(lithe_context_t *context) {
+void task_scheduler_init::context_unblock(lithe_context_t *context) {
     GenericScheduler *s = (GenericScheduler*) lithe_context_get_cls(context);
     __TBB_ASSERT( s->is_worker(), "unblocking a non-worker" );
     WorkerDescriptor &w = *(s->w);
@@ -3564,7 +3572,8 @@ void task_scheduler_init::initialize( int number_of_threads, stack_size_type thr
 	// been started, but we want to avoid a race with hard threads
 	// entering the scheduler (via 'enter') before we are
 	// completely initialized
-	if (lithe_sched_enter(&funcs, this) != 0) {
+	memset(&context, 0, sizeof(context));
+	if (lithe_sched_enter(&funcs, this, &context) != 0) {
 		handle_perror(errno, "lithe_sched_enter");
 	}
 

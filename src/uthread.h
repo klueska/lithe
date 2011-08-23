@@ -32,10 +32,8 @@ struct schedule_ops {
 	/* Functions supporting thread ops */
 	struct uthread *(*sched_init)(void);
 	void (*sched_entry)(void);
-	struct uthread *(*thread_create)(void (*func)(void), void *);
 	void (*thread_runnable)(struct uthread *);
 	void (*thread_yield)(struct uthread *);
-	void (*thread_destroy)(struct uthread *);
 	/* Functions event handling wants */
 	void (*preempt_pending)(void);
 	void (*spawn_thread)(uintptr_t pc_start, void *data);	/* don't run yet */
@@ -51,23 +49,15 @@ extern struct schedule_ops *sched_ops;
 extern void uthread_vcore_entry();
 
 /* Initilization function for the uthread library */
-int uthread_init();
+int uthread_lib_init();
 
-/* Creates a uthread.  Will pass udata to sched_ops's thread_create.  Func is
- * what gets run, and if you want args, wrap it (like pthread) */
-struct uthread *uthread_create(void (*func)(void), void *udata);
+/* Initializes a uthread. */
+void uthread_init(struct uthread *uth);
 
-/* Destroys a uthread created by a call to uthread_create(). Be careful not to
- * call this on any currently running uthreads. */
-void uthread_destroy(struct uthread *uthread);
-
-/* Construct a uthread that's already been created by some means (possibly)
- * other than a direct call to uthread_create() */
-void uthread_construct(struct uthread *uthread);
-
-/* Destruct a uthread that's already been constructed by a direct call to
- * uthread_construct() */
-void uthread_destruct(struct uthread *uthread);
+/* Cleans up a uthread that was previously initialized by a call to
+ * uthread_init(). Be careful not to call this on any currently running
+ * uthreads. */
+void uthread_cleanup(struct uthread *uthread);
 
 /* Function forcing a uthread to become runnable */
 void uthread_runnable(struct uthread *uthread);

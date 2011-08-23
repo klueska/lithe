@@ -12,7 +12,9 @@ using namespace lithe;
 class RootScheduler : public Scheduler {
  protected:
   void vcore_enter();
-  void context_runnable(lithe_context_t *context);
+  void context_unblock(lithe_context_t *context);
+  void context_yield(lithe_context_t *context);
+  void context_exit(lithe_context_t *context);
 
  public:
   unsigned int context_count;
@@ -45,12 +47,29 @@ void RootScheduler::vcore_enter()
     lithe_context_run(context);
 }
 
-void RootScheduler::context_runnable(lithe_context_t *context)
+void enqueue_task(RootScheduler *sched, lithe_context_t *context)
 {
-  spinlock_lock(&this->qlock);
-    context_deque_enqueue(&this->contextq, context);
+  spinlock_lock(&sched->qlock);
+    context_deque_enqueue(&sched->contextq, context);
     lithe_vcore_request(max_vcores());
-  spinlock_unlock(&this->qlock);
+  spinlock_unlock(&sched->qlock);
+}
+
+void RootScheduler::context_unblock(lithe_context_t *context)
+{
+  enqueue_task(this, context);
+}
+
+void RootScheduler::context_yield(lithe_context_t *context)
+{
+  enqueue_task(this, context);
+}
+
+void RootScheduler::context_exit(lithe_context_t *context)
+{
+  assert(context);
+  lithe_context_cleanup(context);
+  __lithe_context_destroy_default(context, true);
 }
 
 void work(void *arg)
@@ -72,7 +91,8 @@ void root_run(int context_count)
   RootScheduler *sched = (RootScheduler*)lithe_sched_current();
   sched->context_count = context_count;
   for(unsigned int i=0; i < sched->context_count; i++) {
-    lithe_context_t *context  = lithe_context_create(NULL, work, (void*)sched);
+    lithe_context_t *context = __lithe_context_create_default(true);
+    lithe_context_init(context, work, (void*)sched);
     context_deque_enqueue(&sched->contextq, context);
   }
 
@@ -85,6 +105,7 @@ void root_run(int context_count)
       if(sched->context_count == 0)
         break;
     lithe_mutex_unlock(&sched->mutex);
+    lithe_context_yield();
   }
   lithe_mutex_unlock(&sched->mutex);
   printf("root_run finish\n");
@@ -94,9 +115,11 @@ int main(int argc, char **argv)
 {
   printf("main start\n");
   RootScheduler root_sched;
-  lithe_sched_enter(&Scheduler::funcs, &root_sched);
-  root_run(150000);
+  lithe_context_t *context = __lithe_context_create_default(false);
+  lithe_sched_enter(&Scheduler::funcs, &root_sched, context);
+  root_run(1500);
   lithe_sched_exit();
+  __lithe_context_destroy_default(context, false);
   printf("main finish\n");
   return 0;
 }

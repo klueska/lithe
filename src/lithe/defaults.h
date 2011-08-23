@@ -9,6 +9,32 @@
 extern "C" {
 #endif
 
+/* Helpful defaults not associated with any specific lithe callback function */
+static lithe_context_t* __lithe_context_create_default(bool stack)
+{
+  lithe_context_t *context = (lithe_context_t*)calloc(1, sizeof(lithe_context_t));
+  assert(context);
+
+  if(stack) {
+    context->stack.size = 4*getpagesize();
+    context->stack.bottom = malloc(context->stack.size);
+    assert(context->stack.bottom);
+  }
+  return context;
+}
+
+static void __lithe_context_destroy_default(lithe_context_t *context, bool stack)
+{
+  if(stack) {
+    assert(context->stack.bottom);
+    free(context->stack.bottom);
+  }
+
+  assert(context);
+  free(context);
+}
+
+/* Helpful defaults for the lithe callback functions */
 static int __vcore_request_default(lithe_sched_t *__this, lithe_sched_t *child, int k)
 {
   return lithe_vcore_request(k);
@@ -34,42 +60,24 @@ static void __child_exited_default(lithe_sched_t *__this, lithe_sched_t *child)
   // Do nothing special by default when a child is exited
 }
 
-static lithe_context_t* __context_create_default(lithe_sched_t *__this, lithe_context_attr_t *attr)
+static void __context_block_default(lithe_sched_t *__this, lithe_context_t *context)
 {
-  lithe_context_t *context = (lithe_context_t*)malloc(sizeof(lithe_context_t));
-  assert(context);
-  return context;
+  // Do nothing special by default when a context is blocked
 }
 
-static void __context_destroy_default(lithe_sched_t *__this, lithe_context_t *context)
+static void __context_unblock_default(lithe_sched_t *__this, lithe_context_t *context)
 {
-  assert(context);
-  free(context);
-}
-
-static void __context_stack_create_default(lithe_sched_t *__this, lithe_context_stack_t *stack)
-{
-  if(stack->size == 0)
-    stack->size = 4*getpagesize();
-
-  stack->bottom = malloc(stack->size);
-  assert(stack->bottom);
-}
-
-static void __context_stack_destroy_default(lithe_sched_t *__this, lithe_context_stack_t *stack)
-{
-  assert(stack->bottom);
-  free(stack->bottom);
-}
-
-static void __context_runnable_default(lithe_sched_t *__this, lithe_context_t *context)
-{
-  fatal((char*)"Should not be calling context_runnable()");
+  fatal((char*)"Should not be calling context_unblock()");
 }
 
 static void __context_yield_default(lithe_sched_t *__this, lithe_context_t *context)
 {
   // Do nothing special by default when a context is yielded
+}
+
+static void __context_exit_default(lithe_sched_t *__this, lithe_context_t *context)
+{
+  // Do nothing special by default when a context exits
 }
 
 #ifdef __cplusplus

@@ -28,34 +28,24 @@ void __child_exited(lithe_sched_t *__this, lithe_sched_t *child)
   ((Scheduler*)__this)->child_exited(child);
 }
 
-lithe_context_t* __context_create(lithe_sched_t *__this, lithe_context_attr_t *attr)
+void __context_block(lithe_sched_t *__this, lithe_context_t *context)
 {
-  return ((Scheduler*)__this)->context_create(attr);
+  ((Scheduler*)__this)->context_block(context);
 }
 
-void __context_destroy(lithe_sched_t *__this, lithe_context_t *context)
+void __context_unblock(lithe_sched_t *__this, lithe_context_t *context)
 {
-  ((Scheduler*)__this)->context_destroy(context);
-}
-
-void __context_stack_create(lithe_sched_t *__this, lithe_context_stack_t *stack)
-{
-  return ((Scheduler*)__this)->context_stack_create(stack);
-}
-
-void __context_stack_destroy(lithe_sched_t *__this, lithe_context_stack_t *stack)
-{
-  ((Scheduler*)__this)->context_stack_destroy(stack);
-}
-
-void __context_runnable(lithe_sched_t *__this, lithe_context_t *context)
-{
-  ((Scheduler*)__this)->context_runnable(context);
+  ((Scheduler*)__this)->context_unblock(context);
 }
 
 void __context_yield(lithe_sched_t *__this, lithe_context_t *context)
 {
   ((Scheduler*)__this)->context_yield(context);
+}
+
+void __context_exit(lithe_sched_t *__this, lithe_context_t *context)
+{
+  ((Scheduler*)__this)->context_exit(context);
 }
 
 const lithe_sched_funcs_t Scheduler::funcs = {
@@ -64,12 +54,10 @@ const lithe_sched_funcs_t Scheduler::funcs = {
   /*.vcore_return          = */ __vcore_return,
   /*.child_entered         = */ __child_entered,
   /*.child_exited          = */ __child_exited,
-  /*.context_create        = */ __context_create,
-  /*.context_destroy       = */ __context_destroy,
-  /*.context_stack_create  = */ __context_stack_create,
-  /*.context_stack_destroy = */ __context_stack_destroy,
-  /*.context_runnable      = */ __context_runnable,
-  /*.context_yield         = */ __context_yield
+  /*.context_block         = */ __context_block,
+  /*.context_unblock       = */ __context_unblock,
+  /*.context_yield         = */ __context_yield,
+  /*.context_exit          = */ __context_exit
 };
  
 }

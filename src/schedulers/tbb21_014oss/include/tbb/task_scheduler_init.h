@@ -71,7 +71,7 @@ protected:
     void child_started(lithe_sched_t *child);
     void child_finished(lithe_sched_t *child);
     int vcore_request(lithe_sched_t *child, int k);
-    void context_runnable(lithe_context_t *context);
+    void context_unblock(lithe_context_t *context);
 
 #endif /* USE_LITHE */
 

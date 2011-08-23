@@ -25,7 +25,7 @@ static void child_sched_dtor(child_sched_t *sched)
 }
 
 static void child_vcore_enter(lithe_sched_t *__this);
-static void child_context_runnable(lithe_sched_t *__this, lithe_context_t *context); 
+static void child_context_unblock(lithe_sched_t *__this, lithe_context_t *context); 
 
 static const lithe_sched_funcs_t child_funcs = {
   .vcore_request         = __vcore_request_default,
@@ -33,15 +33,13 @@ static const lithe_sched_funcs_t child_funcs = {
   .vcore_return          = __vcore_return_default,
   .child_entered         = __child_entered_default,
   .child_exited          = __child_exited_default,
-  .context_create        = __context_create_default,
-  .context_destroy       = __context_destroy_default,
-  .context_stack_create  = __context_stack_create_default,
-  .context_stack_destroy = __context_stack_destroy_default,
-  .context_runnable      = child_context_runnable,
-  .context_yield         = __context_yield_default
+  .context_block         = __context_block_default,
+  .context_unblock       = child_context_unblock,
+  .context_yield         = __context_yield_default,
+  .context_exit          = __context_exit_default,
 };
 
-static void child_context_runnable(lithe_sched_t *__this, lithe_context_t *context) 
+static void child_context_unblock(lithe_sched_t *__this, lithe_context_t *context) 
 {
   printf("child_context_runnable\n");
   child_sched_t *sched = (child_sched_t *)__this;
@@ -76,9 +74,11 @@ void child_main(void *arg)
   /* Start a child scheduler: Blocks until scheduler finishes */
   child_sched_t child_sched;
   child_sched_ctor(&child_sched);
-  lithe_sched_enter(&child_funcs, (lithe_sched_t*)&child_sched);
+  lithe_context_t *context = __lithe_context_create_default(false);
+  lithe_sched_enter(&child_funcs, (lithe_sched_t*)&child_sched, context);
   child_run();
   lithe_sched_exit();
+  __lithe_context_destroy_default(context, false);
   child_sched_dtor(&child_sched);
   printf("child_main finish\n");
 }
@@ -121,7 +121,8 @@ int root_vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
 static void root_vcore_enter(lithe_sched_t *this);
 void root_child_entered(lithe_sched_t *__this, lithe_sched_t *child);
 void root_child_exited(lithe_sched_t *__this, lithe_sched_t *child);
-static void root_context_runnable(lithe_sched_t *__this, lithe_context_t *context);
+static void root_context_unblock(lithe_sched_t *__this, lithe_context_t *context);
+static void root_context_exit(lithe_sched_t *__this, lithe_context_t *context);
 
 static const lithe_sched_funcs_t root_funcs = {
   .vcore_request         = root_vcore_request,
@@ -129,12 +130,10 @@ static const lithe_sched_funcs_t root_funcs = {
   .vcore_return          = __vcore_return_default,
   .child_entered         = root_child_entered,
   .child_exited          = root_child_exited,
-  .context_create        = __context_create_default,
-  .context_destroy       = __context_destroy_default,
-  .context_stack_create  = __context_stack_create_default,
-  .context_stack_destroy = __context_stack_destroy_default,
-  .context_runnable      = root_context_runnable,
-  .context_yield         = __context_yield_default
+  .context_block         = __context_block_default,
+  .context_unblock       = root_context_unblock,
+  .context_yield         = __context_yield_default,
+  .context_exit          = root_context_exit
 };
 
 int root_vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
@@ -169,13 +168,21 @@ void root_child_exited(lithe_sched_t *__this, lithe_sched_t *child)
   spinlock_unlock(&sched->lock);
 }
 
-static void root_context_runnable(lithe_sched_t *__sched, lithe_context_t *context) 
+static void root_context_unblock(lithe_sched_t *__sched, lithe_context_t *context) 
 {
+  printf("root_context_unblock\n");
   root_sched_t *sched = (root_sched_t *)__sched;
   assert(context == sched->start_context);
   lithe_context_run(context);
 }
 
+void root_context_exit(lithe_sched_t *__sched, lithe_context_t *context) 
+{
+  printf("root_context_exit\n");
+  assert(context);
+  lithe_context_cleanup(context);
+  __lithe_context_destroy_default(context, true);
+}
 static void root_vcore_enter(lithe_sched_t *__sched) 
 {
   printf("root_vcore_enter\n");
@@ -213,7 +220,8 @@ static void root_vcore_enter(lithe_sched_t *__sched)
 
   switch(state) {
     case STATE_CREATE: {
-      lithe_context_t *context = lithe_context_create(NULL, child_main, NULL);
+      lithe_context_t *context = __lithe_context_create_default(true);
+      lithe_context_init(context, child_main, NULL);
       lithe_context_run(context);
       break;
     }
@@ -258,9 +266,11 @@ int main()
   /* Start the root scheduler: Blocks until scheduler finishes */
   root_sched_t root_sched;
   root_sched_ctor(&root_sched);
-  lithe_sched_enter(&root_funcs, (lithe_sched_t*)&root_sched);
+  lithe_context_t *context = __lithe_context_create_default(false);
+  lithe_sched_enter(&root_funcs, (lithe_sched_t*)&root_sched, context);
   root_run();
   lithe_sched_exit();
+  __lithe_context_destroy_default(context, false);
   root_sched_dtor(&root_sched);
   printf("root_main finish\n");
   return 0;

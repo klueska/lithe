@@ -33,7 +33,7 @@ extern "C" {
  * needed. Only at this point will control be passed back to the parent
  * scheduler. Returns -1 if there is an error and sets errno appropriately.
  */
-int lithe_sched_enter(const lithe_sched_funcs_t *funcs, lithe_sched_t *child);
+int lithe_sched_enter(const lithe_sched_funcs_t *funcs, lithe_sched_t *child, lithe_context_t *context);
 
 /**
  * Exits the current scheduler, returning control to its parent. Must be paired
@@ -70,31 +70,17 @@ int lithe_vcore_grant(lithe_sched_t *child);
 void lithe_vcore_yield();
 
 /*
- * Initialize the attributes used to create / initialize a lithe context. Must be
- * called on all attribute variables before passing them to either
- * lithe_context_create() or lithe_context_init(). 
+ * Initialize a new state for an existing context. The context parameter MUST
+ * already contain a valid stack pointer and stack size. Once the context is
+ * restarted it will run from the entry point specified.
  */
-void lithe_context_attr_init(lithe_context_attr_t *attr);
-/*
- * Create a new context with a set of attributes and a start function.  Passing
- * NULL for both func and arg are valid, but require you to subsequently call
- * lithe_context_init() before running the context.  Returns the newly
- * created context on success and NULL on error.
- */
-lithe_context_t *lithe_context_create(lithe_context_attr_t *attr, void (*func) (void *), void *arg); 
-
-/*
- * Initialize a new state for an existing context. The attr parameter MUST contain
- * a valid stack pointer and stack size. Once the context is restarted it will run
- * from the entry point specified.
- */
-void lithe_context_init(lithe_context_t *context, lithe_context_attr_t *attr, void (*func) (void *), void *arg);
+void lithe_context_init(lithe_context_t *context, void (*func) (void *), void *arg);
 
 /* 
- * Destroy an existing context. This context should not be currently running on any
+ * Cleanup an existing context. This context should not be currently running on any
  * vcore.  For currently running contexts, instead use lithe_context_exit().
  */
-void lithe_context_destroy(lithe_context_t *context);
+void lithe_context_cleanup(lithe_context_t *context);
 
 /*
  * Returns the currently executing context.
@@ -128,11 +114,6 @@ int lithe_context_unblock(lithe_context_t *context);
  * Cooperatively yield the current context.
  */
 void lithe_context_yield();
-
-/*
- * Exit the current context.
- */
-void lithe_context_exit();
 
 /*
  * Set the context local storage of the current context. 

@@ -40,12 +40,10 @@ static const lithe_sched_funcs_t funcs = {
   .vcore_return          = __vcore_return_default,
   .child_entered         = __child_entered_default,
   .child_exited          = __child_exited_default,
-  .context_create        = __context_create_default,
-  .context_destroy       = __context_destroy_default,
-  .context_stack_create  = __context_stack_create_default,
-  .context_stack_destroy = __context_stack_destroy_default,
-  .context_runnable      = __context_runnable_default,
-  .context_yield         = __context_yield_default
+  .context_block         = __context_block_default,
+  .context_unblock       = __context_unblock_default,
+  .context_yield         = __context_yield_default,
+  .context_exit          = __context_exit_default
 };
 
 static void vcore_enter(lithe_sched_t *__this)
@@ -85,9 +83,11 @@ int main()
   printf("Lithe Simple test starting!\n");
   test_sched_t test_sched;
   test_sched_ctor(&test_sched);
-  lithe_sched_enter(&funcs, (lithe_sched_t*)&test_sched);
+  lithe_context_t *context = __lithe_context_create_default(false);
+  lithe_sched_enter(&funcs, (lithe_sched_t*)&test_sched, context);
   test_run();
   lithe_sched_exit();
+  __lithe_context_destroy_default(context, false);
   test_sched_dtor(&test_sched);
   printf("Lithe Simple test exiting\n");
   return 0;
