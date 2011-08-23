@@ -18,12 +18,12 @@ class Scheduler : public lithe_sched_t {
   friend void __vcore_return(lithe_sched_t *__this, lithe_sched_t *child);
   friend void __child_entered(lithe_sched_t *__this, lithe_sched_t *child);
   friend void __child_exited(lithe_sched_t *__this, lithe_sched_t *child);
-  friend lithe_task_t* __task_create(lithe_sched_t *__this, lithe_task_attr_t *attr);
-  friend void __task_destroy(lithe_sched_t *__this, lithe_task_t *task);
-  friend void __task_stack_create(lithe_sched_t *__this, lithe_task_stack_t *stack);
-  friend void __task_stack_destroy(lithe_sched_t *__this, lithe_task_stack_t *stack);
-  friend void __task_runnable(lithe_sched_t *__this, lithe_task_t *task);
-  friend void __task_yield(lithe_sched_t *__this, lithe_task_t *task);
+  friend lithe_context_t* __context_create(lithe_sched_t *__this, lithe_context_attr_t *attr);
+  friend void __context_destroy(lithe_sched_t *__this, lithe_context_t *context);
+  friend void __context_stack_create(lithe_sched_t *__this, lithe_context_stack_t *stack);
+  friend void __context_stack_destroy(lithe_sched_t *__this, lithe_context_stack_t *stack);
+  friend void __context_runnable(lithe_sched_t *__this, lithe_context_t *context);
+  friend void __context_yield(lithe_sched_t *__this, lithe_context_t *context);
   
  protected:
   virtual void vcore_enter() = 0;
@@ -36,18 +36,18 @@ class Scheduler : public lithe_sched_t {
     { return __child_entered_default(this, child); }
   virtual void child_exited(lithe_sched_t *child)
     { return __child_exited_default(this, child); }
-  virtual lithe_task_t* task_create(lithe_task_attr_t *attr)
-    { return __task_create_default(this, attr); }
-  virtual void task_destroy(lithe_task_t *task)
-    { return __task_destroy_default(this, task); }
-  virtual void task_stack_create(lithe_task_stack_t *stack)
-    { return __task_stack_create_default(this, stack); }
-  virtual void task_stack_destroy(lithe_task_stack_t *stack)
-    { return __task_stack_destroy_default(this, stack); }
-  virtual void task_runnable(lithe_task_t *task)
-    { return __task_runnable_default(this, task); }
-  virtual void task_yield(lithe_task_t *task)
-    { return __task_yield_default(this, task); }
+  virtual lithe_context_t* context_create(lithe_context_attr_t *attr)
+    { return __context_create_default(this, attr); }
+  virtual void context_destroy(lithe_context_t *context)
+    { return __context_destroy_default(this, context); }
+  virtual void context_stack_create(lithe_context_stack_t *stack)
+    { return __context_stack_create_default(this, stack); }
+  virtual void context_stack_destroy(lithe_context_stack_t *stack)
+    { return __context_stack_destroy_default(this, stack); }
+  virtual void context_runnable(lithe_context_t *context)
+    { return __context_runnable_default(this, context); }
+  virtual void context_yield(lithe_context_t *context)
+    { return __context_yield_default(this, context); }
 
  public:
   virtual ~Scheduler() {}

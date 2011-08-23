@@ -35,7 +35,7 @@
 #include <lithe/lithe.hh>
 #include <spinlock.h>
 #include "tbb/deque.h"
-DECLARE_DEFINE_TYPED_DEQUE(task, lithe_task_t *);
+DECLARE_DEFINE_TYPED_DEQUE(context, lithe_context_t *);
 #endif /* USE_LITHE */
 
 namespace tbb {
@@ -51,11 +51,11 @@ private:
     //! If state==0, then thread executing wait() suspend until state becomes non-zero.
     state_t state;
     int lock;
-    struct task_deque deque;
+    struct context_deque deque;
 
-    static void __wait(lithe_task_t *task, void *arg) {
+    static void __wait(lithe_context_t *context, void *arg) {
 	Gate *g = static_cast<Gate *>(arg);
-	task_deque_enqueue(&g->deque, task);
+	context_deque_enqueue(&g->deque, context);
 	spinlock_unlock(&g->lock);
     }
 
@@ -63,7 +63,7 @@ public:
     //! Initialize with count=0
     Gate() : state(0) {
 	spinlock_init(&lock);
-	task_deque_init(&deque);
+	context_deque_init(&deque);
         ITT_SYNC_CREATE(&state, SyncType_Scheduler, SyncObj_Gate);
     }
     ~Gate() {}
@@ -81,12 +81,12 @@ public:
 	        state = value;
 		if( !old ) {
 		    size_t k = 0;
-		    lithe_task_t *task;
-		    while (task_deque_dequeue(&deque, &task) == 0) {
-			lithe_task_unblock(task);
+		    lithe_context_t *context;
+		    while (context_deque_dequeue(&deque, &context) == 0) {
+			lithe_context_unblock(context);
 			k++;
 		    }
-		    __TBB_ASSERT(task_deque_length(&deque) == 0, "worker deque not empty");
+		    __TBB_ASSERT(context_deque_length(&deque) == 0, "worker deque not empty");
 		    if (request)
 			lithe_vcore_request(k);
 		}
@@ -100,7 +100,7 @@ public:
 	    spinlock_lock(&lock);
 	    {
 		while( state==0 ) {
-		    lithe_task_block(__wait, this);
+		    lithe_context_block(__wait, this);
 		    spinlock_lock(&lock);
 		}
 	    }

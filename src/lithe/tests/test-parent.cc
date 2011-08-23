@@ -15,10 +15,10 @@ using namespace lithe;
 class ChildScheduler : public Scheduler {
  protected:
   void vcore_enter();
-  void task_runnable(lithe_task_t *task); 
+  void context_runnable(lithe_context_t *context); 
 
  public:
-  lithe_task_t *start_task;
+  lithe_context_t *start_context;
 
   ChildScheduler();
   ~ChildScheduler() {}
@@ -26,34 +26,34 @@ class ChildScheduler : public Scheduler {
 
 ChildScheduler::ChildScheduler()
 {
-  this->start_task = NULL;
+  this->start_context = NULL;
 }
 
-void ChildScheduler::task_runnable(lithe_task_t *task) 
+void ChildScheduler::context_runnable(lithe_context_t *context) 
 {
-  printf("ChildScheduler::task_runnable\n");
-  assert(task == this->start_task);
-  lithe_task_run(task);
+  printf("ChildScheduler::context_runnable\n");
+  assert(context == this->start_context);
+  lithe_context_run(context);
 }
 
 void ChildScheduler::vcore_enter()
 {
   printf("ChildScheduler::vcore_enter\n");
-  lithe_task_unblock(this->start_task);
+  lithe_context_unblock(this->start_context);
 }
 
-static void block_child(lithe_task_t *task, void *arg)
+static void block_child(lithe_context_t *context, void *arg)
 {
   printf("block_child\n");
   ChildScheduler *sched = (ChildScheduler*)arg;
-  sched->start_task = task;
+  sched->start_context = context;
 }
 
 static void child_run()
 {
   printf("child_run start\n");
   ChildScheduler *sched = (ChildScheduler*)lithe_sched_current();
-  lithe_task_block(block_child, sched);
+  lithe_context_block(block_child, sched);
   printf("child_run finish\n");
 }
 
@@ -83,7 +83,7 @@ class RootScheduler : public Scheduler {
   int vcore_request(lithe_sched_t *child, int k);
   void child_entered(lithe_sched_t *child);
   void child_exited(lithe_sched_t *child);
-  void task_runnable(lithe_task_t *task);
+  void context_runnable(lithe_context_t *context);
 
  public:
   int lock;
@@ -92,7 +92,7 @@ class RootScheduler : public Scheduler {
   int children_started;
   int children_finished;
   sched_vcore_request_list_t needy_children;
-  lithe_task_t *start_task;
+  lithe_context_t *start_context;
 
   RootScheduler();
   ~RootScheduler() {}
@@ -105,7 +105,7 @@ RootScheduler::RootScheduler()
   this->children_started = 0;
   this->children_finished = 0;
   LIST_INIT(&this->needy_children);
-  this->start_task = NULL;
+  this->start_context = NULL;
 }
 
 int RootScheduler::vcore_request(lithe_sched_t *child, int k)
@@ -137,10 +137,10 @@ void RootScheduler::child_exited(lithe_sched_t *child)
   spinlock_unlock(&this->lock);
 }
 
-void RootScheduler::task_runnable(lithe_task_t *task) 
+void RootScheduler::context_runnable(lithe_context_t *context) 
 {
-  assert(task == this->start_task);
-  lithe_task_run(task);
+  assert(context == this->start_context);
+  lithe_context_run(context);
 }
 
 void RootScheduler::vcore_enter()
@@ -179,8 +179,8 @@ void RootScheduler::vcore_enter()
 
   switch(state) {
     case STATE_CREATE: {
-      lithe_task_t *task = lithe_task_create(NULL, child_main, NULL);
-      lithe_task_run(task);
+      lithe_context_t *context = lithe_context_create(NULL, child_main, NULL);
+      lithe_context_run(context);
       break;
     }
     case STATE_GRANT: {
@@ -192,17 +192,17 @@ void RootScheduler::vcore_enter()
       break;
     }
     case STATE_COMPLETE: {
-      lithe_task_unblock(this->start_task);
+      lithe_context_unblock(this->start_context);
       break;
     }
   }
 }
 
-static void block_root(lithe_task_t *task, void *arg)
+static void block_root(lithe_context_t *context, void *arg)
 {
   printf("block_root\n");
   RootScheduler *sched = (RootScheduler *)arg;
-  sched->start_task = task;
+  sched->start_context = context;
 }
 
 static void root_run()
@@ -214,7 +214,7 @@ static void root_run()
     sched->children_expected = sched->vcores;
     printf("children_expected: %d\n", sched->children_expected);
   spinlock_unlock(&sched->lock);
-  lithe_task_block(block_root, sched);
+  lithe_context_block(block_root, sched);
   printf("root_run finish\n");
 }
 

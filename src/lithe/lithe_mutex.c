@@ -13,7 +13,7 @@
 #include <spinlock.h>
 
 
-DEFINE_TYPED_DEQUE(task, lithe_task_t *);
+DEFINE_TYPED_DEQUE(context, lithe_context_t *);
 
 
 int lithe_mutex_init(lithe_mutex_t *mutex)
@@ -26,16 +26,16 @@ int lithe_mutex_init(lithe_mutex_t *mutex)
   /* Do initialization. */
   spinlock_init(&mutex->lock);
   mutex->locked = false;
-  task_deque_init(&mutex->deque);
+  context_deque_init(&mutex->deque);
 
   return 0;
 }
 
 
-void block(lithe_task_t *task, void *arg)
+void block(lithe_context_t *context, void *arg)
 {
   lithe_mutex_t *mutex = (lithe_mutex_t *) arg;
-  task_deque_enqueue(&mutex->deque, task);
+  context_deque_enqueue(&mutex->deque, context);
   spinlock_unlock(&mutex->lock);
 }
 
@@ -50,7 +50,7 @@ int lithe_mutex_lock(lithe_mutex_t *mutex)
   spinlock_lock(&mutex->lock);
   {
     while (mutex->locked) {
-      lithe_task_block(block, mutex);
+      lithe_context_block(block, mutex);
       spinlock_lock(&mutex->lock);
     }
     
@@ -69,19 +69,19 @@ int lithe_mutex_unlock(lithe_mutex_t *mutex)
     return -1;
   }
 
-  lithe_task_t *task = NULL;
+  lithe_context_t *context = NULL;
 
   spinlock_lock(&mutex->lock);
   {
-    if (task_deque_length(&mutex->deque) > 0) {
-      task_deque_dequeue(&mutex->deque, &task);
+    if (context_deque_length(&mutex->deque) > 0) {
+      context_deque_dequeue(&mutex->deque, &context);
     }
     mutex->locked = false;
   }
   spinlock_unlock(&mutex->lock);
 
-  if (task != NULL) {
-    lithe_task_unblock(task);
+  if (context != NULL) {
+    lithe_context_unblock(context);
   }
   
   return 0;

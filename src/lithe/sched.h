@@ -9,7 +9,7 @@
 #error "expecting __GNUC__ to be defined (are you using gcc?)"
 #endif
 
-#include <lithe/task.h>
+#include <lithe/context.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,25 +58,25 @@ struct lithe_sched_funcs {
   /* Callback to inform of a sucessfully unregistered child. */
   void (*child_exited) (lithe_sched_t *__this, lithe_sched_t *child);
 
-  /* Callback for scheduler specific task creation. */
-  lithe_task_t* (*task_create) (lithe_sched_t *__this, lithe_task_attr_t *attr);
+  /* Callback for scheduler specific context creation. */
+  lithe_context_t* (*context_create) (lithe_sched_t *__this, lithe_context_attr_t *attr);
 
-  /* Callback for scheduler specific destruction of tasks */
-  void (*task_destroy) (lithe_sched_t *__this, lithe_task_t *task);
+  /* Callback for scheduler specific destruction of contexts */
+  void (*context_destroy) (lithe_sched_t *__this, lithe_context_t *context);
 
-  /* Callback for scheduler specific task stack creation. */
-  void (*task_stack_create) (lithe_sched_t *__this, lithe_task_stack_t *stack);
+  /* Callback for scheduler specific context stack creation. */
+  void (*context_stack_create) (lithe_sched_t *__this, lithe_context_stack_t *stack);
 
-  /* Callback for scheduler specific destruction of tasks */
-  void (*task_stack_destroy) (lithe_sched_t *__this, lithe_task_stack_t *stack);
+  /* Callback for scheduler specific destruction of contexts */
+  void (*context_stack_destroy) (lithe_sched_t *__this, lithe_context_stack_t *stack);
 
-  /* Function letting this scheduler know that the provided task is runnable.
-   * This could result from a blocked task being unblocked, or just after a
-   * task is first created and is to be run for the first time */
-  void (*task_runnable) (lithe_sched_t *__this, lithe_task_t *task);
+  /* Function letting this scheduler know that the provided context is runnable.
+   * This could result from a blocked context being unblocked, or just after a
+   * context is first created and is to be run for the first time */
+  void (*context_runnable) (lithe_sched_t *__this, lithe_context_t *context);
 
-  /* Callback for scheduler specific yielding of tasks */
-  void (*task_yield) (lithe_sched_t *__this, lithe_task_t *task);
+  /* Callback for scheduler specific yielding of contexts */
+  void (*context_yield) (lithe_sched_t *__this, lithe_context_t *context);
 
 };
 

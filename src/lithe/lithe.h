@@ -4,8 +4,8 @@
  * TODO: Include a discussion of the transition stack and
  * callbacks versus entry points.
  *
- * TODO: Include a discussion of tasks, including the
- * distinction between implicit and explicit tasks.
+ * TODO: Include a discussion of contexts, including the
+ * distinction between implicit and explicit contexts.
  */
 
 #ifndef LITHE_H
@@ -17,7 +17,7 @@
 
 #include <stdarg.h>
 #include <lithe/sched.h>
-#include <lithe/task.h>
+#include <lithe/context.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -70,79 +70,79 @@ int lithe_vcore_grant(lithe_sched_t *child);
 void lithe_vcore_yield();
 
 /*
- * Initialize the attributes used to create / initialize a lithe task. Must be
+ * Initialize the attributes used to create / initialize a lithe context. Must be
  * called on all attribute variables before passing them to either
- * lithe_task_create() or lithe_task_init(). 
+ * lithe_context_create() or lithe_context_init(). 
  */
-void lithe_task_attr_init(lithe_task_attr_t *attr);
+void lithe_context_attr_init(lithe_context_attr_t *attr);
 /*
- * Create a new task with a set of attributes and a start function.  Passing
+ * Create a new context with a set of attributes and a start function.  Passing
  * NULL for both func and arg are valid, but require you to subsequently call
- * lithe_task_init() before running the task.  Returns the newly
- * created task on success and NULL on error.
+ * lithe_context_init() before running the context.  Returns the newly
+ * created context on success and NULL on error.
  */
-lithe_task_t *lithe_task_create(lithe_task_attr_t *attr, void (*func) (void *), void *arg); 
+lithe_context_t *lithe_context_create(lithe_context_attr_t *attr, void (*func) (void *), void *arg); 
 
 /*
- * Initialize a new state for an existing task. The attr parameter MUST contain
- * a valid stack pointer and stack size. Once the task is restarted it will run
+ * Initialize a new state for an existing context. The attr parameter MUST contain
+ * a valid stack pointer and stack size. Once the context is restarted it will run
  * from the entry point specified.
  */
-void lithe_task_init(lithe_task_t *task, lithe_task_attr_t *attr, void (*func) (void *), void *arg);
+void lithe_context_init(lithe_context_t *context, lithe_context_attr_t *attr, void (*func) (void *), void *arg);
 
 /* 
- * Destroy an existing task. This task should not be currently running on any
- * vcore.  For currently running tasks, instead use lithe_task_exit().
+ * Destroy an existing context. This context should not be currently running on any
+ * vcore.  For currently running contexts, instead use lithe_context_exit().
  */
-void lithe_task_destroy(lithe_task_t *task);
+void lithe_context_destroy(lithe_context_t *context);
 
 /*
- * Returns the currently executing task.
+ * Returns the currently executing context.
  */
-lithe_task_t *lithe_task_self();
+lithe_context_t *lithe_context_self();
 
 /*
- * Set the task local storage of the current task. 
+ * Set the context local storage of the current context. 
  */
-void lithe_task_settls(void *tls);
+void lithe_context_settls(void *tls);
 
 /*
- * Get the task local storage of the current task. 
+ * Get the context local storage of the current context. 
  */
-void *lithe_task_gettls();
+void *lithe_context_gettls();
 
 /*
- * Run the specified task.  Upon completion, the task is yielded, and must be
- * explicitly destroyed via a call to lithe_task_detroy() to free any memory
+ * Run the specified context.  Upon completion, the context is yielded, and must be
+ * explicitly destroyed via a call to lithe_context_detroy() to free any memory
  * associated with it. It must have been precreated. This function never
  * returns on success and returns -1 on error and sets errno appropriately.
  */
-int lithe_task_run(lithe_task_t *task);
+int lithe_context_run(lithe_context_t *context);
 
 /**
- * Invoke the specified function with the current task. Note that you
- * can not block without a valid task (i.e. you can not block when
- * executing in vcore context). Returns 0 on success (after the task
+ * Invoke the specified function with the current context. Note that you
+ * can not block without a valid context (i.e. you can not block when
+ * executing in vcore context). Returns 0 on success (after the context
  * has been resumed) and -1 on error and sets errno appropriately.
 */
-int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg);
+int lithe_context_block(void (*func) (lithe_context_t *, void *), void *arg);
 
 /**
- * Notifies the current scheduler that the specified task is
+ * Notifies the current scheduler that the specified context is
  * resumable. Returns 0 on success and -1 on error and sets errno
  * appropriately.
  */
-int lithe_task_unblock(lithe_task_t *task);
+int lithe_context_unblock(lithe_context_t *context);
 
 /**
- * Cooperatively yield the current task.
+ * Cooperatively yield the current context.
  */
-void lithe_task_yield();
+void lithe_context_yield();
 
 /*
- * Exit the current task.
+ * Exit the current context.
  */
-void lithe_task_exit();
+void lithe_context_exit();
 
 #ifdef __cplusplus
 }

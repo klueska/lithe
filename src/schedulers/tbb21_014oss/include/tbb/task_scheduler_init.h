@@ -64,14 +64,14 @@ class task_scheduler_init: internal::no_copy {
 
     lithe_sched_t **children;
     int *requested;
-    lithe_task_t task;
+    lithe_context_t context;
 
 protected:
     void vcore_enter();
     void child_started(lithe_sched_t *child);
     void child_finished(lithe_sched_t *child);
     int vcore_request(lithe_sched_t *child, int k);
-    void task_runnable(lithe_task_t *task);
+    void context_runnable(lithe_context_t *context);
 
 #endif /* USE_LITHE */
 

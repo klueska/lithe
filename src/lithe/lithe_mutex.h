@@ -12,12 +12,12 @@
 extern "C" {
 #endif
 
-DECLARE_TYPED_DEQUE(task, lithe_task_t *);
+DECLARE_TYPED_DEQUE(context, lithe_context_t *);
 
 typedef struct lithe_mutex {
   int lock;
   int locked;
-  struct task_deque deque;
+  struct context_deque deque;
 } lithe_mutex_t;
 
 /* Initialize a mutex. */

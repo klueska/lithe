@@ -27,11 +27,11 @@ typedef union {
 
 
 typedef struct {
-  lithe_task_t **queue;
+  lithe_context_t **queue;
   int len;
   int mtx;
   int maxlen;
-} taskq_t;  
+} contextq_t;  
 
 
 typedef struct {
@@ -39,7 +39,7 @@ typedef struct {
   int arrived;
   bool wait;
   padded_bool_t *signals;
-  taskq_t blocked[2];
+  contextq_t blocked[2];
 } lithe_barrier_t;
 
 

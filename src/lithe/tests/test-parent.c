@@ -12,12 +12,12 @@
 
 typedef struct child_sched {
   lithe_sched_t sched;
-  lithe_task_t *start_task;
+  lithe_context_t *start_context;
 } child_sched_t;
 
 static void child_sched_ctor(child_sched_t *sched)
 {
-  sched->start_task = NULL;
+  sched->start_context = NULL;
 }
 
 static void child_sched_dtor(child_sched_t *sched)
@@ -25,48 +25,48 @@ static void child_sched_dtor(child_sched_t *sched)
 }
 
 static void child_vcore_enter(lithe_sched_t *__this);
-static void child_task_runnable(lithe_sched_t *__this, lithe_task_t *task); 
+static void child_context_runnable(lithe_sched_t *__this, lithe_context_t *context); 
 
 static const lithe_sched_funcs_t child_funcs = {
-  .vcore_request      = __vcore_request_default,
-  .vcore_enter        = child_vcore_enter,
-  .vcore_return       = __vcore_return_default,
-  .child_entered      = __child_entered_default,
-  .child_exited       = __child_exited_default,
-  .task_create        = __task_create_default,
-  .task_destroy       = __task_destroy_default,
-  .task_stack_create  = __task_stack_create_default,
-  .task_stack_destroy = __task_stack_destroy_default,
-  .task_runnable      = child_task_runnable,
-  .task_yield         = __task_yield_default
+  .vcore_request         = __vcore_request_default,
+  .vcore_enter           = child_vcore_enter,
+  .vcore_return          = __vcore_return_default,
+  .child_entered         = __child_entered_default,
+  .child_exited          = __child_exited_default,
+  .context_create        = __context_create_default,
+  .context_destroy       = __context_destroy_default,
+  .context_stack_create  = __context_stack_create_default,
+  .context_stack_destroy = __context_stack_destroy_default,
+  .context_runnable      = child_context_runnable,
+  .context_yield         = __context_yield_default
 };
 
-static void child_task_runnable(lithe_sched_t *__this, lithe_task_t *task) 
+static void child_context_runnable(lithe_sched_t *__this, lithe_context_t *context) 
 {
-  printf("child_task_runnable\n");
+  printf("child_context_runnable\n");
   child_sched_t *sched = (child_sched_t *)__this;
-  assert(task == sched->start_task);
-  lithe_task_run(task);
+  assert(context == sched->start_context);
+  lithe_context_run(context);
 }
 
 void child_vcore_enter(lithe_sched_t *__this) 
 {
   printf("child_enter\n");
   child_sched_t *sched = (child_sched_t *)__this;
-  lithe_task_unblock(sched->start_task);
+  lithe_context_unblock(sched->start_context);
 }
 
-static void block_child(lithe_task_t *task, void *arg)
+static void block_child(lithe_context_t *context, void *arg)
 {
   printf("block_child\n");
   child_sched_t *sched = (child_sched_t*)lithe_sched_current();
-  sched->start_task = task;
+  sched->start_context = context;
 }
 
 static void child_run()
 {
   printf("child_run start\n");
-  lithe_task_block(block_child, NULL);
+  lithe_context_block(block_child, NULL);
   printf("child_run finish\n");
 }
 
@@ -100,7 +100,7 @@ typedef struct root_sched {
   int children_started;
   int children_finished;
   sched_vcore_request_list_t needy_children;
-  lithe_task_t *start_task;
+  lithe_context_t *start_context;
 } root_sched_t;
 
 static void root_sched_ctor(root_sched_t *sched)
@@ -110,7 +110,7 @@ static void root_sched_ctor(root_sched_t *sched)
   sched->children_started = 0;
   sched->children_finished = 0;
   LIST_INIT(&sched->needy_children);
-  sched->start_task = NULL;
+  sched->start_context = NULL;
 }
 
 static void root_sched_dtor(root_sched_t *sched)
@@ -121,20 +121,20 @@ int root_vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
 static void root_vcore_enter(lithe_sched_t *this);
 void root_child_entered(lithe_sched_t *__this, lithe_sched_t *child);
 void root_child_exited(lithe_sched_t *__this, lithe_sched_t *child);
-static void root_task_runnable(lithe_sched_t *__this, lithe_task_t *task);
+static void root_context_runnable(lithe_sched_t *__this, lithe_context_t *context);
 
 static const lithe_sched_funcs_t root_funcs = {
-  .vcore_request      = root_vcore_request,
-  .vcore_enter        = root_vcore_enter,
-  .vcore_return       = __vcore_return_default,
-  .child_entered      = root_child_entered,
-  .child_exited       = root_child_exited,
-  .task_create        = __task_create_default,
-  .task_destroy       = __task_destroy_default,
-  .task_stack_create  = __task_stack_create_default,
-  .task_stack_destroy = __task_stack_destroy_default,
-  .task_runnable      = root_task_runnable,
-  .task_yield         = __task_yield_default
+  .vcore_request         = root_vcore_request,
+  .vcore_enter           = root_vcore_enter,
+  .vcore_return          = __vcore_return_default,
+  .child_entered         = root_child_entered,
+  .child_exited          = root_child_exited,
+  .context_create        = __context_create_default,
+  .context_destroy       = __context_destroy_default,
+  .context_stack_create  = __context_stack_create_default,
+  .context_stack_destroy = __context_stack_destroy_default,
+  .context_runnable      = root_context_runnable,
+  .context_yield         = __context_yield_default
 };
 
 int root_vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
@@ -169,11 +169,11 @@ void root_child_exited(lithe_sched_t *__this, lithe_sched_t *child)
   spinlock_unlock(&sched->lock);
 }
 
-static void root_task_runnable(lithe_sched_t *__sched, lithe_task_t *task) 
+static void root_context_runnable(lithe_sched_t *__sched, lithe_context_t *context) 
 {
   root_sched_t *sched = (root_sched_t *)__sched;
-  assert(task == sched->start_task);
-  lithe_task_run(task);
+  assert(context == sched->start_context);
+  lithe_context_run(context);
 }
 
 static void root_vcore_enter(lithe_sched_t *__sched) 
@@ -213,8 +213,8 @@ static void root_vcore_enter(lithe_sched_t *__sched)
 
   switch(state) {
     case STATE_CREATE: {
-      lithe_task_t *task = lithe_task_create(NULL, child_main, NULL);
-      lithe_task_run(task);
+      lithe_context_t *context = lithe_context_create(NULL, child_main, NULL);
+      lithe_context_run(context);
       break;
     }
     case STATE_GRANT: {
@@ -226,17 +226,17 @@ static void root_vcore_enter(lithe_sched_t *__sched)
       break;
     }
     case STATE_COMPLETE: {
-      lithe_task_unblock(sched->start_task);
+      lithe_context_unblock(sched->start_context);
       break;
     }
   }
 }
 
-static void block_root(lithe_task_t *task, void *arg)
+static void block_root(lithe_context_t *context, void *arg)
 {
   printf("block_root\n");
   root_sched_t *sched = (root_sched_t*)lithe_sched_current();
-  sched->start_task = task;
+  sched->start_context = context;
 }
 
 static void root_run()
@@ -248,7 +248,7 @@ static void root_run()
     sched->children_expected = sched->vcores;
     printf("children_expected: %d\n", sched->children_expected);
   spinlock_unlock(&sched->lock);
-  lithe_task_block(block_root, NULL);
+  lithe_context_block(block_root, NULL);
   printf("root_run finish\n");
 }
 

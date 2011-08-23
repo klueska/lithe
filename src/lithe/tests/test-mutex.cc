@@ -12,13 +12,13 @@ using namespace lithe;
 class RootScheduler : public Scheduler {
  protected:
   void vcore_enter();
-  void task_runnable(lithe_task_t *task);
+  void context_runnable(lithe_context_t *context);
 
  public:
-  unsigned int task_count;
+  unsigned int context_count;
   lithe_mutex_t mutex;
   int qlock;
-  struct task_deque taskq;
+  struct context_deque contextq;
 
   RootScheduler();
   ~RootScheduler() {}
@@ -28,27 +28,27 @@ RootScheduler::RootScheduler()
 { 
   lithe_mutex_init(&this->mutex);
   spinlock_init(&this->qlock);
-  task_deque_init(&this->taskq);
+  context_deque_init(&this->contextq);
 }
 
 void RootScheduler::vcore_enter()
 {
-  lithe_task_t *task = NULL;
+  lithe_context_t *context = NULL;
 
   spinlock_lock(&this->qlock);
-    task_deque_dequeue(&this->taskq, &task);
+    context_deque_dequeue(&this->contextq, &context);
   spinlock_unlock(&this->qlock);
 
-  if(task == NULL)
+  if(context == NULL)
     lithe_vcore_yield();
   else 
-    lithe_task_run(task);
+    lithe_context_run(context);
 }
 
-void RootScheduler::task_runnable(lithe_task_t *task)
+void RootScheduler::context_runnable(lithe_context_t *context)
 {
   spinlock_lock(&this->qlock);
-    task_deque_enqueue(&this->taskq, task);
+    context_deque_enqueue(&this->contextq, context);
     lithe_vcore_request(max_vcores());
   spinlock_unlock(&this->qlock);
 }
@@ -58,22 +58,22 @@ void work(void *arg)
   RootScheduler *sched = (RootScheduler*)arg;
   lithe_mutex_lock(&sched->mutex);
   {
-    lithe_task_t *task = lithe_task_self();
-    printf("task 0x%x in critical section (count = %d)\n", 
-      (unsigned int)(unsigned long)task, --sched->task_count);
+    lithe_context_t *context = lithe_context_self();
+    printf("context 0x%x in critical section (count = %d)\n", 
+      (unsigned int)(unsigned long)context, --sched->context_count);
   }
   lithe_mutex_unlock(&sched->mutex);
 }
 
-void root_run(int task_count)
+void root_run(int context_count)
 {
   printf("root_run start\n");
-  /* Create a bunch of worker tasks */
+  /* Create a bunch of worker contexts */
   RootScheduler *sched = (RootScheduler*)lithe_sched_current();
-  sched->task_count = task_count;
-  for(unsigned int i=0; i < sched->task_count; i++) {
-    lithe_task_t *task  = lithe_task_create(NULL, work, (void*)sched);
-    task_deque_enqueue(&sched->taskq, task);
+  sched->context_count = context_count;
+  for(unsigned int i=0; i < sched->context_count; i++) {
+    lithe_context_t *context  = lithe_context_create(NULL, work, (void*)sched);
+    context_deque_enqueue(&sched->contextq, context);
   }
 
   /* Start up some more vcores to do our work for us */
@@ -82,7 +82,7 @@ void root_run(int task_count)
   /* Wait for all the workers to run */
   while(1) {
     lithe_mutex_lock(&sched->mutex);
-      if(sched->task_count == 0)
+      if(sched->context_count == 0)
         break;
     lithe_mutex_unlock(&sched->mutex);
   }

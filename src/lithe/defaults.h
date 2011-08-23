@@ -34,20 +34,20 @@ static void __child_exited_default(lithe_sched_t *__this, lithe_sched_t *child)
   // Do nothing special by default when a child is exited
 }
 
-static lithe_task_t* __task_create_default(lithe_sched_t *__this, lithe_task_attr_t *attr)
+static lithe_context_t* __context_create_default(lithe_sched_t *__this, lithe_context_attr_t *attr)
 {
-  lithe_task_t *task = (lithe_task_t*)malloc(sizeof(lithe_task_t));
-  assert(task);
-  return task;
+  lithe_context_t *context = (lithe_context_t*)malloc(sizeof(lithe_context_t));
+  assert(context);
+  return context;
 }
 
-static void __task_destroy_default(lithe_sched_t *__this, lithe_task_t *task)
+static void __context_destroy_default(lithe_sched_t *__this, lithe_context_t *context)
 {
-  assert(task);
-  free(task);
+  assert(context);
+  free(context);
 }
 
-static void __task_stack_create_default(lithe_sched_t *__this, lithe_task_stack_t *stack)
+static void __context_stack_create_default(lithe_sched_t *__this, lithe_context_stack_t *stack)
 {
   if(stack->size == 0)
     stack->size = 4*getpagesize();
@@ -56,20 +56,20 @@ static void __task_stack_create_default(lithe_sched_t *__this, lithe_task_stack_
   assert(stack->bottom);
 }
 
-static void __task_stack_destroy_default(lithe_sched_t *__this, lithe_task_stack_t *stack)
+static void __context_stack_destroy_default(lithe_sched_t *__this, lithe_context_stack_t *stack)
 {
   assert(stack->bottom);
   free(stack->bottom);
 }
 
-static void __task_runnable_default(lithe_sched_t *__this, lithe_task_t *task)
+static void __context_runnable_default(lithe_sched_t *__this, lithe_context_t *context)
 {
-  fatal((char*)"Should not be calling task_runnable()");
+  fatal((char*)"Should not be calling context_runnable()");
 }
 
-static void __task_yield_default(lithe_sched_t *__this, lithe_task_t *task)
+static void __context_yield_default(lithe_sched_t *__this, lithe_context_t *context)
 {
-  // Do nothing special by default when a task is yielded
+  // Do nothing special by default when a context is yielded
 }
 
 #ifdef __cplusplus

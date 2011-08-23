@@ -61,19 +61,19 @@ struct lithe_sched_idata {
   /* Number of vcores currently owned by this scheduler. */
   int vcores;
 
-  /* Pointer to the start task of this scheduler */
-  lithe_task_t *start_task;
+  /* Pointer to the start context of this scheduler */
+  lithe_context_t *start_context;
 
   /* Scheduler's parent scheduler */
   lithe_sched_t *parent;
 
-  /* Parent task from which this scheduler was started. */
-  lithe_task_t *parent_task;
+  /* Parent context from which this scheduler was started. */
+  lithe_context_t *parent_context;
 
 };
 
 /* Struct to hold the function pointer and argument of a function to be called
- * in vcore_entry after one of the lithe functions yields from a task */
+ * in vcore_entry after one of the lithe functions yields from a context */
 typedef struct lithe_vcore_func {
   void (*func) (void *);
   void *arg;
@@ -107,12 +107,12 @@ static void base_vcore_enter(lithe_sched_t *this);
 static void base_vcore_return(lithe_sched_t *this, lithe_sched_t *child);
 static void base_child_entered(lithe_sched_t *this, lithe_sched_t *child);
 static void base_child_exited(lithe_sched_t *this, lithe_sched_t *child);
-static lithe_task_t* base_task_create(lithe_sched_t *__this, lithe_task_attr_t *attr);
-static void base_task_destroy(lithe_sched_t *__this, lithe_task_t *task);
-static void base_task_stack_create(lithe_sched_t *__this, lithe_task_stack_t *stack);
-static void base_task_stack_destroy(lithe_sched_t *__this, lithe_task_stack_t *stack);
-static void base_task_yield(lithe_sched_t *__this, lithe_task_t *task);
-static void base_task_runnable(lithe_sched_t *__this, lithe_task_t *task);
+static lithe_context_t* base_context_create(lithe_sched_t *__this, lithe_context_attr_t *attr);
+static void base_context_destroy(lithe_sched_t *__this, lithe_context_t *context);
+static void base_context_stack_create(lithe_sched_t *__this, lithe_context_stack_t *stack);
+static void base_context_stack_destroy(lithe_sched_t *__this, lithe_context_stack_t *stack);
+static void base_context_yield(lithe_sched_t *__this, lithe_context_t *context);
+static void base_context_runnable(lithe_sched_t *__this, lithe_context_t *context);
 
 static const lithe_sched_funcs_t base_funcs = {
   .vcore_request      = base_vcore_request,
@@ -120,18 +120,18 @@ static const lithe_sched_funcs_t base_funcs = {
   .vcore_return       = base_vcore_return,
   .child_entered      = base_child_entered,
   .child_exited       = base_child_exited,
-  .task_create        = base_task_create,
-  .task_destroy       = base_task_destroy,
-  .task_stack_create  = base_task_stack_create,
-  .task_stack_destroy = base_task_stack_destroy,
-  .task_runnable      = base_task_runnable,
-  .task_yield         = base_task_yield
+  .context_create        = base_context_create,
+  .context_destroy       = base_context_destroy,
+  .context_stack_create  = base_context_stack_create,
+  .context_stack_destroy = base_context_stack_destroy,
+  .context_runnable      = base_context_runnable,
+  .context_yield         = base_context_yield
 };
 
 static lithe_sched_idata_t base_idata = {
   .vcores       = 0,
   .parent       = NULL,
-  .parent_task  = NULL,
+  .parent_context  = NULL,
 };
 
 /* Base scheduler itself */
@@ -140,29 +140,29 @@ static lithe_sched_t base_sched = {
   .idata        = &base_idata
 };
 
-/* Reference to the task running the main thread. */ 
-static lithe_task_t *main_task = NULL;
+/* Reference to the context running the main thread. */ 
+static lithe_context_t *main_context = NULL;
 
 /* Root scheduler, i.e. the child scheduler of base. */
 static lithe_sched_t *root_sched = NULL;
 
 static __thread struct {
-  /* The next task to run on this vcore when lithe_vcore_entry is called again
-   * after a yield from another lithe task */
-  lithe_task_t *next_task;
+  /* The next context to run on this vcore when lithe_vcore_entry is called again
+   * after a yield from another lithe context */
+  lithe_context_t *next_context;
 
   /* The next function to run on this vcore when lithe_vcore_entry is called
-   * after a yield from a lithe task */
+   * after a yield from a lithe context */
   lithe_vcore_func_t *next_func;
 
-  /* The current scheduler to run any tasks / functions with */
+  /* The current scheduler to run any contexts / functions with */
   lithe_sched_t *current_sched;
 
 } lithe_tls = {NULL, NULL, NULL};
-#define next_task     (lithe_tls.next_task)
+#define next_context     (lithe_tls.next_context)
 #define next_func     (lithe_tls.next_func)
 #define current_sched (lithe_tls.current_sched)
-#define current_task  ((lithe_task_t*)current_uthread)
+#define current_context  ((lithe_context_t*)current_uthread)
 
 void vcore_ready()
 {
@@ -173,23 +173,23 @@ void vcore_ready()
 
 static uthread_t* lithe_init()
 {
-  /* Create a lithe task for the main thread to run in */
-  main_task = (lithe_task_t*)calloc(1, sizeof(lithe_task_t));
-  assert(main_task);
+  /* Create a lithe context for the main thread to run in */
+  main_context = (lithe_context_t*)calloc(1, sizeof(lithe_context_t));
+  assert(main_context);
 
-  /* Fill in the main task stack info with some data. This data is garbage,
+  /* Fill in the main context stack info with some data. This data is garbage,
    * and only necessary so as to keep lithe_sched_entry from allocating a new
-   * stack when creating a task to run the first scheduler it enters. */
-  main_task->stack.bottom = (void*)0xdeadbeef;
-  main_task->stack.size = (ssize_t)-1;
+   * stack when creating a context to run the first scheduler it enters. */
+  main_context->stack.bottom = (void*)0xdeadbeef;
+  main_context->stack.size = (ssize_t)-1;
 
-  /* Set the scheduler associated with the task to be the base scheduler */
+  /* Set the scheduler associated with the context to be the base scheduler */
   current_sched = &base_sched;
 
-  /* Return a reference to the main task back to the uthread library. We will
-   * resume this task once lithe_vcore_entry() is called from the uthread
+  /* Return a reference to the main context back to the uthread library. We will
+   * resume this context once lithe_vcore_entry() is called from the uthread
    * library */
-  return (uthread_t*)(main_task);
+  return (uthread_t*)(main_context);
 }
 
 static void __attribute__((noreturn)) __lithe_sched_reenter()
@@ -214,23 +214,23 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
     current_sched = &base_sched;
   }
 
-  /* If current_task is set, then just resume it. This will happen in one of 2
+  /* If current_context is set, then just resume it. This will happen in one of 2
    * cases: 1) It is the first, i.e. main thread, or 2) The current vcore was
    * taken over to run a signal handler from the kernel, and is now being
    * restarted */
-  if(current_task) {
-    current_sched = uthread_get_tls_var(&current_task->uth, current_sched);
+  if(current_context) {
+    current_sched = uthread_get_tls_var(&current_context->uth, current_sched);
     run_current_uthread();
-    assert(0); // Should never return from running task
+    assert(0); // Should never return from running context
   }
 
-  /* Otherwise, if next_task is set, start it off anew. */
-  if(next_task) {
-    lithe_task_t *task = next_task;
-    current_sched = uthread_get_tls_var(&task->uth, current_sched);
-    next_task = NULL;
-    run_uthread(&task->uth);
-    assert(0); // Should never return from running task
+  /* Otherwise, if next_context is set, start it off anew. */
+  if(next_context) {
+    lithe_context_t *context = next_context;
+    current_sched = uthread_get_tls_var(&context->uth, current_sched);
+    next_context = NULL;
+    run_uthread(&context->uth);
+    assert(0); // Should never return from running context
   }
 
   /* Otherwise, if next_function is set, call it */
@@ -249,32 +249,32 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
 static uthread_t* lithe_thread_create(void (*func)(void), void *udata)
 {
   assert(current_sched);
-  assert(current_sched->funcs->task_create);
+  assert(current_sched->funcs->context_create);
 
-  lithe_task_t* task = current_sched->funcs->task_create(current_sched, udata);
-  assert(task);
+  lithe_context_t* context = current_sched->funcs->context_create(current_sched, udata);
+  assert(context);
 
-  return (uthread_t*)task;
+  return (uthread_t*)context;
 }
 
 static void lithe_thread_destroy(struct uthread *uthread)
 {
   assert(uthread);
   assert(current_sched);
-  assert(current_sched->funcs->task_destroy);
+  assert(current_sched->funcs->context_destroy);
 
-  lithe_task_t *task = (lithe_task_t*)uthread;
-  current_sched->funcs->task_destroy(current_sched, task);
+  lithe_context_t *context = (lithe_context_t*)uthread;
+  current_sched->funcs->context_destroy(current_sched, context);
 }
 
 static void lithe_thread_runnable(struct uthread *uthread)
 {
   assert(uthread);
   assert(current_sched);
-  assert(current_sched->funcs->task_runnable);
+  assert(current_sched->funcs->context_runnable);
 
-  lithe_task_t *task = (lithe_task_t*)uthread;
-  current_sched->funcs->task_runnable(current_sched, task);
+  lithe_context_t *context = (lithe_context_t*)uthread;
+  current_sched->funcs->context_runnable(current_sched, context);
 }
 
 static void lithe_thread_yield(struct uthread *uthread)
@@ -282,14 +282,14 @@ static void lithe_thread_yield(struct uthread *uthread)
   assert(uthread);
   assert(current_sched);
 
-  lithe_task_t *task = (lithe_task_t*)uthread;
-  if(task->finished) {
-    assert(current_sched->funcs->task_destroy);
+  lithe_context_t *context = (lithe_context_t*)uthread;
+  if(context->finished) {
+    assert(current_sched->funcs->context_destroy);
     uthread_destroy(uthread);
   }
   else {
-    assert(current_sched->funcs->task_yield);
-    current_sched->funcs->task_yield(current_sched, task);
+    assert(current_sched->funcs->context_yield);
+    current_sched->funcs->context_yield(current_sched, context);
   }
 }
 
@@ -327,35 +327,35 @@ static int base_vcore_request(lithe_sched_t *__this, lithe_sched_t *sched, int k
   return granted;
 }
 
-static lithe_task_t* base_task_create(lithe_sched_t *__this, lithe_task_attr_t *attr)
+static lithe_context_t* base_context_create(lithe_sched_t *__this, lithe_context_attr_t *attr)
 {
-  fatal("The base scheduler should never be creating tasks of its own!\n");
+  fatal("The base scheduler should never be creating contexts of its own!\n");
   return NULL;
 }
 
-static void base_task_destroy(lithe_sched_t *__this, lithe_task_t *task)
+static void base_context_destroy(lithe_sched_t *__this, lithe_context_t *context)
 {
-  fatal("The base scheduler should never have any tasks to be destroying!\n");
+  fatal("The base scheduler should never have any contexts to be destroying!\n");
 }
 
-static void base_task_stack_create(lithe_sched_t *__this, lithe_task_stack_t *stack)
+static void base_context_stack_create(lithe_sched_t *__this, lithe_context_stack_t *stack)
 {
-  fatal("The base scheduler should never be creating task stacks of its own!\n");
+  fatal("The base scheduler should never be creating context stacks of its own!\n");
 }
 
-static void base_task_stack_destroy(lithe_sched_t *__this, lithe_task_stack_t *stack)
+static void base_context_stack_destroy(lithe_sched_t *__this, lithe_context_stack_t *stack)
 {
-  fatal("The base scheduler should never have any task stacks to be destroying!\n");
+  fatal("The base scheduler should never have any context stacks to be destroying!\n");
 }
 
-static void base_task_yield(lithe_sched_t *__this, lithe_task_t *task)
+static void base_context_yield(lithe_sched_t *__this, lithe_context_t *context)
 {
-  // Do nothing.  The only task we should ever yield is the main task...
+  // Do nothing.  The only context we should ever yield is the main context...
 }
 
-static void base_task_runnable(lithe_sched_t *__this, lithe_task_t *task)
+static void base_context_runnable(lithe_sched_t *__this, lithe_context_t *context)
 {
-  fatal("Tasks created by the base scheduler should never need to be made runnable!\n");
+  fatal("Contexts created by the base scheduler should never need to be made runnable!\n");
 }
 
 lithe_sched_t *lithe_sched_current()
@@ -402,19 +402,19 @@ static void __lithe_sched_enter(void *arg)
   /* Unpack the real arguments to this function */
   struct { 
     lithe_sched_t* parent;
-    lithe_task_t*  parent_task;
+    lithe_context_t*  parent_context;
     lithe_sched_t* child;
-    lithe_task_t*  child_task;
+    lithe_context_t*  child_context;
   } *real_arg = arg;
   lithe_sched_t* parent      = real_arg->parent;
-  lithe_task_t*  parent_task = real_arg->parent_task;
+  lithe_context_t*  parent_context = real_arg->parent_context;
   lithe_sched_t* child       = real_arg->child;
-  lithe_task_t*  child_task  = real_arg->child_task;
+  lithe_context_t*  child_context  = real_arg->child_context;
 
   assert(parent);
-  assert(parent_task);
+  assert(parent_context);
   assert(child);
-  assert(child_task);
+  assert(child_context);
 
   /* Create the childs sched_idata and set up the pointer to it */
   lithe_sched_idata_t *child_idata = (lithe_sched_idata_t*)malloc(sizeof(lithe_sched_idata_t));
@@ -423,11 +423,11 @@ static void __lithe_sched_enter(void *arg)
   /* Set-up child scheduler */
   child->idata->vcores = 0;
   child->idata->parent = parent;
-  child->idata->parent_task = parent_task;
+  child->idata->parent_context = parent_context;
 
   /* Update the current scheduler to be the the child */
   current_sched = child;
-  uthread_set_tls_var(child_task, current_sched, current_sched);
+  uthread_set_tls_var(child_context, current_sched, current_sched);
 
   /* Update the number of vcores now owned by this child */
   __sync_fetch_and_add(&(child->idata->vcores), 1);
@@ -436,9 +436,9 @@ static void __lithe_sched_enter(void *arg)
   assert(parent->funcs->child_entered);
   parent->funcs->child_entered(parent, child);
 
-  /* Return to to the vcore_entry point to continue running the child task now
+  /* Return to to the vcore_entry point to continue running the child context now
    * that it has been properly setup */
-  next_task = child_task;
+  next_context = child_context;
   lithe_vcore_entry();
 }
 
@@ -452,34 +452,34 @@ int lithe_sched_enter(const lithe_sched_funcs_t *funcs, lithe_sched_t *child)
   child->funcs = funcs;
  
   lithe_sched_t* parent = current_sched;
-  lithe_task_t*  parent_task = current_task;
+  lithe_context_t*  parent_context = current_context;
 
-  /* Create a child task to highjack the current task's context */
-  assert(current_task->stack.bottom);
-  assert(current_task->stack.size);
-  lithe_task_attr_t attr;
-  attr.stack = current_task->stack;
+  /* Create a child context to highjack the current context's context */
+  assert(current_context->stack.bottom);
+  assert(current_context->stack.size);
+  lithe_context_attr_t attr;
+  attr.stack = current_context->stack;
   current_sched = child;
-  lithe_task_t *child_task = lithe_task_create(&attr, NULL, NULL);
+  lithe_context_t *child_context = lithe_context_create(&attr, NULL, NULL);
   current_sched = parent;
 
   /* Set up a function to run in vcore context to actually setup and start the
-   * child scheduler in the task we are about to highjack */
+   * child scheduler in the context we are about to highjack */
   struct { 
     lithe_sched_t* parent;
-    lithe_task_t*  parent_task;
+    lithe_context_t*  parent_context;
     lithe_sched_t* child;
-    lithe_task_t*  child_task;
-  } real_arg = {parent, parent_task, child, child_task};
+    lithe_context_t*  child_context;
+  } real_arg = {parent, parent_context, child, child_context};
   lithe_vcore_func_t real_func = {__lithe_sched_enter, &real_arg};
   vcore_set_tls_var(vcore_id(), next_func, &real_func);
 
-  /* Hijack the current task with the newly created one. */
-  set_current_uthread(&child_task->uth);
+  /* Hijack the current context with the newly created one. */
+  set_current_uthread(&child_context->uth);
 
-  /* Yield this task to vcore context to run the function we just set up. Once
+  /* Yield this context to vcore context to run the function we just set up. Once
    * we return from the yield we will be fully inside the child scheduler
-   * running the child task. */
+   * running the child context. */
   uthread_yield(true);
   return 0;
 }
@@ -488,19 +488,19 @@ void __lithe_sched_exit(void *arg)
 {
   struct { 
     lithe_sched_t* parent;
-    lithe_task_t*  parent_task;
+    lithe_context_t*  parent_context;
     lithe_sched_t* child;
-    lithe_task_t*  child_task;
+    lithe_context_t*  child_context;
   } *real_arg = arg;
   lithe_sched_t* parent      = real_arg->parent;
-  lithe_task_t*  parent_task = real_arg->parent_task;
+  lithe_context_t*  parent_context = real_arg->parent_context;
   lithe_sched_t* child       = real_arg->child;
-  lithe_task_t*  child_task  = real_arg->child_task;
+  lithe_context_t*  child_context  = real_arg->child_context;
 
   assert(parent);
-  assert(parent_task);
+  assert(parent_context);
   assert(child);
-  assert(child_task);
+  assert(child_context);
 
   /* Don't actually end this scheduler until all vcores have been yielded
    * (except this one of course) */
@@ -509,15 +509,15 @@ void __lithe_sched_exit(void *arg)
   /* Update child's vcore count (to 0) */
   __sync_fetch_and_add(&(child->idata->vcores), -1);
 
-  /* Symetrically, the child task should be destroyed in the 'real'
-   * lithe_task_exit() since it was created in the 'real' lithe_task_enter(),
+  /* Symetrically, the child context should be destroyed in the 'real'
+   * lithe_context_exit() since it was created in the 'real' lithe_context_enter(),
    * but doing so would require us to retain a superfluous reference to it in
-   * the body of lithe_task_exit().  To avoid this, we just destroy it here. */
-  lithe_task_destroy(child_task);
+   * the body of lithe_context_exit().  To avoid this, we just destroy it here. */
+  lithe_context_destroy(child_context);
 
   /* Give control back to the parent */
   current_sched = parent;
-  uthread_set_tls_var(parent_task, current_sched, current_sched);
+  uthread_set_tls_var(parent_context, current_sched, current_sched);
 
   /* Inform the parent that this child scheduler has finished */
   assert(parent->funcs->child_exited);
@@ -526,8 +526,8 @@ void __lithe_sched_exit(void *arg)
   /* Destroy the child's idata */
   free(child->idata);
 
-  /* Return to the original parent task */
-  next_task = parent_task;
+  /* Return to the original parent context */
+  next_context = parent_context;
   lithe_vcore_entry();
 }
 
@@ -538,20 +538,20 @@ int lithe_sched_exit()
 
   struct { 
     lithe_sched_t* parent;
-    lithe_task_t*  parent_task;
+    lithe_context_t*  parent_context;
     lithe_sched_t* child;
-    lithe_task_t*  child_task;
-  } real_arg = {current_sched->idata->parent, current_sched->idata->parent_task, 
-                current_sched, current_task};
+    lithe_context_t*  child_context;
+  } real_arg = {current_sched->idata->parent, current_sched->idata->parent_context, 
+                current_sched, current_context};
   lithe_vcore_func_t real_func = {__lithe_sched_exit, &real_arg};
   vcore_set_tls_var(vcore_id(), next_func, &real_func);
 
-  /* Hijack the current task giving it back to the original parent task */
-  set_current_uthread(&current_sched->idata->parent_task->uth);
+  /* Hijack the current context giving it back to the original parent context */
+  set_current_uthread(&current_sched->idata->parent_context->uth);
 
-  /* Yield this task to vcore context to run the function we just set up. Once
+  /* Yield this context to vcore context to run the function we just set up. Once
    * we return from the yield we will be fully back in the parent scheduler
-   * running the original parent task. */
+   * running the original parent context. */
   uthread_yield(true);
   return 0;
 }
@@ -570,188 +570,188 @@ int lithe_vcore_request(int k)
   return granted;
 }
 
-static void __lithe_task_run()
+static void __lithe_context_run()
 {
-  current_task->start_func(current_task->arg);
+  current_context->start_func(current_context->arg);
   uthread_yield(false);
 }
 
-static void __lithe_task_init_bare(lithe_task_t *task, lithe_task_attr_t *attr)
+static void __lithe_context_init_bare(lithe_context_t *context, lithe_context_attr_t *attr)
 {
-  uthread_set_tls_var(&task->uth, current_sched, current_sched);
-  task->stack = attr->stack;
-  task->tls = NULL;
-  task->finished = false;
-  task->free_stack = false;
+  uthread_set_tls_var(&context->uth, current_sched, current_sched);
+  context->stack = attr->stack;
+  context->tls = NULL;
+  context->finished = false;
+  context->free_stack = false;
 }
 
-void lithe_task_attr_init(lithe_task_attr_t *attr)
+void lithe_context_attr_init(lithe_context_attr_t *attr)
 {
   attr->stack.bottom = 0;
   attr->stack.size = 0;
 }
 
-lithe_task_t *lithe_task_create(lithe_task_attr_t *__attr, void (*func) (void *), void *arg) 
+lithe_context_t *lithe_context_create(lithe_context_attr_t *__attr, void (*func) (void *), void *arg) 
 {
   /* If attr is NULL, then create one and initialize it so it can be used
-   * properly in the task initialization functions to follow */
-  lithe_task_attr_t *attr;
+   * properly in the context initialization functions to follow */
+  lithe_context_attr_t *attr;
   if(__attr == NULL) {
-    lithe_task_attr_t _attr;
-    lithe_task_attr_init(&_attr);
+    lithe_context_attr_t _attr;
+    lithe_context_attr_init(&_attr);
     attr = &_attr;
   }
   /* Otherwise, just use the attr that was passed in */
   else attr = __attr;
 
-  /* Create the new task */
-  lithe_task_t *task = (lithe_task_t*)uthread_create(NULL, &attr);
-  assert(task);
+  /* Create the new context */
+  lithe_context_t *context = (lithe_context_t*)uthread_create(NULL, &attr);
+  assert(context);
 
   /* If a stack bottom is already set in the attributes, then just pass this
-   * along as the stack to use for the newly created task */
+   * along as the stack to use for the newly created context */
   bool created_stack = false;
   if(attr->stack.bottom) {
     assert(attr->stack.size);
-    task->stack = attr->stack;
+    context->stack = attr->stack;
   }
-  /* Otherwise, create a new stack for the task */
+  /* Otherwise, create a new stack for the context */
   else {
-    assert(current_sched->funcs->task_stack_create);
-    current_sched->funcs->task_stack_create(current_sched, &attr->stack);
-    task->stack = attr->stack;
+    assert(current_sched->funcs->context_stack_create);
+    current_sched->funcs->context_stack_create(current_sched, &attr->stack);
+    context->stack = attr->stack;
     created_stack = true;
   }
 
   /* If a func was passed in, go through the full initialization process. In
-   * both cases, the stack for the task MUST already have been setup somehow */
+   * both cases, the stack for the context MUST already have been setup somehow */
   if(func)
-    lithe_task_init(task, attr, func, arg);
+    lithe_context_init(context, attr, func, arg);
   /* Otherwise do a bare initialization */
   else
-    __lithe_task_init_bare(task, attr);
+    __lithe_context_init_bare(context, attr);
 
-  /* Need to set task->free_stack AFTER calling lithe_task_init(). Otherwise it
+  /* Need to set context->free_stack AFTER calling lithe_context_init(). Otherwise it
    * gets reset in the body of that function */
   if(created_stack)
-    task->free_stack = true;
+    context->free_stack = true;
 
-  assert(task->stack.bottom);
-  assert(task->stack.size);
-  return task;
+  assert(context->stack.bottom);
+  assert(context->stack.size);
+  return context;
 }
 
-void lithe_task_init(lithe_task_t *task, lithe_task_attr_t *attr, void (*func) (void *), void *arg)
+void lithe_context_init(lithe_context_t *context, lithe_context_attr_t *attr, void (*func) (void *), void *arg)
 {
-  assert(task);
+  assert(context);
   assert(attr);
   assert(attr->stack.bottom);
   assert(attr->stack.size);
 
-  __lithe_task_init_bare(task, attr);
-  task->start_func = func;
-  task->arg = arg;
+  __lithe_context_init_bare(context, attr);
+  context->start_func = func;
+  context->arg = arg;
 
-  init_uthread_stack(&task->uth, task->stack.bottom, task->stack.size);
-  init_uthread_entry(&task->uth, __lithe_task_run);
+  init_uthread_stack(&context->uth, context->stack.bottom, context->stack.size);
+  init_uthread_entry(&context->uth, __lithe_context_run);
 }
 
-void lithe_task_destroy(lithe_task_t *task)
+void lithe_context_destroy(lithe_context_t *context)
 {
-  assert(task);
+  assert(context);
   if(!in_vcore_context())
-    assert(task != current_task);
-  if(task->free_stack) {
-    assert(current_sched->funcs->task_stack_destroy);
-    current_sched->funcs->task_stack_destroy(current_sched, &task->stack);
+    assert(context != current_context);
+  if(context->free_stack) {
+    assert(current_sched->funcs->context_stack_destroy);
+    current_sched->funcs->context_stack_destroy(current_sched, &context->stack);
   }
-  uthread_destroy(&task->uth);
+  uthread_destroy(&context->uth);
 }
 
-lithe_task_t *lithe_task_self()
+lithe_context_t *lithe_context_self()
 {
-  return current_task;
+  return current_context;
 }
 
-void lithe_task_settls(void *tls) 
+void lithe_context_settls(void *tls) 
 {
-  assert(current_task);
+  assert(current_context);
   assert(!in_vcore_context());
-  current_task->tls = tls;
+  current_context->tls = tls;
 }
 
-void *lithe_task_gettls()
+void *lithe_context_gettls()
 {
-  assert(current_task);
+  assert(current_context);
   assert(!in_vcore_context());
-  return current_task->tls;
+  return current_context->tls;
 }
 
-int lithe_task_run(lithe_task_t *task)
+int lithe_context_run(lithe_context_t *context)
 {
-  assert(task);
+  assert(context);
   assert(in_vcore_context());
 
-  next_task = task;
+  next_context = context;
   lithe_vcore_entry();
   return -1;
 }
 
-void __lithe_task_block(void *arg)
+void __lithe_context_block(void *arg)
 {
   assert(arg);
   assert(in_vcore_context());
 
   struct { 
-    void (*func) (lithe_task_t *, void *); 
-    lithe_task_t *task;
+    void (*func) (lithe_context_t *, void *); 
+    lithe_context_t *context;
     void *arg;
   } *real_arg = arg;
 
-  real_arg->func(real_arg->task, real_arg->arg);
+  real_arg->func(real_arg->context, real_arg->arg);
   __lithe_sched_reenter();
 }
 
-int lithe_task_block(void (*func) (lithe_task_t *, void *), void *arg)
+int lithe_context_block(void (*func) (lithe_context_t *, void *), void *arg)
 {
   assert(func);
   assert(!in_vcore_context());
-  assert(current_task);
+  assert(current_context);
 
   struct { 
-    void (*func) (lithe_task_t *, void *); 
-    lithe_task_t *task;
+    void (*func) (lithe_context_t *, void *); 
+    lithe_context_t *context;
     void *arg;
-  } real_arg = {func, current_task, arg};
-  lithe_vcore_func_t real_func = {__lithe_task_block, &real_arg};
+  } real_arg = {func, current_context, arg};
+  lithe_vcore_func_t real_func = {__lithe_context_block, &real_arg};
 
   vcore_set_tls_var(vcore_id(), next_func, &real_func);
   uthread_yield(true);
   return 0;
 }
 
-int lithe_task_unblock(lithe_task_t *task)
+int lithe_context_unblock(lithe_context_t *context)
 {
-  assert(task);
-  assert(current_sched->funcs->task_runnable);
-  current_sched->funcs->task_runnable(current_sched, task);
+  assert(context);
+  assert(current_sched->funcs->context_runnable);
+  current_sched->funcs->context_runnable(current_sched, context);
   return 0;
 }
 
-void lithe_task_yield()
+void lithe_context_yield()
 {
   assert(!in_vcore_context());
   assert(current_sched);
-  assert(current_task);
+  assert(current_context);
   uthread_yield(true);
 }
 
-void lithe_task_exit()
+void lithe_context_exit()
 {
   assert(!in_vcore_context());
   assert(current_sched);
-  assert(current_task);
-  current_task->finished = true;
+  assert(current_context);
+  current_context->finished = true;
   uthread_yield(false);
 }
 

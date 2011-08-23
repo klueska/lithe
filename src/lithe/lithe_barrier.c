@@ -11,8 +11,8 @@ void lithe_barrier_init(lithe_barrier_t *barrier, int N)
   barrier->arrived = 0;
   barrier->wait = false;
   barrier->signals = (padded_bool_t *)calloc(N, sizeof(padded_bool_t));
-  barrier->blocked[0].queue = (lithe_task_t **)malloc(N * sizeof(lithe_task_t *));
-  barrier->blocked[1].queue = (lithe_task_t **)malloc(N * sizeof(lithe_task_t *));
+  barrier->blocked[0].queue = (lithe_context_t **)malloc(N * sizeof(lithe_context_t *));
+  barrier->blocked[1].queue = (lithe_context_t **)malloc(N * sizeof(lithe_context_t *));
   barrier->blocked[0].len = 0;
   barrier->blocked[1].len = 0;
   barrier->blocked[0].maxlen = N;
@@ -31,12 +31,12 @@ void lithe_barrier_destroy(lithe_barrier_t *barrier)
 }
 
 
-void __lithe_barrier_block(lithe_task_t *task, void *__blocked) 
+void __lithe_barrier_block(lithe_context_t *context, void *__blocked) 
 {
-  taskq_t *blocked = (taskq_t *)__blocked;
+  contextq_t *blocked = (contextq_t *)__blocked;
   assert(blocked != NULL);
   assert(blocked->len < blocked->maxlen);
-  blocked->queue[blocked->len] = task;
+  blocked->queue[blocked->len] = context;
   blocked->len += 1;
   spinlock_unlock(&blocked->mtx);
 }
@@ -67,10 +67,10 @@ void lithe_barrier_wait(lithe_barrier_t *barrier)
     }
 
     /* unblock those that are no longer running */
-    taskq_t *blocked = &barrier->blocked[wait];
+    contextq_t *blocked = &barrier->blocked[wait];
     spinlock_lock(&blocked->mtx);
     for (i = 0; i < blocked->len; i++) {
-      lithe_task_unblock(blocked->queue[i]);
+      lithe_context_unblock(blocked->queue[i]);
     }
     blocked->len = 0;
     spinlock_unlock(&blocked->mtx);
@@ -85,10 +85,10 @@ void lithe_barrier_wait(lithe_barrier_t *barrier)
     while (coherent_read(barrier->signals[id].val) == wait) { 
       nstalls++;
       if (nstalls >= MAXSTALLS) {
-	taskq_t *blocked = &barrier->blocked[wait];
+	contextq_t *blocked = &barrier->blocked[wait];
 	spinlock_lock(&blocked->mtx);
 	if (barrier->signals[id].val == wait) {
-	  lithe_task_block(__lithe_barrier_block, (void *)blocked);
+	  lithe_context_block(__lithe_barrier_block, (void *)blocked);
 	} else {
 	  spinlock_unlock(&blocked->mtx);
 	}
