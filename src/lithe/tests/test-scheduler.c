@@ -23,15 +23,6 @@ typedef struct test_sched {
   unsigned int counter;
 } test_sched_t;
 
-static void test_sched_ctor(test_sched_t *sched)
-{
-  sched->counter = 0;
-}
-
-static void test_sched_dtor(test_sched_t *sched)
-{
-}
-
 static void vcore_enter(lithe_sched_t *__this);
 
 static const lithe_sched_funcs_t funcs = {
@@ -45,6 +36,16 @@ static const lithe_sched_funcs_t funcs = {
   .context_yield         = __context_yield_default,
   .context_exit          = __context_exit_default
 };
+
+static void test_sched_ctor(test_sched_t *sched)
+{
+  sched->sched.funcs = &funcs;
+  sched->counter = 0;
+}
+
+static void test_sched_dtor(test_sched_t *sched)
+{
+}
 
 static void vcore_enter(lithe_sched_t *__this)
 {
@@ -83,11 +84,9 @@ int main()
   printf("Lithe Simple test starting!\n");
   test_sched_t test_sched;
   test_sched_ctor(&test_sched);
-  lithe_context_t *context = __lithe_context_create_default(false);
-  lithe_sched_enter(&funcs, (lithe_sched_t*)&test_sched, context);
+  lithe_sched_enter((lithe_sched_t*)&test_sched);
   test_run();
   lithe_sched_exit();
-  __lithe_context_destroy_default(context, false);
   test_sched_dtor(&test_sched);
   printf("Lithe Simple test exiting\n");
   return 0;

@@ -9,8 +9,8 @@ namespace lithe {
 class Scheduler;
 
 class Scheduler : public lithe_sched_t {
- public:
-  static const lithe_sched_funcs_t funcs;
+ protected:
+  static const lithe_sched_funcs_t static_funcs;
 
  private:
   friend int __vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
@@ -44,6 +44,7 @@ class Scheduler : public lithe_sched_t {
     { return __context_exit_default(this, context); }
 
  public:
+  Scheduler() {funcs = &Scheduler::static_funcs; }
   virtual ~Scheduler() {}
 };
 

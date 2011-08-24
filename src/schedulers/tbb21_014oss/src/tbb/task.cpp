@@ -3572,7 +3572,7 @@ void task_scheduler_init::initialize( int number_of_threads, stack_size_type thr
 	// been started, but we want to avoid a race with hard threads
 	// entering the scheduler (via 'enter') before we are
 	// completely initialized
-	if (lithe_sched_enter(&funcs, this, &context) != 0) {
+	if (lithe_sched_enter(this) != 0) {
 		handle_perror(errno, "lithe_sched_enter");
 	}
 

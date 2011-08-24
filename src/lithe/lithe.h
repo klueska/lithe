@@ -27,13 +27,14 @@ extern "C" {
 #define LITHE_REQUEST_MAX (-1)
 
 /**
- * Passes control to a new child scheduler with the specified 'funcs' as
- * callback functions. It hands the current vcore over to this scheduler and
- * then returns. To exit the child, a subsequent call to lithe_sched_exit() is
- * needed. Only at this point will control be passed back to the parent
- * scheduler. Returns -1 if there is an error and sets errno appropriately.
+ * Passes control to a new child scheduler. The 'funcs' field of the scheduler
+ * must already be set up properly or the call will fail. It hands the current
+ * vcore over to this scheduler and then returns. To exit the child, a
+ * subsequent call to lithe_sched_exit() is needed. Only at this point will
+ * control be passed back to the parent scheduler. Returns -1 if there is an
+ * error and sets errno appropriately.
  */
-int lithe_sched_enter(const lithe_sched_funcs_t *funcs, lithe_sched_t *child, lithe_context_t *context);
+int lithe_sched_enter(lithe_sched_t *child);
 
 /**
  * Exits the current scheduler, returning control to its parent. Must be paired

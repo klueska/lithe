@@ -52,11 +52,9 @@ int main(int argc, char **argv)
 {
   printf("CXX Lithe Simple test starting\n");
   TestScheduler test_sched;
-  lithe_context_t *context = __lithe_context_create_default(false);
-  lithe_sched_enter(&Scheduler::funcs, &test_sched, context);
+  lithe_sched_enter(&test_sched);
   test_run();
   lithe_sched_exit();
-  __lithe_context_destroy_default(context, false);
   printf("CXX Lithe Simple test finishing\n");
   return 0;
 }

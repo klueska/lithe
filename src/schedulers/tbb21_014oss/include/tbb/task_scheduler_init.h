@@ -64,7 +64,6 @@ class task_scheduler_init: internal::no_copy {
 
     lithe_sched_t **children;
     int *requested;
-    lithe_context_t context;
 
 protected:
     void vcore_enter();

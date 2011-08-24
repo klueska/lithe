@@ -83,6 +83,9 @@ struct lithe_sched {
   /* Parent context from which this scheduler was started. */
   lithe_context_t *parent_context;
 
+  /* The start context for this scheduler when it is first entered */
+  lithe_context_t start_context;
+
 };
 
 #ifdef __cplusplus

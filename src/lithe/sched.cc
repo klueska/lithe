@@ -48,7 +48,7 @@ void __context_exit(lithe_sched_t *__this, lithe_context_t *context)
   ((Scheduler*)__this)->context_exit(context);
 }
 
-const lithe_sched_funcs_t Scheduler::funcs = {
+const lithe_sched_funcs_t Scheduler::static_funcs = {
   /*.vcore_request         = */ __vcore_request,
   /*.vcore_enter           = */ __vcore_enter,
   /*.vcore_return          = */ __vcore_return,

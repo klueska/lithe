@@ -62,11 +62,9 @@ void child_main(void *arg)
   printf("child_main start\n");
   /* Start a child scheduler: Blocks until scheduler finishes */
   ChildScheduler child_sched;
-  lithe_context_t *context = __lithe_context_create_default(false);
-  lithe_sched_enter(&Scheduler::funcs, &child_sched, context);
+  lithe_sched_enter(&child_sched);
   child_run();
   lithe_sched_exit();
-  __lithe_context_destroy_default(context, false);
   printf("child_main finish\n");
 }
 
@@ -236,11 +234,9 @@ int main()
   printf("main start\n");
   /* Start the root scheduler: Blocks until scheduler finishes */
   RootScheduler root_sched;
-  lithe_context_t *context = __lithe_context_create_default(false);
-  lithe_sched_enter(&Scheduler::funcs, &root_sched, context);
+  lithe_sched_enter(&root_sched);
   root_run();
   lithe_sched_exit();
-  __lithe_context_destroy_default(context, false);
   printf("main finish\n");
   return 0;
 }

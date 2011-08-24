@@ -109,6 +109,7 @@ static lithe_sched_t base_sched = {
   .vcores          = 0,
   .parent          = NULL,
   .parent_context  = NULL,
+  .start_context   = {{{0}}}
 };
 
 /* Reference to the context running the main thread. */ 
@@ -369,14 +370,13 @@ static void __lithe_sched_enter(void *arg)
   lithe_vcore_entry();
 }
 
-int lithe_sched_enter(const lithe_sched_funcs_t *funcs, lithe_sched_t *child, lithe_context_t *child_context)
+int lithe_sched_enter(lithe_sched_t *child)
 {
-  assert(funcs);
   assert(!in_vcore_context());
   assert(current_sched);
 
-  /* Associate the constant scheduler funcs with the child scheduler */
-  child->funcs = funcs;
+  /* Make sure that the childs 'funcs' have already been set up properly */
+  assert(child->funcs);
  
   lithe_sched_t* parent = current_sched;
   lithe_context_t*  parent_context = current_context;
@@ -389,10 +389,8 @@ int lithe_sched_enter(const lithe_sched_funcs_t *funcs, lithe_sched_t *child, li
   /* Update the number of vcores now owned by this child */
   __sync_fetch_and_add(&(child->vcores), 1);
 
-  /* Initialize the child context passed in to highjack the current context's context */
-  assert(child_context);
-  assert(current_context->stack.bottom);
-  assert(current_context->stack.size);
+  /* Initialize the child's start context to highjack the current context */
+  lithe_context_t *child_context = &child->start_context;
   child_context->stack = current_context->stack;
   __lithe_context_init(child_context, child);
 

@@ -115,11 +115,9 @@ int main(int argc, char **argv)
 {
   printf("main start\n");
   RootScheduler root_sched;
-  lithe_context_t *context = __lithe_context_create_default(false);
-  lithe_sched_enter(&Scheduler::funcs, &root_sched, context);
+  lithe_sched_enter(&root_sched);
   root_run(1500);
   lithe_sched_exit();
-  __lithe_context_destroy_default(context, false);
   printf("main finish\n");
   return 0;
 }
