@@ -3,10 +3,13 @@
 MAKE := $(MAKE) -s
 V ?= @
 
+uc = $(shell echo $(1) | tr a-z A-Z)
+lc = $(shell echo $(1) | tr A-Z a-z)
+
 LIBNAME = parlib
 INTERMLIBS := ht lithe
 SCHEDULERS := rrthread
-SYSDEP := unix/sysv/linux/i686
+SYSDEP := unix/sysv/$(call lc, $(shell uname -s))/$(shell uname -i)
 CFLAGS = -g -O2 -Wall -std=gnu99 -MMD -MP
 CFLAGS += -Wno-unused-function 
 CFLAGS += -Wno-unused-value 
