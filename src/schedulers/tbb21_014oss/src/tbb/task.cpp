@@ -3449,7 +3449,7 @@ void task_scheduler_init::vcore_enter() {
 		if (__TBB_CompareAndSwapW(&w.state, WorkerDescriptor::RUNNING, WorkerDescriptor::REQUESTED) == WorkerDescriptor::REQUESTED) {
     		w.id = i + 1;
 
-			lithe_context_t *context = (lithe_context_t*)calloc(1, sizeof(lithe_context_t));
+			lithe_context_t *context = (lithe_context_t*)malloc(sizeof(lithe_context_t));
 			assert(context);
 			context->stack.size = w.thread_stack_size ? w.thread_stack_size : ThreadStackSize;
 			context->stack.bottom = malloc(context->stack.size);
@@ -3572,7 +3572,6 @@ void task_scheduler_init::initialize( int number_of_threads, stack_size_type thr
 	// been started, but we want to avoid a race with hard threads
 	// entering the scheduler (via 'enter') before we are
 	// completely initialized
-	memset(&context, 0, sizeof(context));
 	if (lithe_sched_enter(&funcs, this, &context) != 0) {
 		handle_perror(errno, "lithe_sched_enter");
 	}

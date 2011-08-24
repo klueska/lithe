@@ -83,13 +83,19 @@ void uthread_init(struct uthread *uthread)
 	/* Make sure we are initialized */
 	assert(uthread_lib_init() == 0);
 
-	/* If a tls regions alredy exists for this uthread, free it */
-	if(uthread->tls_desc)
-      __uthread_free_tls(uthread);
+	memset(uthread, 0, sizeof(struct uthread));
 	/* Get a TLS for the new thread */
 	assert(!__uthread_allocate_tls(uthread));
 	/* Set the thread's internal tls variable for current_uthread to itself */
 	uthread_set_tls_var(uthread, current_uthread, uthread);
+}
+
+void uthread_reinit(struct uthread *uthread)
+{
+	/* Make sure a tls_desc already exists for this thread */
+	assert(uthread->tls_desc);
+	__uthread_free_tls(uthread);
+	uthread_init(uthread);
 }
 
 void uthread_cleanup(struct uthread *uthread)

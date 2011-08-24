@@ -54,6 +54,9 @@ int uthread_lib_init();
 /* Initializes a uthread. */
 void uthread_init(struct uthread *uth);
 
+/* Reinitializes an already initialized uthread. */
+void uthread_reinit(struct uthread *uth);
+
 /* Cleans up a uthread that was previously initialized by a call to
  * uthread_init(). Be careful not to call this on any currently running
  * uthreads. */

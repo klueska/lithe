@@ -76,6 +76,13 @@ void lithe_vcore_yield();
  */
 void lithe_context_init(lithe_context_t *context, void (*func) (void *), void *arg);
 
+/*
+ * Initialize a new state for an existing context. The context parameter MUST
+ * already contain a valid stack pointer and stack size. Once the context is
+ * restarted it will run from the entry point specified.
+ */
+void lithe_context_reinit(lithe_context_t *context, void (*func) (void *), void *arg);
+
 /* 
  * Cleanup an existing context. This context should not be currently running on any
  * vcore.  For currently running contexts, instead use lithe_context_exit().

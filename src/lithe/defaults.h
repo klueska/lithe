@@ -12,7 +12,7 @@ extern "C" {
 /* Helpful defaults not associated with any specific lithe callback function */
 static lithe_context_t* __lithe_context_create_default(bool stack)
 {
-  lithe_context_t *context = (lithe_context_t*)calloc(1, sizeof(lithe_context_t));
+  lithe_context_t *context = (lithe_context_t*)malloc(sizeof(lithe_context_t));
   assert(context);
 
   if(stack) {

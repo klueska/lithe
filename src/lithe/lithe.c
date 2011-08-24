@@ -157,7 +157,7 @@ static __thread struct {
 #define current_context  ((lithe_context_t*)current_uthread)
 
 /* Helper function for initializing the barebones of a lithe context */
-static void __lithe_context_init(lithe_context_t *context, lithe_sched_t *sched);
+static inline void __lithe_context_init(lithe_context_t *context, lithe_sched_t *sched);
 
 void vcore_ready()
 {
@@ -540,10 +540,8 @@ static void __lithe_context_run()
   uthread_yield(false);
 }
 
-static void __lithe_context_init(lithe_context_t *context, lithe_sched_t *sched)
+static inline void __lithe_context_fields_init(lithe_context_t *context, lithe_sched_t *sched)
 {
-  /* Initialize the new context as a uthread */
-  uthread_init((uthread_t*)context);
   context->start_func = NULL;
   context->arg = NULL;
   context->cls = NULL;
@@ -552,25 +550,58 @@ static void __lithe_context_init(lithe_context_t *context, lithe_sched_t *sched)
   uthread_set_tls_var(&context->uth, current_sched, sched);
 }
 
-void lithe_context_init(lithe_context_t *context, void (*func) (void *), void *arg)
+static inline void __lithe_context_init(lithe_context_t *context, lithe_sched_t *sched)
 {
-  /* Assert that a stack already exists for this lithe context */
-  assert(context);
+  /* Initialize the new context as a uthread */
+  uthread_init((uthread_t*)context);
+
+  /* Initialize the fields associated with a lithe context */
+  __lithe_context_fields_init(context, sched);
+}
+
+static inline void __lithe_context_reinit(lithe_context_t *context, lithe_sched_t *sched)
+{
+  /* Renitialize the new context as a uthread */
+  uthread_reinit((uthread_t*)context);
+
+  /* Initialize the fields associated with a lithe context */
+  __lithe_context_fields_init(context, sched);
+}
+
+static inline void __lithe_context_set_entry(lithe_context_t *context, 
+                                             void (*func) (void *), void *arg)
+{
   assert(context->stack.bottom);
   assert(context->stack.size);
+
+  context->start_func = func;
+  context->arg = arg;
+  init_uthread_stack(&context->uth, context->stack.bottom, context->stack.size);
+  init_uthread_entry(&context->uth, __lithe_context_run);
+}
+
+void lithe_context_init(lithe_context_t *context, void (*func) (void *), void *arg)
+{
+  /* Assert that this is a valid context */
+  assert(context);
 
   /* Call the internal lithe context init */
   __lithe_context_init(context, current_sched);
 
-  /* Initialize the underlying uthread stack with the lithe context stack */
-  init_uthread_stack(&context->uth, context->stack.bottom, context->stack.size);
+  /* Initialize context start function and stack */
+  __lithe_context_set_entry(context, func, arg);
+}
 
-  /* Initialize context start function */
-  context->start_func = func;
-  context->arg = arg;
+void lithe_context_reinit(lithe_context_t *context, void (*func) (void *), void *arg)
+{
+  /* Assert that this is a valid context */
+  assert(context);
 
-  /* Set the entry function of the context to eventually run the start function */
-  init_uthread_entry(&context->uth, __lithe_context_run);
+  /* Call the internal lithe context reinit */
+  __lithe_context_reinit(context, current_sched);
+
+  /* Initialize context start function and stack */
+  __lithe_context_set_entry(context, func, arg);
 }
 
 void lithe_context_cleanup(lithe_context_t *context)
