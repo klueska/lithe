@@ -16,6 +16,13 @@
 extern "C" {
 #endif
 
+enum {
+  CONTEXT_READY,
+  CONTEXT_BLOCKED,
+  CONTEXT_YIELDED,
+  CONTEXT_FINISHED,
+};
+
 typedef struct {
   /* Stack bottom for a lithe context. */
   void *bottom;
@@ -44,11 +51,8 @@ typedef struct lithe_context {
   /* Context local storage */
   void *cls;
 
-  /* Flag to indicate that this context has run to completion */
-  bool finished;
-
-  /* Flag to indicate that this context has been blocked */
-  bool blocked;
+  /* State used internally by the lithe runtime to manage contexts */
+  size_t state;
 
 } lithe_context_t;
 
