@@ -55,23 +55,6 @@
 #error "expecting __linux__ to be defined (for now, Lithe only runs on Linux)"
 #endif
 
-/* Struct to keep track of the internal state of each of the 2nd-level
- * schedulers managed by lithe */
-struct lithe_sched_idata {
-  /* Number of vcores currently owned by this scheduler. */
-  int vcores;
-
-  /* Pointer to the start context of this scheduler */
-  lithe_context_t *start_context;
-
-  /* Scheduler's parent scheduler */
-  lithe_sched_t *parent;
-
-  /* Parent context from which this scheduler was started. */
-  lithe_context_t *parent_context;
-
-};
-
 /* Struct to hold the function pointer and argument of a function to be called
  * in vcore_entry after one of the lithe functions yields from a context */
 typedef struct lithe_vcore_func {
@@ -120,16 +103,12 @@ static const lithe_sched_funcs_t base_funcs = {
   .context_exit       = base_context_exit
 };
 
-static lithe_sched_idata_t base_idata = {
-  .vcores       = 0,
-  .parent       = NULL,
-  .parent_context  = NULL,
-};
-
 /* Base scheduler itself */
 static lithe_sched_t base_sched = { 
-  .funcs        = &base_funcs,
-  .idata        = &base_idata
+  .funcs           = &base_funcs,
+  .vcores          = 0,
+  .parent          = NULL,
+  .parent_context  = NULL,
 };
 
 /* Reference to the context running the main thread. */ 
@@ -280,7 +259,7 @@ static void base_vcore_enter(lithe_sched_t *__this)
 static void base_vcore_return(lithe_sched_t *__this, lithe_sched_t *sched)
 {
   /* Cleanup tls and yield the vcore back to the system. */
-  __sync_fetch_and_add(&base_sched.idata->vcores, -1);
+  __sync_fetch_and_add(&base_sched.vcores, -1);
   memset(&lithe_tls, 0, sizeof(lithe_tls));
   vcore_yield();
 }
@@ -301,7 +280,7 @@ static int base_vcore_request(lithe_sched_t *__this, lithe_sched_t *sched, int k
 {
   assert(root_sched == sched);
   int granted = vcore_request(k);
-  __sync_fetch_and_add(&base_sched.idata->vcores, granted);
+  __sync_fetch_and_add(&base_sched.vcores, granted);
   return granted;
 }
 
@@ -349,11 +328,11 @@ void lithe_vcore_yield()
   assert(in_vcore_context());
   assert(current_sched != &base_sched);
 
-  lithe_sched_t *parent = current_sched->idata->parent;
+  lithe_sched_t *parent = current_sched->parent;
   lithe_sched_t *child = current_sched;
 
   /* Leave child, join parent. */
-  __sync_fetch_and_add(&(child->idata->vcores), -1);
+  __sync_fetch_and_add(&(child->vcores), -1);
 
   /* Yield the vcore to the parent */
   current_sched = parent;
@@ -402,17 +381,13 @@ int lithe_sched_enter(const lithe_sched_funcs_t *funcs, lithe_sched_t *child, li
   lithe_sched_t* parent = current_sched;
   lithe_context_t*  parent_context = current_context;
 
-  /* Create the childs sched_idata and set up the pointer to it */
-  lithe_sched_idata_t *child_idata = (lithe_sched_idata_t*)malloc(sizeof(lithe_sched_idata_t));
-  child->idata = child_idata;
-
   /* Set-up child scheduler */
-  child->idata->vcores = 0;
-  child->idata->parent = parent;
-  child->idata->parent_context = parent_context;
+  child->vcores = 0;
+  child->parent = parent;
+  child->parent_context = parent_context;
 
   /* Update the number of vcores now owned by this child */
-  __sync_fetch_and_add(&(child->idata->vcores), 1);
+  __sync_fetch_and_add(&(child->vcores), 1);
 
   /* Initialize the child context passed in to highjack the current context's context */
   assert(child_context);
@@ -476,20 +451,20 @@ int lithe_sched_exit()
   assert(!in_vcore_context());
   assert(current_sched);
 
-  lithe_sched_t* parent = current_sched->idata->parent;
-  lithe_context_t* parent_context = current_sched->idata->parent_context;
+  lithe_sched_t* parent = current_sched->parent;
+  lithe_context_t* parent_context = current_sched->parent_context;
   lithe_sched_t *child = current_sched;
   lithe_context_t *child_context = current_context;
 
   /* Don't actually end this scheduler until all vcores have been yielded
    * (except this one of course) */
-  while (coherent_read(child->idata->vcores) != 1);
+  while (coherent_read(child->vcores) != 1);
 
   /* Update child's vcore count (to 0) */
-  __sync_fetch_and_add(&(child->idata->vcores), -1);
+  __sync_fetch_and_add(&(child->vcores), -1);
 
   /* Hijack the current context giving it back to the original parent context */
-  set_current_uthread(&current_sched->idata->parent_context->uth);
+  set_current_uthread(&current_sched->parent_context->uth);
 
   /* Give control back to the parent */
   current_sched = parent;
@@ -513,22 +488,19 @@ int lithe_sched_exit()
   /* Cleanup the child context we initialized in lithe_sched_entry() */
   lithe_context_cleanup(child_context);
 
-  /* Destroy the child's idata */
-  free(child->idata);
-
   return 0;
 }
 
 int lithe_vcore_request(int k)
 {
   assert(current_sched);
-  lithe_sched_t *parent = current_sched->idata->parent;
+  lithe_sched_t *parent = current_sched->parent;
   lithe_sched_t *child = current_sched;
 
   current_sched = parent;
   assert(parent->funcs->vcore_request);
   int granted = parent->funcs->vcore_request(parent, child, k);
-  __sync_fetch_and_add(&child->idata->vcores, granted);
+  __sync_fetch_and_add(&child->vcores, granted);
   current_sched = child;
   return granted;
 }
