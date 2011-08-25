@@ -9,7 +9,7 @@ lc = $(shell echo $(1) | tr A-Z a-z)
 LIBNAME = parlib
 INTERMLIBS := ht lithe
 SCHEDULERS := rrthread
-SYSDEP := unix/sysv/$(call lc, $(shell uname -s))/$(shell uname -i)
+SYSDEP := unix/sysv/$(call lc, $(shell uname -s))/$(shell uname -m)
 CFLAGS = -g -O2 -Wall -std=gnu99 -MMD -MP
 CFLAGS += -Wno-unused-function 
 CFLAGS += -Wno-unused-value 
