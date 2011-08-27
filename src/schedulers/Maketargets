@@ -1,27 +1,27 @@
 # Generic Maketargets file for all bthread based libraries
 
-all: $(FINALLIB)
+all: $(FINALSCHED)
 
--include $(LIB_DEPS)
+-include $(SCHED_DEPS)
 
-$(OBJDIR)/%.o: $(SCHEDS_DIR)/%.c 
-	@echo + cc [$(LIBUCNAME)] $(<F)
+$(SCHEDOBJDIR)/%.o: $(SCHEDSDIR)/%.c 
+	@echo + cc [$(SCHEDUCNAME)] $(<F)
 	@mkdir -p $(@D)
-	$(V)$(CC) $(LIB_CFLAGS) $(LIB_INCS) -o $@ -c $<
+	$(V)$(CC) $(SCHED_CFLAGS) $(SCHED_INCS) -o $@ -c $<
 
-$(OBJDIR)/%.o: $(LIB_SRCDIR)/%.c 
-	@echo + cc [$(LIBUCNAME)] $(<F)
+$(SCHEDOBJDIR)/%.o: $(SCHEDSRCDIR)/%.c 
+	@echo + cc [$(SCHEDUCNAME)] $(<F)
 	@mkdir -p $(@D)
-	$(V)$(CC) $(LIB_CFLAGS) $(LIB_INCS) -o $@ -c $<
+	$(V)$(CC) $(SCHED_CFLAGS) $(SCHED_INCS) -o $@ -c $<
 
-$(FINALLIB): $(LIB_OBJS)
-	@echo + ar [$(LIBUCNAME)] $(@F)
+$(FINALSCHED): $(SCHED_OBJS)
+	@echo + ar [$(SCHEDUCNAME)] $(@F)
 	@mkdir -p $(@D)
-	$(V)$(AR) rc $@ $(LIB_OBJS)
+	$(V)$(AR) rc $@ $(SCHED_OBJS)
 
 tests_clean:
 
 clean: tests_clean
-	@echo + clean [$(LIBUCNAME)]
-	$(V)rm -rf $(OBJDIR)
+	@echo + clean [$(SCHEDUCNAME)]
+	$(V)rm -rf $(SCHEDOBJDIR)
 	

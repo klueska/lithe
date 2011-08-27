@@ -13,7 +13,6 @@
 #include <asm/unistd.h>
 
 #include <ht/atomic.h>
-#include <spinlock.h>
 
 #include <sys/mman.h>
 #include <sys/resource.h>
@@ -48,7 +47,7 @@ struct schedule_ops lithe_sched_ops = {
   .spawn_thread     = NULL, /* lithe_spawn_thread, */
 };
 /* Publish these schedule_ops, overriding the weak defaults setup in uthread */
-struct schedule_ops *sched_ops __attribute__((weak)) = &lithe_sched_ops;
+struct schedule_ops *sched_ops = &lithe_sched_ops;
 
 /* Lithe's base scheduler functions */
 static int base_vcore_request(lithe_sched_t *this, lithe_sched_t *child, int k);

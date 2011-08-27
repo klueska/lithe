@@ -8,9 +8,9 @@
 #include <stdlib.h>
 #include <ucontext.h>
 
+#include <parlib/spinlock.h>
 #include <lithe/lithe_mutex.h>
 #include <ht/atomic.h>
-#include <spinlock.h>
 
 
 DEFINE_TYPED_DEQUE(context, lithe_context_t *);

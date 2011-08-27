@@ -1,0 +1,66 @@
+# Makefile for hard threads library
+
+PARLIB_LIBNAME = parlib
+PARLIB_CFLAGS = $(CFLAGS) -fno-strict-aliasing
+PARLIB_CPPFLAGS = $(filter-out -std=gnu99, $(PARLIB_CFLAGS))
+
+PARLIB_SRCDIR := $(SRCDIR)/$(PARLIB_LIBNAME)
+PARLIB_OBJDIR := $(OBJDIR)/$(PARLIB_LIBNAME)
+PARLIB_SYSDEPDIR := $(PARLIB_SRCDIR)/sysdeps/$(SYSDEP)
+PARLIB_TESTSDIR := $(PARLIB_SRCDIR)/tests
+PARLIB_INCDIRS = $(SRCDIR) $(PARLIB_SYSDEPDIR)
+
+PARLIB_INCS = $(patsubst %, -I%, $(PARLIB_INCDIRS))
+PARLIB_FINALLIB = $(PARLIB_OBJDIR)/lib$(PARLIB_LIBNAME).a
+
+PARLIB_LIBUCNAME := $(call uc, $(PARLIB_LIBNAME))
+PARLIB_CFILES    := $(notdir $(wildcard $(PARLIB_SRCDIR)/*.c))
+PARLIB_CFILES    += $(notdir $(wildcard $(PARLIB_SYSDEPDIR)/*.c))
+PARLIB_SFILES    := $(notdir $(wildcard $(PARLIB_SRCDIR)/*.S))
+PARLIB_SFILES    += $(notdir $(wildcard $(PARLIB_SYSDEPDIR)/*.S))
+PARLIB_CPPFILES  := $(notdir $(wildcard $(PARLIB_SRCDIR)/*.cc))
+PARLIB_CPPFILES  += $(notdir $(wildcard $(PARLIB_SYSDEPDIR)/*.cc))
+PARLIB_OBJS      := $(patsubst %.c, $(PARLIB_OBJDIR)/%.o, $(PARLIB_CFILES))
+PARLIB_OBJS      += $(patsubst %.cc, $(PARLIB_OBJDIR)/%_cc.o, $(PARLIB_CPPFILES))
+PARLIB_OBJS      += $(patsubst %.S, $(PARLIB_OBJDIR)/%.o, $(PARLIB_SFILES))
+PARLIB_DEPS      := $(patsubst %.o, %.d, $(PARLIB_OBJS))
+OBJS += $(PARLIB_OBJS)
+
+-include $(PARLIB_DEPS)
+
+$(PARLIB_LIBNAME): $(PARLIB_FINALLIB)
+
+$(PARLIB_OBJDIR)/%.o: $(PARLIB_SRCDIR)/%.c
+	@echo + cc [$(PARLIB_LIBUCNAME)] $(<F)
+	@mkdir -p $(@D)
+	$(V)$(CC) $(PARLIB_CFLAGS) $(PARLIB_INCS) -o $@ -c $<
+
+$(PARLIB_OBJDIR)/%_cc.o: $(PARLIB_SRCDIR)/%.cc
+	@echo + cxx [$(PARLIB_LIBUCNAME)] $(<F)
+	@mkdir -p $(@D)
+	$(V)$(CXX) $(PARLIB_CPPFLAGS) $(PARLIB_INCS) -o $@ -c $<
+
+$(PARLIB_OBJDIR)/%.o: $(PARLIB_SYSDEPDIR)/%.S
+	@echo + cc [$(PARLIB_LIBUCNAME)] $(<F)
+	@mkdir -p $(@D)
+	$(V)$(CC) $(PARLIB_CFLAGS) -D__ASSEMBLER__ -c -o $@ $<
+
+$(PARLIB_FINALLIB): $(PARLIB_OBJS)
+	@echo + ar [$(PARLIB_LIBUCNAME)] $(@F)
+	@mkdir -p $(@D)
+	$(V)$(AR) rc $@ $(PARLIB_OBJS)
+
+$(PARLIB_LIBNAME)_tests: all
+	$(V)V=$(V) SRCDIR=$(PARLIB_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(PARLIB_LIBNAME) \
+	  LIBINCDIR="$(LIBINCDIR)" LIBOBJDIRS="$(LIBOBJDIRS)" EXT_DEPS=$(FINALLIB) \
+	  $(MAKE) -C $(PARLIB_SRCDIR)/tests 
+
+$(PARLIB_LIBNAME)_tests_clean:
+	$(V)V=$(V) SRCDIR=$(PARLIB_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(PARLIB_LIBNAME) \
+	  LIBINCDIR="$(LIBINCDIR)" LIBOBJDIRS="$(LIBOBJDIRS)" EXT_DEPS=$(FINALLIB) \
+	  $(MAKE) -C $(PARLIB_SRCDIR)/tests clean
+
+$(PARLIB_LIBNAME)_clean: $(PARLIB_LIBNAME)_tests_clean
+	@echo + clean [$(PARLIB_LIBUCNAME)]
+	$(V)rm -rf $(PARLIB_OBJDIR)
+

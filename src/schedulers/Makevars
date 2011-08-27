@@ -5,20 +5,20 @@
 # this library (i.e. tests/Makerules).  LIBNAME, SCHEDS_DIR, and PARLIB_DIR are
 # defined in the per library Makefile that includes this file
 uc = $(shell echo $(1) | tr a-z A-Z)
-LIB_SRCDIR := $(SCHEDS_DIR)/$(LIBNAME)
-OBJDIR     := $(LIB_SRCDIR)/obj
-FINALLIB   := $(OBJDIR)/lib$(LIBNAME).a
-LIBUCNAME  := $(call uc, $(LIBNAME))
+SCHEDSRCDIR := $(SCHEDSDIR)/$(SCHEDNAME)
+SCHEDOBJDIR := $(SCHEDSRCDIR)/obj
+FINALSCHED   := $(SCHEDOBJDIR)/lib$(SCHEDNAME).a
+SCHEDUCNAME  := $(call uc, $(SCHEDNAME))
 
 # These variables are specific just to the compilation of the library itself.
-LIB_CFLAGS   += -g -O2 -Wall -std=gnu99 -MMD -MP
-LIB_CFLAGS   += -fno-strict-aliasing
-LIB_CFLAGS   += -Wno-unused-function
-LIB_CXXFLAGS += $(filter-out -std=gnu99, $(LIB_CFLAGS))
-LIB_INCDIRS  := . $(PARLIB_DIR) $(SCHEDS_DIR)
-LIB_INCS     := $(patsubst %, -I%, $(LIB_INCDIRS))
-LIB_CFILES   := $(notdir $(wildcard $(SCHEDS_DIR)/*.c))
-LIB_CFILES   += $(notdir $(wildcard $(LIB_SRCDIR)/*.c))
-LIB_OBJS     := $(patsubst %.c, $(OBJDIR)/%.o, $(LIB_CFILES))
-LIB_DEPS     := $(patsubst %.o, %.d, $(LIB_OBJS))
+SCHED_CFLAGS   += -g -O2 -Wall -std=gnu99 -MMD -MP
+SCHED_CFLAGS   += -fno-strict-aliasing
+SCHED_CFLAGS   += -Wno-unused-function
+SCHED_CXXFLAGS += $(filter-out -std=gnu99, $(SCHED_CFLAGS))
+SCHED_INCDIRS  := . $(LIBINCDIR) $(SCHEDSDIR)
+SCHED_INCS     := $(patsubst %, -I%, $(SCHED_INCDIRS))
+SCHED_CFILES   := $(notdir $(wildcard $(SCHEDSDIR)/*.c))
+SCHED_CFILES   += $(notdir $(wildcard $(SCHEDSRCDIR)/*.c))
+SCHED_OBJS     := $(patsubst %.c, $(SCHEDOBJDIR)/%.o, $(SCHED_CFILES))
+SCHED_DEPS     := $(patsubst %.o, %.d, $(SCHED_OBJS))
 

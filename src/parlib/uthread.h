@@ -8,8 +8,8 @@
 #ifndef _UTHREAD_H
 #define _UTHREAD_H
 
-#include <arch.h>
-#include <vcore.h>
+#include <parlib/arch.h>
+#include <parlib/vcore.h>
 
 /* Bare necessities of a user thread.  2LSs should allocate a bigger struct and
  * cast their threads to uthreads when talking with vcore code.  Vcore/default

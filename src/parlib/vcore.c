@@ -6,15 +6,15 @@
 
 #include <stdbool.h>
 #include <errno.h>
-#include <vcore.h>
 #include <sys/param.h>
-#include <parlib.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/mman.h>
-#include <mcs.h>
+#include <parlib/mcs.h>
+#include <parlib/vcore.h>
+#include <parlib/uthread.h>
+#include <parlib/parlib.h>
 #include <ht/ht.h>
-#include <uthread.h>
 
 /**
  * User defined callback function signalling that the ht libary is done

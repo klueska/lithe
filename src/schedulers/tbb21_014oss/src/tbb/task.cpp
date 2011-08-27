@@ -45,7 +45,7 @@
 #elif USE_LITHE
 
     #include <lithe/lithe.hh>
-    #include <spinlock.h>
+    #include <parlib/spinlock.h>
 
 #else
 

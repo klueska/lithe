@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <queue.h>
-#include <spinlock.h>
+#include <parlib/spinlock.h>
+#include <parlib/queue.h>
 #include <lithe/lithe.h>
 #include <lithe/deque.h>
 #include <lithe/defaults.h>

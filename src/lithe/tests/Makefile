@@ -4,20 +4,22 @@ MAKE = $(MAKE) -s
 V ?= @
 
 TESTSNAME = lithe_tests
+LIBDEPS = pthread ht parlib lithe
 
 SRCDIR ?= $(PWD)
 OBJDIR ?= $(PWD)/obj
-PARLIB_DIR ?= $(PWD)/../src
-PARLIB_LDDIR ?= $(PWD)/../obj
+LIBINCDIR ?= $(PWD)/../src
+LIBOBJDIRS ?= $(patsubst %, $(LIBINCDIR)/../obj/%, $(LIBDEPS))
 EXT_DEPS ?= 
 
 CFLAGS += -O2 -Wall -std=gnu99 -MMD -MP
 CFLAGS += -fno-strict-aliasing
 CFLAGS += -Wno-unused-function 
 CXXFLAGS = $(filter-out -std=gnu99, $(CFLAGS))
-LDFLAGS += -L$(PARLIB_LDDIR) -lpthread -lparlib
+LDFLAGS += $(patsubst %, -L%, $(LIBOBJDIRS))
+LDFLAGS += $(patsubst %, -l%, $(LIBDEPS))
 
-INCDIRS := $(SRCDIR) $(PARLIB_DIR)
+INCDIRS := $(SRCDIR) $(LIBINCDIR)
 INCS := $(patsubst %, -I%, $(INCDIRS))
 CFILES := $(notdir $(shell find $(SRCDIR) -name "*.c"))
 CXXFILES := $(notdir $(shell find $(SRCDIR) -name "*.cc"))

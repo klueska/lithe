@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include <mcs.h>
+#include <parlib/mcs.h>
 #include <ht/ht.h>
 #include <ht/arch.h>
 #include <ht/atomic.h>

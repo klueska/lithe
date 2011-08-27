@@ -33,7 +33,7 @@
 
 #if USE_LITHE
 #include <lithe/lithe.hh>
-#include <spinlock.h>
+#include <parlib/spinlock.h>
 #include "tbb/deque.h"
 DECLARE_DEFINE_TYPED_DEQUE(context, lithe_context_t *);
 #endif /* USE_LITHE */

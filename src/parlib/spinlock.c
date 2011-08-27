@@ -7,7 +7,7 @@
 
 #include <stdlib.h>
 #include <errno.h>
-#include <spinlock.h>
+#include <parlib/spinlock.h>
 #include <ht/atomic.h>
 
 int spinlock_init(int *lock)

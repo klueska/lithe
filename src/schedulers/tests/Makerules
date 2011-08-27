@@ -2,15 +2,17 @@
 
 TESTS_EXECS = bthread_test
 
-TESTSNAME = $(LIBNAME)_bthread_tests
-TESTS_SRCDIR := $(SCHEDS_DIR)/tests
-TESTS_OBJDIR := $(OBJDIR)/tests
+TESTSNAME = $(SCHEDNAME)_bthread_tests
+TESTS_SRCDIR := $(SCHEDSDIR)/tests
+TESTS_OBJDIR := $(SCHEDOBJDIR)/tests
 
 TESTS_CFLAGS = -O2 -Wall -std=gnu99 -MMD -MP
 TESTS_CFLAGS += -Wno-unused-function
-TESTS_LDFLAGS = -L$(OBJDIR) -L$(PARLIB_LDDIR) $(TESTS_LDLIBS)
+TESTS_LDFLAGS += $(patsubst %, -L%, $(SCHEDOBJDIR))
+TESTS_LDFLAGS += $(patsubst %, -L%, $(LIBOBJDIRS))
+TESTS_LDFLAGS += $(patsubst %, -l%, $(LIBDEPS))
 
-TESTS_INCDIRS := . $(PARLIB_DIR) $(SCHEDS_DIR)
+TESTS_INCDIRS := . $(LIBINCDIR) $(SCHEDSDIR)
 TESTS_INCS    := $(patsubst %, -I%, $(TESTS_INCDIRS))
 TESTS_CFILES  := $(notdir $(wildcard $(TESTS_SRCDIR)/*.c))
 TESTS_EXECS   := $(patsubst %, $(TESTS_OBJDIR)/%, $(TESTS_EXECS))

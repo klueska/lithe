@@ -1,7 +1,8 @@
 # Makefile for hard threads library
 
 HT_LIBNAME = ht
-HT_CFLAGS = $(CFLAGS) 
+HT_CFLAGS = $(CFLAGS) -fno-strict-aliasing
+HT_CPPFLAGS = $(filter-out -std=gnu99, $(HT_CFLAGS))
 
 HT_SRCDIR := $(SRCDIR)/$(HT_LIBNAME)
 HT_OBJDIR := $(OBJDIR)/$(HT_LIBNAME)
@@ -13,13 +14,16 @@ HT_INCS = $(patsubst %, -I%, $(HT_INCDIRS))
 HT_FINALLIB = $(HT_OBJDIR)/lib$(HT_LIBNAME).a
 
 HT_LIBUCNAME := $(call uc, $(HT_LIBNAME))
-HT_CFILES  := $(notdir $(wildcard $(HT_SRCDIR)/*.c))
-HT_CFILES  += $(notdir $(wildcard $(HT_SYSDEPDIR)/*.c))
-HT_SFILES  := $(notdir $(wildcard $(HT_SRCDIR)/*.S))
-HT_SFILES  += $(notdir $(wildcard $(HT_SYSDEPDIR)/*.S))
-HT_OBJS    := $(patsubst %.c, $(HT_OBJDIR)/%.o, $(HT_CFILES))
-HT_OBJS    += $(patsubst %.S, $(HT_OBJDIR)/%.o, $(HT_SFILES))
-HT_DEPS    := $(patsubst %.o, %.d, $(HT_OBJS))
+HT_CFILES    := $(notdir $(wildcard $(HT_SRCDIR)/*.c))
+HT_CFILES    += $(notdir $(wildcard $(HT_SYSDEPDIR)/*.c))
+HT_SFILES    := $(notdir $(wildcard $(HT_SRCDIR)/*.S))
+HT_SFILES    += $(notdir $(wildcard $(HT_SYSDEPDIR)/*.S))
+HT_CPPFILES  := $(notdir $(wildcard $(HT_SRCDIR)/*.cc))
+HT_CPPFILES  += $(notdir $(wildcard $(HT_SYSDEPDIR)/*.cc))
+HT_OBJS      := $(patsubst %.c, $(HT_OBJDIR)/%.o, $(HT_CFILES))
+HT_OBJS      += $(patsubst %.cc, $(HT_OBJDIR)/%_cc.o, $(HT_CPPFILES))
+HT_OBJS      += $(patsubst %.S, $(HT_OBJDIR)/%.o, $(HT_SFILES))
+HT_DEPS      := $(patsubst %.o, %.d, $(HT_OBJS))
 OBJS += $(HT_OBJS)
 
 -include $(HT_DEPS)
@@ -30,6 +34,11 @@ $(HT_OBJDIR)/%.o: $(HT_SRCDIR)/%.c
 	@echo + cc [$(HT_LIBUCNAME)] $(<F)
 	@mkdir -p $(@D)
 	$(V)$(CC) $(HT_CFLAGS) $(HT_INCS) -o $@ -c $<
+
+$(HT_OBJDIR)/%_cc.o: $(HT_SRCDIR)/%.cc
+	@echo + cxx [$(HT_LIBUCNAME)] $(<F)
+	@mkdir -p $(@D)
+	$(V)$(CXX) $(HT_CPPFLAGS) $(HT_INCS) -o $@ -c $<
 
 $(HT_OBJDIR)/%.o: $(HT_SYSDEPDIR)/%.S
 	@echo + cc [$(HT_LIBUCNAME)] $(<F)
@@ -43,12 +52,12 @@ $(HT_FINALLIB): $(HT_OBJS)
 
 $(HT_LIBNAME)_tests: all
 	$(V)V=$(V) SRCDIR=$(HT_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(HT_LIBNAME) \
-	  PARLIB_DIR=$(SRCDIR) PARLIB_LDDIR=$(OBJDIR) EXT_DEPS=$(FINALLIB) \
+	  LIBINCDIR="$(LIBINCDIR)" LIBOBJDIRS="$(LIBOBJDIRS)" EXT_DEPS=$(FINALLIB) \
 	  $(MAKE) -C $(HT_SRCDIR)/tests 
 
 $(HT_LIBNAME)_tests_clean:
 	$(V)V=$(V) SRCDIR=$(HT_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(HT_LIBNAME) \
-	  PARLIB_DIR=$(SRCDIR) PARLIB_LDDIR=$(OBJDIR) EXT_DEPS=$(FINALLIB) \
+	  LIBINCDIR="$(LIBINCDIR)" LIBOBJDIRS="$(LIBOBJDIRS)" EXT_DEPS=$(FINALLIB) \
 	  $(MAKE) -C $(HT_SRCDIR)/tests clean
 
 $(HT_LIBNAME)_clean: $(HT_LIBNAME)_tests_clean

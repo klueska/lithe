@@ -4,21 +4,27 @@ MAKE = $(MAKE) -s
 V ?= @
 
 TESTSNAME = parlib_tests
+LIBDEPS = pthread ht parlib
 
 SRCDIR ?= $(PWD)
 OBJDIR ?= $(PWD)/obj
-PARLIB_DIR ?= $(PWD)/../src
-PARLIB_LDDIR ?= $(PWD)/../obj
+LIBINCDIR ?= $(PWD)/../src
+LIBOBJDIRS ?= $(patsubst %, $(LIBINCDIR)/../obj/%, $(LIBDEPS))
 EXT_DEPS ?= 
 
 CFLAGS += -O2 -Wall -std=gnu99 -MMD -MP
 CFLAGS += -fno-strict-aliasing
-LDFLAGS += -L$(PARLIB_LDDIR) -lpthread -lparlib
+CFLAGS += -Wno-unused-function 
+CXXFLAGS = $(filter-out -std=gnu99, $(CFLAGS))
+LDFLAGS += $(patsubst %, -L%, $(LIBOBJDIRS))
+LDFLAGS += $(patsubst %, -l%, $(LIBDEPS))
 
-INCDIRS := $(SRCDIR) $(PARLIB_DIR)
+INCDIRS := $(SRCDIR) $(LIBINCDIR)
 INCS := $(patsubst %, -I%, $(INCDIRS))
 CFILES := $(notdir $(shell find $(SRCDIR) -name "*.c"))
+CXXFILES := $(notdir $(shell find $(SRCDIR) -name "*.cc"))
 EXECS := $(patsubst %.c, $(OBJDIR)/%, $(CFILES))
+EXECS += $(patsubst %.cc, $(OBJDIR)/%_cc, $(CXXFILES))
 
 uc = $(shell echo $(1) | tr a-z A-Z)
 
@@ -31,6 +37,11 @@ $(OBJDIR)/%: $(SRCDIR)/%.c $(EXT_DEPS)
 	@echo + cc [$(call uc, $(TESTSNAME))] $(<F)
 	@mkdir -p $(@D)
 	$(V)$(CC) -o $@ $< $(CFLAGS) $(INCS) $(LDFLAGS)
+
+$(OBJDIR)/%_cc: $(SRCDIR)/%.cc $(EXT_DEPS)
+	@echo + cxx [$(call uc, $(TESTSNAME))] $(<F)
+	@mkdir -p $(@D)
+	$(V)$(CXX) -o $@ $< $(CXXFLAGS) $(INCS) $(LDFLAGS)
 
 clean:
 	@echo + clean [$(call uc, $(TESTSNAME))]

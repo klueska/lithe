@@ -38,15 +38,15 @@ BUILDING_PHASE:=0
 include ../build/common.inc
 
 V ?= @
-LIBNAME = tbb
-PARLIB_DIR ?= $(tbb_root)/../..
-PARLIB_LDDIR ?= $(PARLIB_DIR)/../obj
-SCHEDS_DIR := $(PARLIB_DIR)/schedulers
-include $(SCHEDS_DIR)/Makevars
-LDFLAGS += -L$(PARLIB_LDDIR)
-LIBS += -lparlib
+SCHEDNAME = tbb
+LIBDEPS = pthread lithe parlib ht
+LIBINCDIR ?= $(tbb_root)/../..
+LIBOBJDIRS ?= $(patsubst %, $(LIBINCDIR)/../obj/%, $(LIBDEPS))
+
+LDFLAGS += $(patsubst %, -L%, $(LIBOBJDIRS))
+LIBS += $(patsubst %, -l%, $(LIBDEPS))
 #CXXFLAGS += -DUSE_PTHREAD
-CXXFLAGS += -DUSE_LITHE -I$(PARLIB_DIR)
+CXXFLAGS += -DUSE_LITHE -I$(LIBINCDIR)
 
 #check, if tbb_root is not absolute path (the filter keeps only /* paths)
 ifeq ($(filter /% $(SLASH)%, $(subst :, ,$(tbb_root)) ),)

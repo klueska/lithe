@@ -9,8 +9,8 @@
 #define _BTHREAD_H
 
 #include <sys/queue.h>
-#include <vcore.h>
-#include <uthread.h>
+#include <parlib/vcore.h>
+#include <parlib/uthread.h>
 /* The actual bthread_api.h file is #included at the bottom of this file Users
  * of the bthread API need to include the location of this file in their
  * include path in order to use bthreads.  Other bthread implementations should

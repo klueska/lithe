@@ -25,14 +25,13 @@
 # the GNU General Public License.
 
 V ?= @
-LIBNAME = tbb
-PARLIB_DIR ?= $(tbb_root)/../..
-PARLIB_LDDIR ?= $(PARLIB_DIR)/../obj
-SCHEDS_DIR := $(PARLIB_DIR)/schedulers
-include $(SCHEDS_DIR)/Makevars
-LINK_FLAGS += -L$(PARLIB_LDDIR) -lparlib
+SCHEDNAME = tbb
+LIBINCDIR ?= $(tbb_root)/../..
+SCHEDSDIR ?= $(LIBINCDIR)/schedulers
+include $(SCHEDSDIR)/Makevars
 #CPLUS_FLAGS += -DUSE_PTHREAD
 CPLUS_FLAGS += -DUSE_LITHE
+
 
 .PRECIOUS: %.$(OBJ) %.$(DLL).$(OBJ) %.exe
 
@@ -45,7 +44,7 @@ ifeq ($(tbb_strict),1)
 endif
 
 INCLUDES += $(INCLUDE_KEY)$(tbb_root)/src $(INCLUDE_KEY)$(tbb_root)/include
-INCLUDES += $(LIB_INCS)
+INCLUDES += $(SCHED_INCS)
 
 CPLUS_FLAGS += $(WARNING_KEY) $(CXXFLAGS)
 CPLUS_FLAGS += $(LIB_CXXFLAGS)

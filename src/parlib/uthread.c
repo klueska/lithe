@@ -5,10 +5,10 @@
  * See LICENSE for details.
  */
 
-#include <parlib.h>
-#include <vcore.h>
-#include <uthread.h>
 #include <errno.h>
+#include <parlib/parlib.h>
+#include <parlib/vcore.h>
+#include <parlib/uthread.h>
 #include <ht/atomic.h>
 #include <ht/arch.h>
 #include <ht/tls.h>

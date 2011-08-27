@@ -2,8 +2,8 @@
 #define LITHE_BARRIER_H
 
 
+#include <parlib/spinlock.h>
 #include <lithe/lithe.h>
-#include <spinlock.h>
 #include <stdint.h>
 #include <stdbool.h>
 
