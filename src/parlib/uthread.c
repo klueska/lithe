@@ -47,14 +47,8 @@ int uthread_lib_init(void)
 	uthread->tls_desc = current_tls_desc;
     /* Set the current thread */
     current_uthread = uthread;
-    /* Change temporarily to vcore0s tls region so we can save the newly created
-     * tcb into its current_uthread variable and then restore it. */
-    assert(current_tls_desc);
-    void *temp_tls_desc = current_tls_desc;
-    set_tls_desc(ht_tls_descs[0], 0);
-    assert(in_vcore_context());
-    current_uthread = uthread;
-    set_tls_desc(temp_tls_desc, 0);
+	/* Set the current uthread in the vcore's tls as well */
+	vcore_set_tls_var(0, current_uthread, uthread);
 
 	/* Make sure we came back out of vcore context properly */
     assert(!in_vcore_context());

@@ -29,5 +29,21 @@ void set_tls_desc(void *tls_desc, uint32_t htid);
  * only ever be called once the hard thread has been initialized */
 void *get_tls_desc(uint32_t htid);
 
+#define safe_set_tls_var(name, val)                                     \
+  void __attribute__((noinline, optimize("O0")))                        \
+  safe_set_tls_var_internal() {                                         \
+	asm("");                                                            \
+    name = val;                                                         \
+  } safe_set_tls_var_internal();                                        \
+
+#define safe_get_tls_var(name)                                          \
+({                                                                      \
+  typeof(name) __attribute__((noinline, optimize("O0")))                \
+  safe_get_tls_var_internal() {                                         \
+	asm("");                                                            \
+    return name;                                                        \
+  } safe_get_tls_var_internal();                                        \
+})
+
 #endif /* HT_TLS_H */
 

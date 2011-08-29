@@ -102,7 +102,7 @@ void set_tls_desc(void *tls_desc, uint32_t htid)
     TLS_SET_SEGMENT_REGISTER(ud->entry_number, 1);
   }
   current_tls_desc = tls_desc;
-  __ht_id = htid;
+  safe_set_tls_var(__ht_id, htid);
 }
 
 /* Get the tls descriptor currently set for a given hard thread. This should

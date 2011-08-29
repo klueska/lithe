@@ -4,7 +4,7 @@ MAKE = $(MAKE) -s
 V ?= @
 
 TESTSNAME = lithe_tests
-LIBDEPS = pthread ht parlib lithe
+LIBDEPS = lithe parlib ht pthread 
 
 SRCDIR ?= $(PWD)
 OBJDIR ?= $(PWD)/obj

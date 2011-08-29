@@ -82,7 +82,7 @@ extern void ht_ready();
  * set, this function should most likely just restore it, otherwise, go on from
  * there.
  */
-extern void ht_entry();
+extern void ht_entry() __attribute__((weak));
 
 /**
  * Requests k additional hard threads. Returns -1 if the request is

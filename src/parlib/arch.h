@@ -6,10 +6,9 @@
 #define vcore_set_tls_var_ARCH(vcoreid, name, val)                \
 {                                                                 \
 	int vid = (vcoreid);                                          \
-	typeof(name) temp_val = (val);                                \
 	void *temp_tls_desc = current_tls_desc;                       \
     set_tls_desc(ht_tls_descs[vid], vid);                         \
-	name = temp_val;                                              \
+	safe_set_tls_var(name, val);                                  \
 	set_tls_desc(temp_tls_desc, vid);                             \
 }
 
@@ -19,9 +18,9 @@
 	typeof(name) val;                                             \
 	void *temp_tls_desc = current_tls_desc;                       \
     set_tls_desc(ht_tls_descs[vid], vid);                         \
-	val = name;                                                   \
+	val = safe_get_tls_var(name);                                 \
 	set_tls_desc(temp_tls_desc, vid);                             \
-    val;                                                          \
+	val;                                                          \
 })
 
 #include <ucontext.h>

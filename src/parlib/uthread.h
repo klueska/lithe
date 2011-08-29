@@ -93,14 +93,10 @@ init_uthread_entry(uthread_t *uth, void (*entry)(void))
 #define uthread_set_tls_var(uthread, name, val)                   \
 {                                                                 \
 	int vcoreid = vcore_id();                                     \
-	volatile typeof(name) temp_val = (val);                       \
 	void *temp_tls_desc = current_tls_desc;                       \
-	wrfence();                                                    \
 	set_tls_desc(((uthread_t*)(uthread))->tls_desc, vcoreid);     \
-	name = temp_val;                                              \
-    wrfence();                                                    \
+	safe_set_tls_var(name, val);                                  \
 	set_tls_desc(temp_tls_desc, vcoreid);                         \
-    wrfence();                                                    \
 }
 
 #define uthread_get_tls_var(uthread, name)                        \
@@ -109,10 +105,8 @@ init_uthread_entry(uthread_t *uth, void (*entry)(void))
 	typeof(name) val;                                             \
 	void *temp_tls_desc = current_tls_desc;                       \
 	set_tls_desc(((uthread_t*)(uthread))->tls_desc, vcoreid);     \
-    wrfence();                                                    \
-	val = name;                                                   \
+	val = safe_get_tls_var(name);                                 \
 	set_tls_desc(temp_tls_desc, vcoreid);                         \
-    wrfence();                                                    \
 	val;                                                          \
 })
 

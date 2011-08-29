@@ -1,6 +1,7 @@
 # Makefile for parlib tests
 
 TESTS_EXECS = bthread_test
+LIBDEPS = $(SCHEDNAME) parlib ht pthread
 
 TESTSNAME = $(SCHEDNAME)_bthread_tests
 TESTS_SRCDIR := $(SCHEDSDIR)/tests
@@ -10,7 +11,7 @@ TESTS_CFLAGS = -O2 -Wall -std=gnu99 -MMD -MP
 TESTS_CFLAGS += -Wno-unused-function
 TESTS_LDFLAGS += $(patsubst %, -L%, $(SCHEDOBJDIR))
 TESTS_LDFLAGS += $(patsubst %, -L%, $(LIBOBJDIRS))
-TESTS_LDFLAGS += $(patsubst %, -l%, $(LIBDEPS))
+TESTS_LDFLAGS += -Wl,--start-group $(patsubst %, -l%, $(LIBDEPS)) -Wl,--end-group 
 
 TESTS_INCDIRS := . $(LIBINCDIR) $(SCHEDSDIR)
 TESTS_INCS    := $(patsubst %, -I%, $(TESTS_INCDIRS))

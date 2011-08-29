@@ -2,7 +2,6 @@
 
 V ?= @
 SCHEDNAME = rrthread
-LIBDEPS = $(SCHEDNAME) parlib ht pthread
 
 LIBINCDIR ?= $(PWD)/../..
 LIBOBJDIRS ?= $(patsubst %, $(LIBINCDIR)/../obj/%, $(LIBDEPS))

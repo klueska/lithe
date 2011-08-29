@@ -365,8 +365,11 @@ int lithe_sched_enter(lithe_sched_t *child)
   /* Hijack the current context with the newly created one. */
   set_current_uthread(&child_context->uth);
 
-  /* Update the current scheduler to be the the child */
-  current_sched = child;
+  /* Update the current scheduler to be the the child. Use the
+   * safe_set_tls_var() macros since our call to set_current_uthread() above
+   * has changed the tls_desc, and it's not 100% ensured that the gcc optimizer
+   * will recognize this. */
+  safe_set_tls_var(current_sched, child);
   vcore_set_tls_var(vcore_id(), current_sched, current_sched);
 
   /* Set up a function to run in vcore context to inform the parent that the
