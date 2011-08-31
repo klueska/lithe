@@ -1,11 +1,5 @@
 /*
- * Lithe
- *
- * TODO: Include a discussion of the transition stack and
- * callbacks versus entry points.
- *
- * TODO: Include a discussion of contexts, including the
- * distinction between implicit and explicit contexts.
+ * Lithe API
  */
 
 #ifndef LITHE_H
@@ -22,9 +16,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Value used to inform parent of an unlimited vcore request. */
-#define LITHE_REQUEST_MAX (-1)
 
 /**
  * Passes control to a new child scheduler. The 'funcs' field of the scheduler
@@ -45,22 +36,23 @@ int lithe_sched_exit();
 
 /**
  * Return a pointer to the current scheduler. I.e. the pointer passed in
- * when the scheduler was started.
+ * when the scheduler was entered.
  */
 lithe_sched_t *lithe_sched_current();
 
 /**
- * Request the specified number of vcores from the parent. Note that the parent
- * is free to make a request using the calling vcore to their parent if
- * necessary. Returns the number of vcores actually granted.
+ * Request a specified number of vcores from the parent. Note that the parent
+ * is free to make a request using the calling vcore to their own parent if
+ * necessary. Returns the number of vcores actually granted. These vcores will
+ * trickle in over time as they are granted to the requesting scheduler.
  */
 int lithe_vcore_request(int k);
 
 /**
- * Grant current vcore to specified scheduler. The specified
- * scheduler must be non-null and a registered scheduler of the
- * current scheduler. This function never returns unless child is
- * NULL, in which case it sets errno appropriately and returns -1.
+ * Grant the current vcore to another scheduler.  Triggered by a previous call
+ * to lithe_vcore_request() by a child scheduler. This function never returns
+ * unless child is NULL, in which case it sets errno appropriately and returns
+ * -1.
  */
 int lithe_vcore_grant(lithe_sched_t *child);
 
@@ -71,55 +63,71 @@ int lithe_vcore_grant(lithe_sched_t *child);
 void lithe_vcore_yield();
 
 /*
- * Initialize a new state for an existing context. The context parameter MUST
- * already contain a valid stack pointer and stack size. Once the context is
- * restarted it will run from the entry point specified.
+ * Initialize the proper lithe internal state for an existing context. The
+ * context parameter MUST already contain a valid stack pointer and stack size.
+ * This function MUST be paired with a call to lithe_context_cleanup() in order
+ * to properly cleanup the lithe internal state once the context is no longer
+ * usable.  To reinitialize a context with a new start function without calling
+ * lithe_context_cleanup() first, use lithe_context_reinit() instead.  Once the
+ * context is restarted it will run from the entry point specified.
  */
 void lithe_context_init(lithe_context_t *context, void (*func) (void *), void *arg);
 
 /*
- * Initialize a new state for an existing context. The context parameter MUST
- * already contain a valid stack pointer and stack size. Once the context is
- * restarted it will run from the entry point specified.
+ * Used to reinitialize the lithe internal state for a context already
+ * initialized via lithe_context_cleanup().  Normally each call to
+ * lithe_context_init() must be paired with a call to lithe_context_cleanup()
+ * before the context can be reused for anything. The lithe_context_reinit()
+ * function allows you to reinitialize this context with a new start function
+ * any number of times before pairing it with lithe_context_cleanup(). Once the
+ * context is restarted it will run from the entry point specified.
  */
 void lithe_context_reinit(lithe_context_t *context, void (*func) (void *), void *arg);
 
 /* 
- * Cleanup an existing context. This context should not be currently running on any
- * vcore.  For currently running contexts, instead use lithe_context_exit().
+ * Cleanup an existing context. This context should NOT currently be running on
+ * any vcore, though this is not enforced by the lithe runtime.
  */
 void lithe_context_cleanup(lithe_context_t *context);
 
 /*
- * Returns the currently executing context.
+ * Returns a pointer to the currently executing context.
  */
 lithe_context_t *lithe_context_self();
 
 /*
- * Run the specified context.  Upon completion, the context is yielded, and must be
- * explicitly destroyed via a call to lithe_context_detroy() to free any memory
- * associated with it. It must have been precreated. This function never
- * returns on success and returns -1 on error and sets errno appropriately.
+ * Run the specified context.  MUST only be run from vcore context. Upon
+ * completion, the context is yielded, and must be either retasked for other
+ * use via lithe_context_reinit() or cleaned up via a call to
+ * lithe_context_cleanup().  This function never returns on success and returns
+ * -1 on error and sets errno appropriately.
  */
 int lithe_context_run(lithe_context_t *context);
 
 /**
- * Invoke the specified function with the current context. Note that you
- * can not block without a valid context (i.e. you can not block when
- * executing in vcore context). Returns 0 on success (after the context
- * has been resumed) and -1 on error and sets errno appropriately.
+ * Invoke the specified function with the current context and block that
+ * context. This function is useful for blocking a context and managing when to
+ * unblock it by some component other than the scheduler associated with this
+ * context.  The scheduler will recieve a callback notifying it that this
+ * context has blocked and should not be run. The scheduler will receive
+ * another callback later to notify it when this context has unblocked and can
+ * once again be resumed. Returns 0 on success (after the context has been
+ * resumed) and -1 on error and sets errno appropriately.
 */
 int lithe_context_block(void (*func) (lithe_context_t *, void *), void *arg);
 
 /**
- * Notifies the current scheduler that the specified context is
- * resumable. Returns 0 on success and -1 on error and sets errno
+ * Notifies the current scheduler that the specified context is now resumable.
+ * This chould only be called on contexts previously blocked via a call to
+ * lithe_context_block(). Returns 0 on success and -1 on error and sets errno
  * appropriately.
  */
 int lithe_context_unblock(lithe_context_t *context);
 
 /**
- * Cooperatively yield the current context.
+ * Cooperatively yield the current context to the current scheduler.  The
+ * scheduler receives a callback notifiying it that the context has yielded and
+ * can decide from there when to resume it.
  */
 void lithe_context_yield();
 

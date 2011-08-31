@@ -24,36 +24,43 @@ typedef struct lithe_sched lithe_sched_t;
 typedef struct lithe_sched_funcs {
   /* Function ultimately responsible for granting vcore requests from a child
    * scheduler. This function is automatically called when a child invokes
-   * lithe_sched_request() from within it's current scheduler */
+   * lithe_sched_request() from within it's current scheduler. */
   int (*vcore_request) (lithe_sched_t *__this, lithe_sched_t *child, int k);
 
   /* Entry point for vcores granted to this scheduler by a call to
-   * lithe_vcore_request() */
+   * lithe_vcore_request(). */
   void (*vcore_enter) (lithe_sched_t *__this);
 
   /* Entry point for vcores given back to this scheduler by a call to
-   * lithe_vcore_yield() */
+   * lithe_vcore_yield(). */
   void (*vcore_return) (lithe_sched_t *__this, lithe_sched_t *child);
 
-  /* Callback to inform of a successfully registered child. */
+  /* Callback to inform that a child scheduler has entered on one of the
+   * current scheduler's vcores */
   void (*child_entered) (lithe_sched_t *__this, lithe_sched_t *child);
 
-  /* Callback to inform of a sucessfully unregistered child. */
+  /* Callback to inform that a child scheduler has exited on one of the
+   * current scheduler's vcores */
   void (*child_exited) (lithe_sched_t *__this, lithe_sched_t *child);
 
   /* Callback letting this scheduler know that the provided context has been
    * blocked by some external component.  It will inform the scheduler when it
-   * unblocks it via the context_unblock() callback. */
+   * unblocks it via a call to lithe_context_unblock() which ultimately
+   * triggers the context_unblock() callback. */
   void (*context_block) (lithe_sched_t *__this, lithe_context_t *context);
 
   /* Callback letting this scheduler know that the provided context has been
-   * unblocked. */
+   * unblocked by some external component and is now resumable. */
   void (*context_unblock) (lithe_sched_t *__this, lithe_context_t *context);
 
-  /* Callback for scheduler specific yielding of contexts */
+  /* Callback notifying a scheduler that a context has cooperatively yielded
+   * itself back to the scheduler. */
   void (*context_yield) (lithe_sched_t *__this, lithe_context_t *context);
 
-  /* Callback for scheduler specific yielding of contexts */
+  /* Callback notifying a scheduler that a context has run past the end of it's
+   * start function and completed it's work.  At this point it should either be
+   * reinitialized via a call to lithe_context_reinit() or cleaned up via
+   * lithe_context_cleanup(). */
   void (*context_exit) (lithe_sched_t *__this, lithe_context_t *context);
 
 } lithe_sched_funcs_t;
