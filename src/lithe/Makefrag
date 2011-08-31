@@ -1,8 +1,8 @@
 # Makefile for hard threads library
 
 LITHE_LIBNAME = lithe
-LITHE_CFLAGS := $(CFLAGS) -fPIC
-LITHE_CFLAGS += -ftls-model=global-dynamic -fno-exceptions -fno-strict-aliasing
+LITHE_CFLAGS := $(CFLAGS)
+LITHE_CFLAGS += -fno-exceptions -fno-strict-aliasing
 LITHE_CPPFLAGS = $(filter-out -std=gnu99, $(LITHE_CFLAGS))
 
 LITHE_SRCDIR := $(SRCDIR)/$(LITHE_LIBNAME)
@@ -12,7 +12,6 @@ LITHE_TESTSDIR := $(LITHE_SRCDIR)/tests
 LITHE_INCDIRS = $(SRCDIR) $(LITHE_SYSDEPDIR)
 
 LITHE_INCS = $(patsubst %, -I%, $(LITHE_INCDIRS))
-LITHE_FINALLIB = $(LITHE_OBJDIR)/lib$(LITHE_LIBNAME).so
 
 LITHE_LIBUCNAME := $(call uc, $(LITHE_LIBNAME))
 LITHE_CFILES    := $(notdir $(wildcard $(LITHE_SRCDIR)/*.c))
@@ -28,6 +27,23 @@ LITHE_DEPS      := $(patsubst %.o, %.d, $(LITHE_OBJS))
 OBJS += $(LITHE_OBJS)
 
 -include $(LITHE_DEPS)
+
+ifeq ($(STATICLIBS),yes)
+LITHE_FINALLIB = $(LITHE_OBJDIR)/lib$(LITHE_LIBNAME).a
+
+$(LITHE_FINALLIB): $(LITHE_OBJS)
+	@echo + ar [$(LITHE_LIBUCNAME)] $(@F)
+	@mkdir -p $(@D)
+	$(V)$(AR) rc $@ $(LITHE_OBJS)
+else
+LITHE_CFLAGS += -fPIC -ftls-model=global-dynamic 
+LITHE_FINALLIB = $(LITHE_OBJDIR)/lib$(LITHE_LIBNAME).so
+
+$(LITHE_FINALLIB): $(LITHE_OBJS)
+	@echo + cc [$(LITHE_LIBUCNAME)] $(@F)
+	@mkdir -p $(@D)
+	$(V)$(CC) -shared -Wl,-soname,lib$(LITHE_LIBNAME).so -o $@ $(LITHE_OBJS)
+endif
 
 $(LITHE_LIBNAME): $(LITHE_FINALLIB)
 
@@ -45,12 +61,6 @@ $(LITHE_OBJDIR)/%.o: $(LITHE_SYSDEPDIR)/%.S
 	@echo + cc [$(LITHE_LIBUCNAME)] $(<F)
 	@mkdir -p $(@D)
 	$(V)$(CC) $(LITHE_CFLAGS) -D__ASSEMBLER__ -c -o $@ $<
-
-$(LITHE_FINALLIB): $(LITHE_OBJS)
-	@echo + cc [$(LITHE_LIBUCNAME)] $(@F)
-	@mkdir -p $(@D)
-	$(V)$(CC) -shared -Wl,-soname,lib$(LITHE_LIBNAME).so -o $@ $(LITHE_OBJS)
-#	$(V)$(AR) rc $@ $(LITHE_OBJS)
 
 $(LITHE_LIBNAME)_tests: all
 	$(V)V=$(V) SRCDIR=$(LITHE_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(LITHE_LIBNAME) \

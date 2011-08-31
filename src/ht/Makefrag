@@ -1,8 +1,8 @@
 # Makefile for hard threads library
 
 HT_LIBNAME = ht
-HT_CFLAGS := $(CFLAGS) -fPIC
-HT_CFLAGS += -ftls-model=global-dynamic -fno-exceptions -fno-strict-aliasing
+HT_CFLAGS := $(CFLAGS)
+HT_CFLAGS += -fno-exceptions -fno-strict-aliasing
 HT_CPPFLAGS = $(filter-out -std=gnu99, $(HT_CFLAGS))
 
 HT_SRCDIR := $(SRCDIR)/$(HT_LIBNAME)
@@ -12,7 +12,6 @@ HT_TESTSDIR := $(HT_SRCDIR)/tests
 HT_INCDIRS = $(SRCDIR) $(HT_SYSDEPDIR)
 
 HT_INCS = $(patsubst %, -I%, $(HT_INCDIRS))
-HT_FINALLIB = $(HT_OBJDIR)/lib$(HT_LIBNAME).so
 
 HT_LIBUCNAME := $(call uc, $(HT_LIBNAME))
 HT_CFILES    := $(notdir $(wildcard $(HT_SRCDIR)/*.c))
@@ -28,6 +27,23 @@ HT_DEPS      := $(patsubst %.o, %.d, $(HT_OBJS))
 OBJS += $(HT_OBJS)
 
 -include $(HT_DEPS)
+
+ifeq ($(STATICLIBS),yes)
+HT_FINALLIB = $(HT_OBJDIR)/lib$(HT_LIBNAME).a
+
+$(HT_FINALLIB): $(HT_OBJS)
+	@echo + ar [$(HT_LIBUCNAME)] $(@F)
+	@mkdir -p $(@D)
+	$(V)$(AR) rc $@ $(HT_OBJS)
+else
+HT_CFLAGS += -fPIC -ftls-model=global-dynamic 
+HT_FINALLIB = $(HT_OBJDIR)/lib$(HT_LIBNAME).so
+
+$(HT_FINALLIB): $(HT_OBJS)
+	@echo + cc [$(HT_LIBUCNAME)] $(@F)
+	@mkdir -p $(@D)
+	$(V)$(CC) -shared -Wl,-soname,lib$(HT_LIBNAME).so -o $@ $(HT_OBJS)
+endif
 
 $(HT_LIBNAME): $(HT_FINALLIB)
 
@@ -45,12 +61,6 @@ $(HT_OBJDIR)/%.o: $(HT_SYSDEPDIR)/%.S
 	@echo + cc [$(HT_LIBUCNAME)] $(<F)
 	@mkdir -p $(@D)
 	$(V)$(CC) $(HT_CFLAGS) -D__ASSEMBLER__ -c -o $@ $<
-
-$(HT_FINALLIB): $(HT_OBJS)
-	@echo + cc [$(HT_LIBUCNAME)] $(@F)
-	@mkdir -p $(@D)
-	$(V)$(CC) -shared -Wl,-soname,lib$(HT_LIBNAME).so -o $@ $(HT_OBJS)
-#	$(V)$(AR) rc $@ $(HT_OBJS)
 
 $(HT_LIBNAME)_tests: all
 	$(V)V=$(V) SRCDIR=$(HT_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(HT_LIBNAME) \

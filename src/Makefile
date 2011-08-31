@@ -9,7 +9,11 @@ strip_tests = $(subst _tests,,$(1))
 
 LIBS := ht parlib lithe
 SCHEDULERS := rrthread 
-SYSDEP := unix/sysv/$(call lc, $(shell uname -s))/$(shell uname -m)
+STATICLIBS := yes
+
+OS := $(call lc, $(shell uname -s))
+ARCH := $(shell uname -m)
+SYSDEP := unix/sysv/$(OS)/$(ARCH)
 CFLAGS = -g -O2 -Wall -std=gnu99 -MMD -MP
 CFLAGS += -Wno-unused-function 
 CFLAGS += -Wno-unused-value 
