@@ -370,7 +370,7 @@ int lithe_sched_enter(lithe_sched_t *child)
    * has changed the tls_desc, and it's not 100% ensured that the gcc optimizer
    * will recognize this. */
   safe_set_tls_var(current_sched, child);
-  vcore_set_tls_var(vcore_id(), current_sched, current_sched);
+  vcore_set_tls_var(vcore_id(), current_sched, child);
 
   /* Set up a function to run in vcore context to inform the parent that the
    * child has taken over */

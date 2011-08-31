@@ -9,6 +9,10 @@
 
 #include <stdint.h>
 
+#ifndef __GNUC__
+  #error "You need to be using gcc to compile this library..."
+#endif 
+
 /* Reference to the main threads tls descriptor */
 extern void *main_tls_desc;
 
@@ -29,21 +33,40 @@ void set_tls_desc(void *tls_desc, uint32_t htid);
  * only ever be called once the hard thread has been initialized */
 void *get_tls_desc(uint32_t htid);
 
+#ifndef __PIC__
+
 #define safe_set_tls_var(name, val)                                     \
+  name = val
+
+#define safe_get_tls_var(name)                                          \
+  name
+
+#else
+
+#include <features.h>
+#if __GNUC_PREREQ(4,4)
+
+#define safe_set_tls_var(name, val)                                     \
+({                                                                      \
   void __attribute__((noinline, optimize("O0")))                        \
   safe_set_tls_var_internal() {                                         \
-	asm("");                                                            \
+    asm("");                                                            \
     name = val;                                                         \
   } safe_set_tls_var_internal();                                        \
+})
 
 #define safe_get_tls_var(name)                                          \
 ({                                                                      \
   typeof(name) __attribute__((noinline, optimize("O0")))                \
   safe_get_tls_var_internal() {                                         \
-	asm("");                                                            \
     return name;                                                        \
   } safe_get_tls_var_internal();                                        \
 })
+
+#else
+  #error "For PIC you must be using gcc 4.4 or above for tls support!"
+#endif //__GNUC_PREREQ
+#endif // __PIC__
 
 #endif /* HT_TLS_H */
 

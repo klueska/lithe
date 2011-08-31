@@ -6,16 +6,17 @@
 #define vcore_set_tls_var_ARCH(vcoreid, name, val)                \
 {                                                                 \
 	int vid = (vcoreid);                                          \
+	volatile typeof(val) __val = val;                             \
 	void *temp_tls_desc = current_tls_desc;                       \
     set_tls_desc(ht_tls_descs[vid], vid);                         \
-	safe_set_tls_var(name, val);                                  \
+	safe_set_tls_var(name, __val);                                \
 	set_tls_desc(temp_tls_desc, vid);                             \
 }
 
 #define vcore_get_tls_var_ARCH(vcoreid, name)                     \
 ({                                                                \
 	int vid = (vcoreid);                                          \
-	typeof(name) val;                                             \
+	volatile typeof(name) val;                                    \
 	void *temp_tls_desc = current_tls_desc;                       \
     set_tls_desc(ht_tls_descs[vid], vid);                         \
 	val = safe_get_tls_var(name);                                 \
