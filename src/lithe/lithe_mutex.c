@@ -6,7 +6,6 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <ucontext.h>
 
 #include <parlib/spinlock.h>
 #include <lithe/lithe_mutex.h>

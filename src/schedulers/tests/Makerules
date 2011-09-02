@@ -2,6 +2,7 @@
 
 TESTS_EXECS = bthread_test
 LIBDEPS = $(SCHEDNAME) parlib ht pthread
+LIBOBJDIRS ?= $(patsubst %, $(LIBTOPOBJDIR)/%, $(LIBDEPS))
 
 TESTSNAME = $(SCHEDNAME)_bthread_tests
 TESTS_SRCDIR := $(SCHEDSDIR)/tests
@@ -13,7 +14,7 @@ TESTS_LDFLAGS += $(patsubst %, -L%, $(SCHEDOBJDIR))
 TESTS_LDFLAGS += $(patsubst %, -L%, $(LIBOBJDIRS))
 TESTS_LDFLAGS += -Wl,--start-group $(patsubst %, -l%, $(LIBDEPS)) -Wl,--end-group 
 
-TESTS_INCDIRS := . $(LIBINCDIR) $(SCHEDSDIR)
+TESTS_INCDIRS := . $(LIBINCDIRS) $(SCHEDSDIR)
 TESTS_INCS    := $(patsubst %, -I%, $(TESTS_INCDIRS))
 TESTS_CFILES  := $(notdir $(wildcard $(TESTS_SRCDIR)/*.c))
 TESTS_EXECS   := $(patsubst %, $(TESTS_OBJDIR)/%, $(TESTS_EXECS))

@@ -13,7 +13,6 @@ STATICLIBS := yes
 
 SRCDIR ?= $(PWD)
 OBJDIR ?= $(SRCDIR)/obj
-PARLIBDIR ?= $(SRCDIR)/parlib
 
 OS := $(call lc, $(shell uname -s))
 ARCH := $(shell uname -m)
@@ -28,10 +27,9 @@ GCC_ROOT := $(shell which $(CC) | xargs dirname)/../
 
 all: $(LIBS) 
 
-LIBINCDIR = $(SRCDIR)
-SCHEDSDIR = $(SRCDIR)/schedulers
-LIBOBJDIRS = $(patsubst %, $(OBJDIR)/%, $(LIBS))
 include $(patsubst %, $(SRCDIR)/%/Makefrag, $(LIBS))
+
+SCHEDSDIR = $(SRCDIR)/schedulers
 include $(SCHEDSDIR)/Makefrag
 	
 TESTS := $(patsubst %, %_tests, $(LIBS))

@@ -8,8 +8,10 @@ LIBDEPS = lithe parlib ht pthread
 
 SRCDIR ?= $(PWD)
 OBJDIR ?= $(PWD)/obj
-LIBINCDIR ?= $(PWD)/../src
-LIBOBJDIRS ?= $(patsubst %, $(LIBINCDIR)/../obj/%, $(LIBDEPS))
+LIBINCDIRS ?= $(PWD)/../.. 
+LIBINCDIRS += $(patsubst %, $(PWD)/../../%, $(LIBDEPS))
+LIBTOPOBJDIR ?= $(PWD)/../../obj
+LIBOBJDIRS ?= $(patsubst %, $(LIBTOPOBJDIR)/%, $(LIBDEPS))
 EXT_DEPS ?= 
 
 CFLAGS += -O2 -Wall -std=gnu99 -MMD -MP
@@ -19,7 +21,7 @@ CXXFLAGS = $(filter-out -std=gnu99, $(CFLAGS))
 LDFLAGS += $(patsubst %, -L%, $(LIBOBJDIRS))
 LDFLAGS += $(patsubst %, -l%, $(LIBDEPS))
 
-INCDIRS := $(SRCDIR) $(LIBINCDIR)
+INCDIRS := $(LIBINCDIRS) 
 INCS := $(patsubst %, -I%, $(INCDIRS))
 CFILES := $(notdir $(shell find $(SRCDIR) -name "*.c"))
 CXXFILES := $(notdir $(shell find $(SRCDIR) -name "*.cc"))
@@ -39,7 +41,7 @@ $(OBJDIR)/%: $(SRCDIR)/%.c $(EXT_DEPS)
 	$(V)$(CC) -o $@ $< $(CFLAGS) $(INCS) $(LDFLAGS)
 
 $(OBJDIR)/%_cc: $(SRCDIR)/%.cc $(EXT_DEPS)
-	@echo + cxx [$(call uc, $(TESTSNAME))] $(<F)
+	@echo + cx [$(call uc, $(TESTSNAME))] $(<F)
 	@mkdir -p $(@D)
 	$(V)$(CXX) -o $@ $< $(CXXFLAGS) $(INCS) $(LDFLAGS)
 

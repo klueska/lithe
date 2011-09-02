@@ -53,7 +53,7 @@ $(HT_OBJDIR)/%.o: $(HT_SRCDIR)/%.c
 	$(V)$(CC) $(HT_CFLAGS) $(HT_INCS) -o $@ -c $<
 
 $(HT_OBJDIR)/%_cc.o: $(HT_SRCDIR)/%.cc
-	@echo + cxx [$(HT_LIBUCNAME)] $(<F)
+	@echo + cx [$(HT_LIBUCNAME)] $(<F)
 	@mkdir -p $(@D)
 	$(V)$(CXX) $(HT_CPPFLAGS) $(HT_INCS) -o $@ -c $<
 
@@ -64,12 +64,12 @@ $(HT_OBJDIR)/%.o: $(HT_SYSDEPDIR)/%.S
 
 $(HT_LIBNAME)_tests: all
 	$(V)V=$(V) SRCDIR=$(HT_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(HT_LIBNAME) \
-	  LIBINCDIR="$(LIBINCDIR)" LIBOBJDIRS="$(LIBOBJDIRS)" EXT_DEPS=$(FINALLIB) \
+	  LIBINCDIR="$(SRCDIR)" LIBTOPOBJDIR="$(OBJDIR)" EXT_DEPS="$(FINALLIB)" \
 	  $(MAKE) -C $(HT_SRCDIR)/tests 
 
 $(HT_LIBNAME)_tests_clean:
 	$(V)V=$(V) SRCDIR=$(HT_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(HT_LIBNAME) \
-	  LIBINCDIR="$(LIBINCDIR)" LIBOBJDIRS="$(LIBOBJDIRS)" EXT_DEPS=$(FINALLIB) \
+	  LIBINCDIR="$(SRCDIR)" LIBTOPOBJDIR="$(OBJDIR)" EXT_DEPS="$(FINALLIB)" \
 	  $(MAKE) -C $(HT_SRCDIR)/tests clean
 
 $(HT_LIBNAME)_clean: $(HT_LIBNAME)_tests_clean

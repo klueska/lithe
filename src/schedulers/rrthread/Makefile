@@ -1,11 +1,11 @@
-# Makefile for rruthread library
+# Makefile for rrthread library
 
 V ?= @
 SCHEDNAME = rrthread
 
-LIBINCDIR ?= $(PWD)/../..
-LIBOBJDIRS ?= $(patsubst %, $(LIBINCDIR)/../obj/%, $(LIBDEPS))
-SCHEDSDIR ?= $(LIBINCDIR)/schedulers
+SCHEDSDIR ?= $(PWD)/..
+LIBINCDIRS ?= $(PWD)/../..
+LIBTOPOBJDIR ?= $(PWD)/../../obj
 TESTSDIR ?= $(SCHEDSDIR)/tests
 
 # Needed to point to installation of the scheduler directory where the

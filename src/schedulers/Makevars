@@ -15,7 +15,7 @@ SCHED_CFLAGS   += -g -O2 -Wall -std=gnu99 -MMD -MP
 SCHED_CFLAGS   += -fno-strict-aliasing
 SCHED_CFLAGS   += -Wno-unused-function
 SCHED_CXXFLAGS += $(filter-out -std=gnu99, $(SCHED_CFLAGS))
-SCHED_INCDIRS  := . $(LIBINCDIR) $(SCHEDSDIR)
+SCHED_INCDIRS  := . $(LIBINCDIRS) $(SCHEDSDIR)
 SCHED_INCS     := $(patsubst %, -I%, $(SCHED_INCDIRS))
 SCHED_CFILES   := $(notdir $(wildcard $(SCHEDSDIR)/*.c))
 SCHED_CFILES   += $(notdir $(wildcard $(SCHEDSRCDIR)/*.c))
