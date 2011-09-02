@@ -7,9 +7,9 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include <parlib/spinlock.h>
+#include <atomic.h>
+#include <spinlock.h>
 #include <lithe/lithe_mutex.h>
-#include <ht/atomic.h>
 
 
 DEFINE_TYPED_DEQUE(context, lithe_context_t *);

@@ -1,5 +1,5 @@
 #include "lithe_barrier.h"
-#include <ht/atomic.h>
+#include <atomic.h>
 #include <stdlib.h>
 #include <assert.h>
 

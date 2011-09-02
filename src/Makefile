@@ -27,6 +27,7 @@ GCC_ROOT := $(shell which $(CC) | xargs dirname)/../
 
 all: $(LIBS) 
 
+EXTRAINCDIRS = $(patsubst %, $(SRCDIR)/%, $(LIBS))
 include $(patsubst %, $(SRCDIR)/%/Makefrag, $(LIBS))
 
 SCHEDSDIR = $(SRCDIR)/schedulers

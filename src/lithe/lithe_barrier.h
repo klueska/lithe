@@ -2,11 +2,11 @@
 #define LITHE_BARRIER_H
 
 
-#include <parlib/spinlock.h>
-#include <lithe/lithe.h>
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <spinlock.h>
+#include <lithe/lithe.h>
 
 #ifdef __cplusplus 
 extern "C" {

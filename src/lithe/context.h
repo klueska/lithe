@@ -10,7 +10,7 @@
 #endif
 
 #include <stdarg.h>
-#include <parlib/uthread.h>
+#include <uthread.h>
 
 #ifdef __cplusplus
 extern "C" {

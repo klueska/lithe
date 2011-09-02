@@ -12,11 +12,11 @@
 
 #include <asm/unistd.h>
 
-#include <ht/atomic.h>
 
 #include <sys/mman.h>
 #include <sys/resource.h>
 
+#include <atomic.h>
 #include <lithe/lithe.h>
 #include <lithe/fatal.h>
 
