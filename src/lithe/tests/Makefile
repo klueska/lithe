@@ -8,9 +8,9 @@ LIBDEPS = lithe parlib ht pthread
 
 SRCDIR ?= $(PWD)
 OBJDIR ?= $(PWD)/obj
-LIBINCDIRS ?= $(PWD)/../.. 
-LIBINCDIRS += $(patsubst %, $(PWD)/../../%, $(LIBDEPS))
+LIBINCDIR ?= $(PWD)/../.. 
 LIBTOPOBJDIR ?= $(PWD)/../../obj
+LIBINCDIRS ?= $(LIBINCDIR) $(patsubst %, $(LIBINCDIR)/%, $(LIBDEPS))
 LIBOBJDIRS ?= $(patsubst %, $(LIBTOPOBJDIR)/%, $(LIBDEPS))
 EXT_DEPS ?= 
 

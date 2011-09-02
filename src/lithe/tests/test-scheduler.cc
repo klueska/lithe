@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <atomic.h>
 #include <lithe/lithe.hh>
-#include <ht/atomic.h>
 
 using namespace lithe;
 

@@ -14,9 +14,9 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include <atomic.h>
 #include <lithe/lithe.h>
 #include <lithe/defaults.h>
-#include <ht/atomic.h>
 
 typedef struct test_sched {
   lithe_sched_t sched;

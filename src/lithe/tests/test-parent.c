@@ -3,12 +3,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <parlib/spinlock.h>
-#include <parlib/queue.h>
+#include <atomic.h>
+#include <spinlock.h>
+#include <queue.h>
 #include <lithe/lithe.h>
 #include <lithe/deque.h>
 #include <lithe/defaults.h>
-#include <ht/atomic.h>
 
 typedef struct child_sched {
   lithe_sched_t sched;

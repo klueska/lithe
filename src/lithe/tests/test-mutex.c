@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include <parlib/spinlock.h>
+#include <spinlock.h>
 #include <lithe/lithe.h>
 #include <lithe/defaults.h>
 #include <lithe/lithe_mutex.h>

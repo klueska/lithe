@@ -9,7 +9,7 @@
 #include <string.h>
 #include <sys/syscall.h>
 #include <sys/param.h>
-#include <ht/glibc-tls.h>
+#include <glibc-tls.h>
 
 #ifdef __i386__
   #define internal_function   __attribute ((regparm (3), stdcall))

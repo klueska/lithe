@@ -3,12 +3,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <parlib/queue.h>
-#include <parlib/spinlock.h>
+#include <atomic.h>
+#include <queue.h>
+#include <spinlock.h>
 #include <lithe/lithe.hh>
 #include <lithe/deque.h>
 #include <lithe/defaults.h>
-#include <ht/atomic.h>
 
 using namespace lithe;
 
