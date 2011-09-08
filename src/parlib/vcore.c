@@ -36,13 +36,15 @@ extern void vcore_ready() __attribute__ ((weak, alias ("__vcore_ready")));
 /* Entry point from an underlying hard thread */
 void ht_entry()
 {
-	if(ht_saved_ucontext) {
-		assert(current_uthread);
-		memcpy(&current_uthread->uc, ht_saved_ucontext, sizeof(struct ucontext));
-		current_uthread->tls_desc = ht_saved_tls_desc;
-	}
-	uthread_vcore_entry();
+  vcore_entry();
 }
+
+/* Default callback for vcore_entry() */
+static void __vcore_entry()
+{
+	// Do nothing by default...
+}
+extern void vcore_entry() __attribute__ ((weak, alias ("__vcore_entry")));
 
 /* Returns -1 with errno set on error, or 0 on success.  This does not return
  * the number of cores actually granted (though some parts of the kernel do

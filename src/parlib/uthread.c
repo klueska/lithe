@@ -62,6 +62,15 @@ int uthread_lib_init(void)
 	return 0;
 }
 
+void vcore_entry() {
+	if(ht_saved_ucontext) {
+		assert(current_uthread);
+		memcpy(&current_uthread->uc, ht_saved_ucontext, sizeof(struct ucontext));
+		current_uthread->tls_desc = ht_saved_tls_desc;
+	}
+	uthread_vcore_entry();
+}
+
 /* 2LSs shouldn't call uthread_vcore_entry directly */
 void __attribute__((noreturn)) uthread_vcore_entry(void)
 {

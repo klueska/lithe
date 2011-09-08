@@ -30,6 +30,12 @@ extern "C" {
  */
 extern void vcore_ready();
 
+/*
+ * User defined entry point for a vcore. Called as a result of a
+ * vcore_request()
+ */
+extern void vcore_entry();
+
 extern int vcore_request(size_t k);
 extern void vcore_yield(void);
 extern void enable_notifs(uint32_t vcoreid);
