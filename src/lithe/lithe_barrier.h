@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include <spinlock.h>
+#include <mcs.h>
 #include <lithe/lithe.h>
 
 #ifdef __cplusplus 
@@ -29,7 +29,8 @@ typedef union {
 typedef struct {
   lithe_context_t **queue;
   int len;
-  int mtx;
+  mcs_lock_t mtx;
+  mcs_lock_qnode_t *qnode;
   int maxlen;
 } contextq_t;  
 

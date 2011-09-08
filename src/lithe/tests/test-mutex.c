@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include <spinlock.h>
+#include <mcs.h>
 #include <lithe/lithe.h>
 #include <lithe/defaults.h>
 #include <lithe/lithe_mutex.h>
@@ -13,7 +13,7 @@ typedef struct root_sched {
 
   int context_count;
   lithe_mutex_t mutex;
-  int qlock;
+  mcs_lock_t qlock;
   struct context_deque contextq;
 } root_sched_t;
 
@@ -39,7 +39,7 @@ static void root_sched_ctor(root_sched_t* sched)
   sched->sched.funcs = &root_sched_funcs;
   sched->context_count = 0;
   lithe_mutex_init(&sched->mutex);
-  spinlock_init(&sched->qlock);
+  mcs_lock_init(&sched->qlock);
   context_deque_init(&sched->contextq);
 }
 
@@ -52,9 +52,10 @@ static void root_vcore_enter(lithe_sched_t *__this)
   root_sched_t *sched = (root_sched_t *)__this;
   lithe_context_t *context = NULL;
 
-  spinlock_lock(&sched->qlock);
+  mcs_lock_qnode_t qnode = {0};
+  mcs_lock_lock(&sched->qlock, &qnode);
     context_deque_dequeue(&sched->contextq, &context);
-  spinlock_unlock(&sched->qlock);
+  mcs_lock_unlock(&sched->qlock, &qnode);
 
   if(context == NULL) {
     lithe_vcore_yield();
@@ -67,10 +68,11 @@ static void root_vcore_enter(lithe_sched_t *__this)
 static void root_enqueue_task(lithe_sched_t *__this, lithe_context_t *context)
 {
   root_sched_t *sched = (root_sched_t *)__this;
-  spinlock_lock(&sched->qlock);
+  mcs_lock_qnode_t qnode = {0};
+  mcs_lock_lock(&sched->qlock, &qnode);
     context_deque_enqueue(&sched->contextq, context);
     lithe_vcore_request(max_vcores());
-  spinlock_unlock(&sched->qlock);
+  mcs_lock_unlock(&sched->qlock, &qnode);
 }
 
 static void root_context_exit(lithe_sched_t *__this, lithe_context_t *context)

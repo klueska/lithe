@@ -5,7 +5,7 @@
 
 #include <atomic.h>
 #include <queue.h>
-#include <spinlock.h>
+#include <mcs.h>
 #include <lithe/lithe.hh>
 #include <lithe/deque.h>
 #include <lithe/defaults.h>
@@ -87,7 +87,7 @@ class RootScheduler : public Scheduler {
   void context_exit(lithe_context_t *context);
 
  public:
-  int lock;
+  mcs_lock_t lock;
   int vcores;
   int children_expected;
   int children_started;
@@ -101,7 +101,7 @@ class RootScheduler : public Scheduler {
 
 RootScheduler::RootScheduler()
 {
-  spinlock_init(&this->lock);
+  mcs_lock_init(&this->lock);
   this->children_expected = 0;
   this->children_started = 0;
   this->children_finished = 0;
@@ -115,9 +115,10 @@ int RootScheduler::vcore_request(lithe_sched_t *child, int k)
   sched_vcore_request_t *req = (sched_vcore_request_t*)malloc(sizeof(sched_vcore_request_t));
   req->sched = child;
   req->num_vcores = k;
-  spinlock_lock(&this->lock);
+  mcs_lock_qnode_t qnode = {0};
+  mcs_lock_lock(&this->lock, &qnode);
     LIST_INSERT_HEAD(&this->needy_children, req, link);
-  spinlock_unlock(&this->lock);
+  mcs_lock_unlock(&this->lock, &qnode);
   lithe_vcore_request(k);
   return k;
 }
@@ -125,17 +126,19 @@ int RootScheduler::vcore_request(lithe_sched_t *child, int k)
 void RootScheduler::child_entered(lithe_sched_t *child)
 {
   printf("RootScheduler::child_entered\n");
-  spinlock_lock(&this->lock);
+  mcs_lock_qnode_t qnode = {0};
+  mcs_lock_lock(&this->lock, &qnode);
     this->children_started++;
-  spinlock_unlock(&this->lock);
+  mcs_lock_unlock(&this->lock, &qnode);
 }
 
 void RootScheduler::child_exited(lithe_sched_t *child)
 {
   printf("RootScheduler::child_exited\n");
-  spinlock_lock(&this->lock);
+  mcs_lock_qnode_t qnode = {0};
+  mcs_lock_lock(&this->lock, &qnode);
     this->children_finished++;
-  spinlock_unlock(&this->lock);
+  mcs_lock_unlock(&this->lock, &qnode);
 }
 
 void RootScheduler::context_unblock(lithe_context_t *context) 
@@ -166,7 +169,8 @@ void RootScheduler::vcore_enter()
 
   uint8_t state = 0;
   lithe_sched_t *child = NULL;
-  spinlock_lock(&this->lock);
+  mcs_lock_qnode_t qnode = {0};
+  mcs_lock_lock(&this->lock, &qnode);
     if(this->children_started < this->children_expected)
       state = STATE_CREATE;
     else if(!LIST_EMPTY(&this->needy_children)) {
@@ -185,7 +189,7 @@ void RootScheduler::vcore_enter()
     }
     else
       state = STATE_COMPLETE;
-  spinlock_unlock(&this->lock);
+  mcs_lock_unlock(&this->lock, &qnode);
 
   switch(state) {
     case STATE_CREATE: {
@@ -220,11 +224,12 @@ static void root_run()
 {
   printf("root_run start\n");
   RootScheduler *sched = (RootScheduler*)lithe_sched_current();
-  spinlock_lock(&sched->lock);
+  mcs_lock_qnode_t qnode = {0};
+  mcs_lock_lock(&sched->lock, &qnode);
     sched->vcores = lithe_vcore_request(max_vcores()) + 1;
     sched->children_expected = sched->vcores;
     printf("children_expected: %d\n", sched->children_expected);
-  spinlock_unlock(&sched->lock);
+  mcs_lock_unlock(&sched->lock, &qnode);
   lithe_context_block(block_root, sched);
   printf("root_run finish\n");
 }

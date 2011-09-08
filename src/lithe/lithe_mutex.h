@@ -5,6 +5,7 @@
 #ifndef LITHE_MUTEX_H
 #define LITHE_MUTEX_H
 
+#include <mcs.h>
 #include "lithe.h"
 #include "deque.h"
 
@@ -15,7 +16,8 @@ extern "C" {
 DECLARE_TYPED_DEQUE(context, lithe_context_t *);
 
 typedef struct lithe_mutex {
-  int lock;
+  mcs_lock_t lock;
+  mcs_lock_qnode_t *qnode;
   int locked;
   struct context_deque deque;
 } lithe_mutex_t;

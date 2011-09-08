@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include <spinlock.h>
+#include <mcs.h>
 #include <lithe/lithe.hh>
 #include <lithe/defaults.h>
 #include <lithe/lithe_mutex.h>
@@ -19,7 +19,7 @@ class RootScheduler : public Scheduler {
  public:
   unsigned int context_count;
   lithe_mutex_t mutex;
-  int qlock;
+  mcs_lock_t qlock;
   struct context_deque contextq;
 
   RootScheduler();
@@ -29,7 +29,7 @@ class RootScheduler : public Scheduler {
 RootScheduler::RootScheduler()
 { 
   lithe_mutex_init(&this->mutex);
-  spinlock_init(&this->qlock);
+  mcs_lock_init(&this->qlock);
   context_deque_init(&this->contextq);
 }
 
@@ -37,9 +37,10 @@ void RootScheduler::vcore_enter()
 {
   lithe_context_t *context = NULL;
 
-  spinlock_lock(&this->qlock);
+  mcs_lock_qnode_t qnode = {0};
+  mcs_lock_lock(&this->qlock, &qnode);
     context_deque_dequeue(&this->contextq, &context);
-  spinlock_unlock(&this->qlock);
+  mcs_lock_unlock(&this->qlock, &qnode);
 
   if(context == NULL)
     lithe_vcore_yield();
@@ -49,10 +50,11 @@ void RootScheduler::vcore_enter()
 
 void enqueue_task(RootScheduler *sched, lithe_context_t *context)
 {
-  spinlock_lock(&sched->qlock);
+  mcs_lock_qnode_t qnode = {0};
+  mcs_lock_lock(&sched->qlock, &qnode);
     context_deque_enqueue(&sched->contextq, context);
     lithe_vcore_request(max_vcores());
-  spinlock_unlock(&sched->qlock);
+  mcs_lock_unlock(&sched->qlock, &qnode);
 }
 
 void RootScheduler::context_unblock(lithe_context_t *context)
