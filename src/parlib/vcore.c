@@ -17,21 +17,13 @@
 #include <ht/ht.h>
 
 /**
- * User defined callback function signalling that the ht libary is done
- * initializing itself. We simply reflect this back up as a vcore_ready()
- * callback.
+ * Initialization function for the vcore lib.  Simply calls the underlying
+ * initialization routine for hard threads.
  */
-void ht_ready()
+int vcore_lib_init()
 {
-  vcore_ready();
+  return ht_lib_init();
 }
-
-/* Default callback for vcore_ready() */
-static void __vcore_ready()
-{
-	// Do nothing by default...
-}
-extern void vcore_ready() __attribute__ ((weak, alias ("__vcore_ready")));
 
 /* Entry point from an underlying hard thread */
 void ht_entry()

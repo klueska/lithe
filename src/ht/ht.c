@@ -462,8 +462,17 @@ int ht_limit_hard_threads()
   return c;
 }
 
-static void __ht_init()
+int ht_lib_init()
 {
+  /* Make sure this only runs once */
+  static bool initialized = false;
+  if (initialized)
+      return -1;
+  initialized = true;
+
+  /* Initialize the tls subsystem */
+  assert(!tls_lib_init());
+
   /* Get the number of available hard threads in the system */
   char *limit = getenv("HT_LIMIT");
   if (limit != NULL) {
@@ -503,20 +512,7 @@ static void __ht_init()
       wrfence();
     }
   }
-  ht_ready();
-}
-
-/* Default callback after __ht_init has finished */
-static void __ht_ready()
-{
-	// Do nothing by default...
-}
-extern void ht_ready() __attribute__ ((weak, alias ("__ht_ready")));
-
-/* Callback after tls constructor has finished */
-void tls_ready()
-{
-  __ht_init();
+  return 0;
 }
 
 /* Wrapper for locking hard threads */

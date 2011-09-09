@@ -30,7 +30,6 @@ extern __thread uthread_t *current_uthread;
 /* 2L-Scheduler operations.  Can be 0.  Examples in pthread.c. */
 struct schedule_ops {
 	/* Functions supporting thread ops */
-	struct uthread *(*sched_init)(void);
 	void (*sched_entry)(void);
 	void (*thread_runnable)(struct uthread *);
 	void (*thread_yield)(struct uthread *);

@@ -4,17 +4,9 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
-
-#include <asm/unistd.h>
-
-
-#include <sys/mman.h>
-#include <sys/resource.h>
 
 #include <atomic.h>
 #include <lithe/lithe.h>
@@ -32,14 +24,12 @@ typedef struct lithe_vcore_func {
 } lithe_vcore_func_t;
 
 /* Hooks from uthread code into lithe */
-static uthread_t*   lithe_init(void);
 static void         lithe_vcore_entry(void);
 static void         lithe_thread_runnable(uthread_t *uthread);
 static void         lithe_thread_yield(uthread_t *uthread);
 
 /* Unique function pointer table required by uthread code */
 struct schedule_ops lithe_sched_ops = {
-  .sched_init       = lithe_init,
   .sched_entry      = lithe_vcore_entry,
   .thread_runnable  = lithe_thread_runnable,
   .thread_yield     = lithe_thread_yield,
@@ -105,15 +95,14 @@ static __thread struct {
 /* Helper function for initializing the barebones of a lithe context */
 static inline void __lithe_context_init(lithe_context_t *context, lithe_sched_t *sched);
 
-void vcore_ready()
+static int __attribute__((constructor)) lithe_lib_init()
 {
-  /* Once the vcore subsystem is up and running, initialize the uthread
-   * library, which will, in turn, eventually call lithe_init() for us */
-  uthread_lib_init();
-}
+  /* Make sure this only runs once */
+  static bool initialized = false;
+  if (initialized)
+      return -1;
+  initialized = true;
 
-static uthread_t* lithe_init()
-{
   /* Create a lithe context for the main thread to run in */
   lithe_context_t *context = (lithe_context_t*)malloc(sizeof(lithe_context_t));
   assert(context);
@@ -130,7 +119,11 @@ static uthread_t* lithe_init()
   /* Return a reference to the main context back to the uthread library. We will
    * resume this context once lithe_vcore_entry() is called from the uthread
    * library */
-  return (uthread_t*)(context);
+
+  /* Once we have set things up for the main context, initialize the uthread
+   * library with that main context */
+  assert(!uthread_lib_init((uthread_t*)context));
+  return 0;
 }
 
 static void __attribute__((noreturn)) __lithe_sched_reenter()
@@ -187,7 +180,7 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   assert(0); // Should never return from entered scheduler
 }
 
-static void lithe_thread_runnable(struct uthread *uthread)
+static void lithe_thread_runnable(uthread_t *uthread)
 {
   assert(uthread);
   assert(current_sched);
@@ -197,7 +190,7 @@ static void lithe_thread_runnable(struct uthread *uthread)
   current_sched->funcs->context_unblock(current_sched, context);
 }
 
-static void lithe_thread_yield(struct uthread *uthread)
+static void lithe_thread_yield(uthread_t *uthread)
 {
   assert(uthread);
   assert(current_sched);

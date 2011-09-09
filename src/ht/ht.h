@@ -70,19 +70,17 @@ extern __thread void *ht_saved_tls_desc;
 extern pthread_mutex_t ht_yield_lock;
 
 /**
- * User defined callback function signalling that the ht libary is done
- * initializing itself.  This function runs before main is called, and 
- * can, therefore be used for initialization of libraries that depend on 
- * using hard threads. 
- */
-extern void ht_ready();
-
-/**
  * User defined entry point for each hard thread.  If ht_saved_ucontext is
  * set, this function should most likely just restore it, otherwise, go on from
  * there.
  */
 extern void ht_entry() __attribute__((weak));
+
+/**
+ * Initialization routine for the hrd threads subsystem.  Starts the process of
+ * allocating hard thread wrappers pinning them to cores, etc.
+ */
+extern int ht_lib_init();
 
 /**
  * Requests k additional hard threads. Returns -1 if the request is

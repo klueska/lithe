@@ -22,20 +22,13 @@ extern "C" {
 #define LOG2_MAX_VCORES LOG2_MAX_HTS
 #define MAX_VCORES (1 << LOG2_MAX_VCORES)
 
-/**
- * User defined callback function signalling that the vcore libary is done
- * initializing itself.  This function runs before main is called, and 
- * can, therefore be used for initialization of libraries that depend on 
- * using vcores.
- */
-extern void vcore_ready();
-
 /*
  * User defined entry point for a vcore. Called as a result of a
  * vcore_request()
  */
 extern void vcore_entry();
 
+extern int vcore_lib_init();
 extern int vcore_request(size_t k);
 extern void vcore_yield(void);
 extern void enable_notifs(uint32_t vcoreid);

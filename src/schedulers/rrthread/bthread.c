@@ -34,7 +34,6 @@ static int get_next_pid(void);
 static inline void spin_to_sleep(unsigned int spins, unsigned int *spun);
 
 /* Pthread 2LS operations */
-struct uthread *pth_init(void);
 void pth_sched_entry(void);
 void pth_thread_runnable(struct uthread *uthread);
 void pth_thread_yield(struct uthread *uthread);
@@ -42,7 +41,6 @@ void pth_preempt_pending(void);
 void pth_spawn_thread(uintptr_t pc_start, void *data);
 
 struct schedule_ops bthread_sched_ops = {
-	pth_init,
 	pth_sched_entry,
 	pth_thread_runnable,
 	pth_thread_yield,
@@ -56,24 +54,6 @@ struct schedule_ops *sched_ops __attribute__((weak)) = &bthread_sched_ops;
 /* Static helpers */
 static void __bthread_free_stack(struct bthread_tcb *pt);
 static int __bthread_allocate_stack(struct bthread_tcb *pt);
-
-/* Do whatever init you want.  Return a uthread representing thread0 (int
- * main()) */
-struct uthread *pth_init(void)
-{
-	struct mcs_lock_qnode local_qn = {0};
-	bthread_t t = (bthread_t)calloc(1, sizeof(struct bthread_tcb));
-	assert(t);
-	t->id = get_next_pid();
-	assert(t->id == 0);
-
-	/* Put the new bthread on the active queue */
-	mcs_lock_lock(&queue_lock, &local_qn);
-	threads_active++;
-	TAILQ_INSERT_TAIL(&active_queue, t, next);
-	mcs_lock_unlock(&queue_lock, &local_qn);
-	return (struct uthread*)t;
-}
 
 /* Called from vcore entry.  Options usually include restarting whoever was
  * running there before or running a new thread.  Events are handled out of
@@ -228,10 +208,41 @@ int bthread_attr_getstacksize(const bthread_attr_t *attr, size_t *stacksize)
 	return 0;
 }
 
+/* Do whatever init you want.  At some point call uthread_lib_init() and pass it
+ * a uthread representing thread0 (int main()) */
+static int bthread_lib_init(void)
+{
+    /* Make sure this only runs once */
+    static bool initialized = false;
+    if (initialized)
+        return -1;
+    initialized = true;
+
+	struct mcs_lock_qnode local_qn = {0};
+	bthread_t t = (bthread_t)calloc(1, sizeof(struct bthread_tcb));
+	assert(t);
+	t->id = get_next_pid();
+	assert(t->id == 0);
+
+	/* Put the new bthread on the active queue */
+	mcs_lock_lock(&queue_lock, &local_qn);
+	threads_active++;
+	TAILQ_INSERT_TAIL(&active_queue, t, next);
+	mcs_lock_unlock(&queue_lock, &local_qn);
+    assert(!uthread_lib_init((struct uthread*)t));
+    return 0;
+}
+
 /* Responible for creating the bthread and initializing its user trap frame */
 int bthread_create(bthread_t* thread, const bthread_attr_t* attr,
                    void *(*start_routine)(void *), void* arg)
 {
+    static bool first = true;
+    if (first) {
+        assert(!bthread_lib_init());
+        first = false;
+    }
+
 	/* Create a bthread struct */
 	struct bthread_tcb *bthread;
 	bthread = (bthread_t)calloc(1, sizeof(struct bthread_tcb));

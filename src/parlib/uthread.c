@@ -26,8 +26,9 @@ __thread struct uthread *current_uthread = 0;
 static int __uthread_allocate_tls(struct uthread *uthread);
 static void __uthread_free_tls(struct uthread *uthread);
 
-/* Gets called once out of uthread_create().  Can also do this in a ctor. */
-int uthread_lib_init(void)
+/* The real 2LS calls this, passing in a uthread representing thread0.  When it
+ * returns, you're in _M mode, still running thread0, on vcore0 */
+int uthread_lib_init(struct uthread* uthread)
 {
 	/* Only do this initialization once, every time after, just return 0 */
 	static bool first = TRUE;
@@ -35,15 +36,10 @@ int uthread_lib_init(void)
 		return 0;
 	first = FALSE;
 
-	/* Make sure we are NOT in vcore context */
-	assert(!in_vcore_context());
+    /* Init the vcore system */
+    assert(!vcore_lib_init());
 
-	/* Bug if vcore init was called with no 2LS */
-	assert(sched_ops->sched_init);
-	/* Get thread 0's thread struct (2LS allocs it) */
-	struct uthread *uthread = sched_ops->sched_init();
-	/* Associate the main thread's tls with the uthread returned from
-     * sched_init(). */
+	/* Associate the main thread's tls with the uthread passed into lib_init */
 	uthread->tls_desc = current_tls_desc;
     /* Set the current thread */
     current_uthread = uthread;
@@ -83,8 +79,8 @@ void __attribute__((noreturn)) uthread_vcore_entry(void)
 
 void uthread_init(struct uthread *uthread)
 {
-	/* Make sure we are initialized */
-	assert(uthread_lib_init() == 0);
+	/* Make sure we are not in vcore context */
+	assert(!in_vcore_context());
 
 	memset(uthread, 0, sizeof(struct uthread));
 	/* Get a TLS for the new thread */
