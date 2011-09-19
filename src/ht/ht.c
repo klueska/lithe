@@ -469,7 +469,6 @@ int ht_limit_hard_threads()
 
 int ht_lib_init()
 {
-  printf("I am here...\n");
   /* Make sure this only runs once */
   static bool initialized = false;
   if (initialized)

@@ -50,13 +50,12 @@ void free_tls(void *tcb)
 /* Constructor to get a reference to the main thread's TLS descriptor */
 int tls_lib_init()
 {
-    /* Make sure this only runs once */
-    static bool initialized = false;
-    if (initialized)
-        return -1;
-    initialized = true;
-
-  printf("I am here...\n");
+	/* Make sure this only runs once */
+	static bool initialized = false;
+	if (initialized)
+	    return -1;
+	initialized = true;
+	
 	/* Get a reference to the main program's TLS descriptor */
 	current_tls_desc = get_current_tls_base();
 	main_tls_desc = current_tls_desc;
