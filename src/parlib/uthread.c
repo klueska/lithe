@@ -80,7 +80,8 @@ void __attribute__((noreturn)) uthread_vcore_entry(void)
 void uthread_init(struct uthread *uthread)
 {
 	/* Make sure we are not in vcore context */
-	assert(!in_vcore_context());
+	// TODO: Need to revisit this since in ROS this assert is still there...
+//	assert(!in_vcore_context());
 
 	memset(uthread, 0, sizeof(struct uthread));
 	/* Get a TLS for the new thread */
