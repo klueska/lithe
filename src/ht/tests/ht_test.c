@@ -29,6 +29,7 @@ void ht_entry()
 int main()
 {
   printf("main, limit_hts: %d\n", ht_limit_hard_threads());
+  ht_lib_init();
   ht_request_async(NUM_HTS);
   set_tls_desc(ht_tls_descs[0], 0);
   ht_saved_ucontext = NULL;  

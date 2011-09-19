@@ -379,6 +379,11 @@ static int __ht_request_async(int k)
 
 int ht_request_async(int k)
 {
+  if(!__ht_limit_hard_threads) {
+    fprintf(stderr, "ht: __ht_limit_hard_threads == 0: Are you sure you called ht_lib_init()?\n");
+    exit(1);
+  }
+ 
   int hts = 0;
   pthread_mutex_lock(&__ht_mutex);
   {
@@ -464,6 +469,7 @@ int ht_limit_hard_threads()
 
 int ht_lib_init()
 {
+  printf("I am here...\n");
   /* Make sure this only runs once */
   static bool initialized = false;
   if (initialized)
