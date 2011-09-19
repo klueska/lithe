@@ -26,8 +26,9 @@
 
 V ?= @
 SCHEDNAME = tbb
-LIBINCDIR ?= $(tbb_root)/../..
-SCHEDSDIR ?= $(LIBINCDIR)/schedulers
+LIBROOT ?= $(tbb_root)/../..
+LIBINCDIRS ?= $(LIBROOT) $(LIBROOT)/ht $(LIBROOT)/parlib
+SCHEDSDIR  ?= $(LIBROOT)/schedulers
 include $(SCHEDSDIR)/Makevars
 #CPLUS_FLAGS += -DUSE_PTHREAD
 CPLUS_FLAGS += -DUSE_LITHE

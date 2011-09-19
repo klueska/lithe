@@ -40,13 +40,14 @@ include ../build/common.inc
 V ?= @
 SCHEDNAME = tbb
 LIBDEPS = pthread lithe parlib ht
-LIBINCDIR ?= $(tbb_root)/../..
-LIBOBJDIRS ?= $(patsubst %, $(LIBINCDIR)/../obj/%, $(LIBDEPS))
+LIBROOT ?= $(tbb_root)/../..
+LIBINCDIRS ?= -I$(LIBROOT) $(patsubst %, -I$(LIBROOT)/%, $(LIBDEPS))
+LIBOBJDIRS ?= $(patsubst %, $(LIBROOT)/../obj/%, $(LIBDEPS))
 
 LDFLAGS += $(patsubst %, -L%, $(LIBOBJDIRS))
 LIBS += $(patsubst %, -l%, $(LIBDEPS))
 #CXXFLAGS += -DUSE_PTHREAD
-CXXFLAGS += -DUSE_LITHE -I$(LIBINCDIR)
+CXXFLAGS += -DUSE_LITHE $(LIBINCDIRS)
 
 #check, if tbb_root is not absolute path (the filter keeps only /* paths)
 ifeq ($(filter /% $(SLASH)%, $(subst :, ,$(tbb_root)) ),)
