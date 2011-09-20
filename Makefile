@@ -1,11 +1,13 @@
 
 SRCDIR := $(PWD)/src
-OBJDIR := $(PWD)/obj
+BUILDDIR := $(PWD)/build
 
 include src/Makefile
 
 clean_top:
-	@rm -rf $(OBJDIR)
+	$(V)if [ -d $(BUILDDIR) ]; then \
+	  [ -z "$$(ls $(BUILDDIR))" ] && rm -rf $(BUILDDIR) || echo "" > /dev/null; \
+	fi
 
 clean: clean_top
 

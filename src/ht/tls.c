@@ -7,8 +7,8 @@
 #include <stddef.h>
 #include <sys/syscall.h>
 #include <ht/atomic.h>
-#include <ht/htinternal.h>
-#include <ht/tlsinternal.h>
+#include <internal/ht.h>
+#include <internal/tls.h>
 
 /* Reference to the main threads tls descriptor */
 void *main_tls_desc = NULL;

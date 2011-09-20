@@ -13,8 +13,8 @@
 #include <sys/syscall.h>
 
 #include <ht/arch.h>
-#include <ht/glibc-tls.h>
-#include <ht/htinternal.h>
+#include <internal/glibc-tls.h>
+#include <internal/ht.h>
 
 #ifdef __x86_64__
   #include <asm/prctl.h>

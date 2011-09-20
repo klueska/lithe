@@ -2,34 +2,36 @@
 
 TESTS_EXECS = bthread_test
 LIBDEPS = $(SCHEDNAME) parlib ht pthread
-LIBOBJDIRS ?= $(patsubst %, $(LIBTOPOBJDIR)/%, $(LIBDEPS))
 
 TESTSNAME = $(SCHEDNAME)_bthread_tests
-TESTS_SRCDIR := $(SCHEDSDIR)/tests
-TESTS_OBJDIR := $(SCHEDOBJDIR)/tests
+BUILDTESTSDIR := $(BUILDDIR)/tests
+TESTS_SRCDIR := $(SCHEDDIR)/tests
+TESTS_EXECDIR := $(BUILDTESTSDIR)/$(SCHEDNAME)
 
 TESTS_CFLAGS = -O2 -Wall -std=gnu99 -MMD -MP
 TESTS_CFLAGS += -Wno-unused-function
-TESTS_LDFLAGS += $(patsubst %, -L%, $(SCHEDOBJDIR))
-TESTS_LDFLAGS += $(patsubst %, -L%, $(LIBOBJDIRS))
+TESTS_LDFLAGS += $(patsubst %, -L%, $(LIBLIBDIR))
 TESTS_LDFLAGS += -Wl,--start-group $(patsubst %, -l%, $(LIBDEPS)) -Wl,--end-group 
 
-TESTS_INCDIRS := . $(LIBINCDIRS) $(SCHEDSDIR)
+TESTS_INCDIRS := $(SCHEDINCDIR) $(LIBINCDIR)
 TESTS_INCS    := $(patsubst %, -I%, $(TESTS_INCDIRS))
 TESTS_CFILES  := $(notdir $(wildcard $(TESTS_SRCDIR)/*.c))
-TESTS_EXECS   := $(patsubst %, $(TESTS_OBJDIR)/%, $(TESTS_EXECS))
+TESTS_EXECS   := $(patsubst %, $(TESTS_EXECDIR)/%, $(TESTS_EXECS))
 
 TESTS_DEPS = $(patsubst %, %.d, $(TESTS_EXECS))
 -include $(TESTS_DEPS)
 
 tests: all $(TESTS_EXECS)
 
-$(TESTS_OBJDIR)/%: $(TESTS_SRCDIR)/%.c
+$(TESTS_EXECDIR)/%: $(TESTS_SRCDIR)/%.c
 	@echo + cc [$(call uc, $(TESTSNAME))] $(<F)
 	@mkdir -p $(@D)
 	$(V)$(CC) $< $(TESTS_CFLAGS) $(TESTS_INCS) $(TESTS_LDFLAGS) -o $@
 
 tests_clean:
 	@echo + clean [$(call uc, $(TESTSNAME))] $<
-	$(V)rm -rf $(TESTS_OBJDIR)
+	$(V)rm -rf $(TESTS_EXECDIR)
+	$(V)if [ -d $(BUILDTESTSDIR) ]; then \
+	  [ -z "$$(ls $(BUILDTESTSDIR))" ] && rm -rf $(BUILDTESTSDIR) || echo "" > /dev/null; \
+	fi
 

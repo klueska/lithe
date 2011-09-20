@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include <atomic.h>
+#include <ht/atomic.h>
 #include <lithe/lithe.hh>
 
 using namespace lithe;

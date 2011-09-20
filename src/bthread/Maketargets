@@ -1,0 +1,49 @@
+# Generic Maketargets file for all bthread based libraries
+
+all: $(FINALSCHED)
+
+-include $(SCHED_DEPS)
+
+$(SCHEDNAME)-mkincdir:
+	@mkdir -p $(SCHEDINCDIR)
+
+$(SCHEDINCDIR): $(SCHEDNAME)-mkincdir
+	@count=`ls -1 $(SCHEDDIR)/*.h 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(SCHEDDIR)/*.h $@; fi;
+	@count=`ls -1 $(SCHEDSRCDIR)/*.h 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(SCHEDSRCDIR)/*.h $@; fi;
+
+$(SCHEDOBJDIR)/%.o: $(SCHEDSDIR)/%.c 
+	@echo + cc [$(SCHEDUCNAME)] $(<F)
+	@mkdir -p $(@D)
+	$(V)$(CC) $(SCHED_CFLAGS) $(SCHED_INCS) -o $@ -c $<
+
+$(SCHEDOBJDIR)/%.o: $(SCHEDSRCDIR)/%.c 
+	@echo + cc [$(SCHEDUCNAME)] $(<F)
+	@mkdir -p $(@D)
+	$(V)$(CC) $(SCHED_CFLAGS) $(SCHED_INCS) -o $@ -c $<
+
+$(FINALSCHED): $(SCHEDINCDIR) $(SCHED_OBJS)
+	@echo + ar [$(SCHEDUCNAME)] $(@F)
+	@mkdir -p $(@D)
+	$(V)$(AR) rc $@ $(SCHED_OBJS)
+
+sched_clean: tests_clean
+	@echo + clean [$(SCHEDUCNAME)]
+	$(V)rm -rf $(SCHEDINCDIR)
+	$(V)rm -rf $(SCHEDOBJDIR)
+	$(V)rm -rf $(FINALSCHED)
+	
+clean: sched_clean
+	$(V)if [ -d "$(BUILDINCDIR)" ]; then \
+	  [ -z "$$(ls $(BUILDINCDIR))" ] && rm -rf $(BUILDINCDIR) || echo "" > /dev/null; \
+	fi
+	$(V)if [ -d "$(BUILDOBJDIR)" ]; then \
+	  [ -z "$$(ls $(BUILDOBJDIR))" ] && rm -rf $(BUILDOBJDIR) || echo "" > /dev/null; \
+	fi
+	$(V)if [ -d "$(BUILDLIBDIR)" ]; then \
+	  [ -z "$$(ls $(BUILDLIBDIR))" ] && rm -rf $(BUILDLIBDIR) || echo "" > /dev/null; \
+	fi
+	$(V)if [ -d $(BUILDDIR) ]; then \
+	  [ -z "$$(ls $(BUILDDIR))" ] && rm -rf $(BUILDDIR) || echo "" > /dev/null; \
+	fi

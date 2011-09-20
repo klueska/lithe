@@ -1,6 +1,6 @@
-#include <parlib.h>
-#include <vcore.h>
-#include <mcs.h>
+#include <parlib/parlib.h>
+#include <parlib/vcore.h>
+#include <parlib/mcs.h>
 #include <assert.h>
 #include <stdio.h>
 

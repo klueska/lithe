@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <atomic.h>
+#include <ht/atomic.h>
 #include <lithe/lithe.h>
 #include <lithe/fatal.h>
 

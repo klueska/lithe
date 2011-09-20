@@ -1,23 +1,23 @@
 # Generic Makevars file for all bthread based libraries
 
 # These variables and function definitions are needed both within this
-# Makerules file as well as any others that are rleated to the compilation of
-# this library (i.e. tests/Makerules).  LIBNAME, SCHEDS_DIR, and PARLIB_DIR are
-# defined in the per library Makefile that includes this file
+# Makerules file as well as any others that are related to the compilation of
+# this library (i.e. tests/Makerules).  
 uc = $(shell echo $(1) | tr a-z A-Z)
-SCHEDSRCDIR := $(SCHEDSDIR)/$(SCHEDNAME)
-SCHEDOBJDIR := $(SCHEDSRCDIR)/obj
-FINALSCHED   := $(SCHEDOBJDIR)/lib$(SCHEDNAME).a
 SCHEDUCNAME  := $(call uc, $(SCHEDNAME))
+SCHEDSRCDIR := $(SCHEDDIR)/$(SCHEDNAME)
+SCHEDINCDIR := $(BUILDINCDIR)/$(SCHEDNAME)
+SCHEDOBJDIR := $(BUILDOBJDIR)/$(SCHEDNAME)
+SCHEDLIBDIR := $(BUILDLIBDIR)
+FINALSCHED  := $(SCHEDLIBDIR)/lib$(SCHEDNAME).a
 
 # These variables are specific just to the compilation of the library itself.
 SCHED_CFLAGS   += -g -O2 -Wall -std=gnu99 -MMD -MP
 SCHED_CFLAGS   += -fno-strict-aliasing
 SCHED_CFLAGS   += -Wno-unused-function
 SCHED_CXXFLAGS += $(filter-out -std=gnu99, $(SCHED_CFLAGS))
-SCHED_INCDIRS  := . $(LIBINCDIRS) $(SCHEDSDIR)
-SCHED_INCS     := $(patsubst %, -I%, $(SCHED_INCDIRS))
-SCHED_CFILES   := $(notdir $(wildcard $(SCHEDSDIR)/*.c))
+SCHED_INCS     := $(patsubst %, -I%, $(LIBINCDIR) $(SCHEDDIR) $(SCHEDSRCDIR))
+SCHED_CFILES   := $(notdir $(wildcard $(SCHEDDIR)/*.c))
 SCHED_CFILES   += $(notdir $(wildcard $(SCHEDSRCDIR)/*.c))
 SCHED_OBJS     := $(patsubst %.c, $(SCHEDOBJDIR)/%.o, $(SCHED_CFILES))
 SCHED_DEPS     := $(patsubst %.o, %.d, $(SCHED_OBJS))

@@ -6,12 +6,13 @@ PARLIB_CFLAGS += -fno-exceptions -fno-strict-aliasing
 PARLIB_CPPFLAGS = $(filter-out -std=gnu99, $(PARLIB_CFLAGS))
 
 PARLIB_SRCDIR := $(SRCDIR)/$(PARLIB_LIBNAME)
-PARLIB_OBJDIR := $(OBJDIR)/$(PARLIB_LIBNAME)
+PARLIB_INCDIR := $(BUILDINCDIR)/$(PARLIB_LIBNAME)
+PARLIB_OBJDIR := $(BUILDOBJDIR)/$(PARLIB_LIBNAME)
+PARLIB_LIBDIR := $(BUILDLIBDIR)
 PARLIB_SYSDEPDIR := $(PARLIB_SRCDIR)/sysdeps/$(SYSDEP)
 PARLIB_TESTSDIR := $(PARLIB_SRCDIR)/tests
-PARLIB_INCDIRS = $(SRCDIR) $(PARLIB_SYSDEPDIR)
 
-PARLIB_INCS = $(patsubst %, -I%, $(PARLIB_INCDIRS))
+PARLIB_INCS = $(patsubst %, -I%, $(BUILDINCDIR) $(PARLIB_SRCDIR) $(PARLIB_SYSDEPDIR))
 
 PARLIB_LIBUCNAME := $(call uc, $(PARLIB_LIBNAME))
 PARLIB_CFILES    := $(notdir $(wildcard $(PARLIB_SRCDIR)/*.c))
@@ -28,16 +29,29 @@ OBJS += $(PARLIB_OBJS)
 
 -include $(PARLIB_DEPS)
 
-ifeq ($(STATICLIBS),yes)
-PARLIB_FINALLIB = $(PARLIB_OBJDIR)/lib$(PARLIB_LIBNAME).a
+$(PARLIB_LIBNAME)-mkincdir:
+	@mkdir -p $(PARLIB_INCDIR)
 
-$(PARLIB_FINALLIB): $(PARLIB_OBJS)
+$(PARLIB_INCDIR): $(PARLIB_LIBNAME)-mkincdir
+	@count=`ls -1 $(PARLIB_SRCDIR)/*.h 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(PARLIB_SRCDIR)/*.h $@; fi;
+	@count=`ls -1 $(PARLIB_SRCDIR)/*.hh 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(PARLIB_SRCDIR)/*.hh $@; fi;
+	@count=`ls -1 $(PARLIB_SYSDEPDIR)/*.h 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(PARLIB_SYSDEPDIR)/*.h $@; fi;
+	@count=`ls -1 $(PARLIB_SYSDEPDIR)/*.hh 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(PARLIB_SYSDEPDIR)/*.hh $@; fi;
+
+ifeq ($(STATICLIBS),yes)
+PARLIB_FINALLIB = $(PARLIB_LIBDIR)/lib$(PARLIB_LIBNAME).a
+
+$(PARLIB_FINALLIB): $(PARLIB_INCDIR) $(PARLIB_OBJS)
 	@echo + ar [$(PARLIB_LIBUCNAME)] $(@F)
 	@mkdir -p $(@D)
 	$(V)$(AR) rc $@ $(PARLIB_OBJS)
 else
 PARLIB_CFLAGS += -fPIC -ftls-model=global-dynamic 
-PARLIB_FINALLIB = $(PARLIB_OBJDIR)/lib$(PARLIB_LIBNAME).so
+PARLIB_FINALLIB = $(PARLIB_LIBDIR)/lib$(PARLIB_LIBNAME).so
 
 $(PARLIB_FINALLIB): $(PARLIB_OBJS)
 	@echo + cc [$(PARLIB_LIBUCNAME)] $(@F)
@@ -63,16 +77,19 @@ $(PARLIB_OBJDIR)/%.o: $(PARLIB_SYSDEPDIR)/%.S
 	$(V)$(CC) $(PARLIB_CFLAGS) -D__ASSEMBLER__ -c -o $@ $<
 
 $(PARLIB_LIBNAME)_tests: all
-	$(V)V=$(V) SRCDIR=$(PARLIB_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(PARLIB_LIBNAME) \
-	  LIBINCDIR="$(SRCDIR)" LIBTOPOBJDIR="$(OBJDIR)" EXT_DEPS="$(FINALLIB)" \
+	$(V)V=$(V) SRCDIR="$(PARLIB_TESTSDIR)" BUILDDIR="$(BUILDDIR)/tests/$(PARLIB_LIBNAME)" \
+	  LIBINCDIRS="$(BUILDINCDIR)" LIBBUILDDIR="$(BUILDDIR)" \
+	  LIBLIBDIRS="$(BUILDLIBDIR)" EXT_DEPS="$(PARLIB_FINALLIB)" \
 	  $(MAKE) -C $(PARLIB_SRCDIR)/tests 
 
 $(PARLIB_LIBNAME)_tests_clean:
-	$(V)V=$(V) SRCDIR=$(PARLIB_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(PARLIB_LIBNAME) \
-	  LIBINCDIR="$(SRCDIR)" LIBTOPOBJDIR="$(OBJDIR)" EXT_DEPS="$(FINALLIB)" \
+	$(V)V=$(V) SRCDIR="$(PARLIB_TESTSDIR)" BUILDDIR="$(BUILDDIR)/tests/$(PARLIB_LIBNAME)" \
+	  LIBINCDIRS="$(BUILDINCDIR)" LIBBUILDDIR="$(BUILDDIR)" \
+	  LIBLIBDIRS="$(BUILDLIBDIR)" EXT_DEPS="$(PARLIB_FINALLIB)" \
 	  $(MAKE) -C $(PARLIB_SRCDIR)/tests clean
 
 $(PARLIB_LIBNAME)_clean: $(PARLIB_LIBNAME)_tests_clean
 	@echo + clean [$(PARLIB_LIBUCNAME)]
+	$(V)rm -rf $(PARLIB_INCDIR)
 	$(V)rm -rf $(PARLIB_OBJDIR)
-
+	$(V)rm -rf $(PARLIB_FINALLIB)

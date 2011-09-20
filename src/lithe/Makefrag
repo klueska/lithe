@@ -6,12 +6,13 @@ LITHE_CFLAGS += -fno-exceptions -fno-strict-aliasing
 LITHE_CPPFLAGS = $(filter-out -std=gnu99, $(LITHE_CFLAGS))
 
 LITHE_SRCDIR := $(SRCDIR)/$(LITHE_LIBNAME)
-LITHE_OBJDIR := $(OBJDIR)/$(LITHE_LIBNAME)
+LITHE_INCDIR := $(BUILDINCDIR)/$(LITHE_LIBNAME)
+LITHE_OBJDIR := $(BUILDOBJDIR)/$(LITHE_LIBNAME)
+LITHE_LIBDIR := $(BUILDLIBDIR)
 LITHE_SYSDEPDIR := $(LITHE_SRCDIR)/sysdeps/$(SYSDEP)
 LITHE_TESTSDIR := $(LITHE_SRCDIR)/tests
-LITHE_INCDIRS = $(SRCDIR) $(LITHE_SYSDEPDIR) $(EXTRAINCDIRS) 
 
-LITHE_INCS = $(patsubst %, -I%, $(LITHE_INCDIRS))
+LITHE_INCS = $(patsubst %, -I%, $(BUILDINCDIR) $(LITHE_SRCDIR) $(LITHE_SYSDEPDIR))
 
 LITHE_LIBUCNAME := $(call uc, $(LITHE_LIBNAME))
 LITHE_CFILES    := $(notdir $(wildcard $(LITHE_SRCDIR)/*.c))
@@ -28,16 +29,29 @@ OBJS += $(LITHE_OBJS)
 
 -include $(LITHE_DEPS)
 
-ifeq ($(STATICLIBS),yes)
-LITHE_FINALLIB = $(LITHE_OBJDIR)/lib$(LITHE_LIBNAME).a
+$(LITHE_LIBNAME)-mkincdir:
+	@mkdir -p $(LITHE_INCDIR)
 
-$(LITHE_FINALLIB): $(LITHE_OBJS)
+$(LITHE_INCDIR): $(LITHE_LIBNAME)-mkincdir
+	@count=`ls -1 $(LITHE_SRCDIR)/*.h 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(LITHE_SRCDIR)/*.h $@; fi;
+	@count=`ls -1 $(LITHE_SRCDIR)/*.hh 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(LITHE_SRCDIR)/*.hh $@; fi;
+	@count=`ls -1 $(LITHE_SYSDEPDIR)/*.h 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(LITHE_SYSDEPDIR)/*.h $@; fi;
+	@count=`ls -1 $(LITHE_SYSDEPDIR)/*.hh 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(LITHE_SYSDEPDIR)/*.hh $@; fi;
+
+ifeq ($(STATICLIBS),yes)
+LITHE_FINALLIB = $(LITHE_LIBDIR)/lib$(LITHE_LIBNAME).a
+
+$(LITHE_FINALLIB): $(LITHE_INCDIR) $(LITHE_OBJS)
 	@echo + ar [$(LITHE_LIBUCNAME)] $(@F)
 	@mkdir -p $(@D)
 	$(V)$(AR) rc $@ $(LITHE_OBJS)
 else
 LITHE_CFLAGS += -fPIC -ftls-model=global-dynamic 
-LITHE_FINALLIB = $(LITHE_OBJDIR)/lib$(LITHE_LIBNAME).so
+LITHE_FINALLIB = $(LITHE_LIBDIR)/lib$(LITHE_LIBNAME).so
 
 $(LITHE_FINALLIB): $(LITHE_OBJS)
 	@echo + cc [$(LITHE_LIBUCNAME)] $(@F)
@@ -63,16 +77,19 @@ $(LITHE_OBJDIR)/%.o: $(LITHE_SYSDEPDIR)/%.S
 	$(V)$(CC) $(LITHE_CFLAGS) -D__ASSEMBLER__ -c -o $@ $<
 
 $(LITHE_LIBNAME)_tests: all
-	$(V)V=$(V) SRCDIR=$(LITHE_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(LITHE_LIBNAME) \
-	  LIBINCDIR="$(SRCDIR)" LIBTOPOBJDIR="$(OBJDIR)" EXT_DEPS="$(FINALLIB)" \
+	$(V)V=$(V) SRCDIR="$(LITHE_TESTSDIR)" BUILDDIR="$(BUILDDIR)/tests/$(LITHE_LIBNAME)" \
+	  LIBINCDIRS="$(BUILDINCDIR)" LIBBUILDDIR="$(BUILDDIR)" \
+	  LIBLIBDIRS="$(BUILDLIBDIR)" EXT_DEPS="$(LITHE_FINALLIB)" \
 	  $(MAKE) -C $(LITHE_SRCDIR)/tests 
 
 $(LITHE_LIBNAME)_tests_clean:
-	$(V)V=$(V) SRCDIR=$(LITHE_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(LITHE_LIBNAME) \
-	  LIBINCDIR="$(SRCDIR)" LIBTOPOBJDIR="$(OBJDIR)" EXT_DEPS="$(FINALLIB)" \
+	$(V)V=$(V) SRCDIR="$(LITHE_TESTSDIR)" BUILDDIR="$(BUILDDIR)/tests/$(LITHE_LIBNAME)" \
+	  LIBINCDIRS="$(BUILDINCDIR)" LIBBUILDDIR="$(BUILDDIR)" \
+	  LIBLIBDIRS="$(BUILDLIBDIR)" EXT_DEPS="$(LITHE_FINALLIB)" \
 	  $(MAKE) -C $(LITHE_SRCDIR)/tests clean
 
 $(LITHE_LIBNAME)_clean: $(LITHE_LIBNAME)_tests_clean
 	@echo + clean [$(LITHE_LIBUCNAME)]
+	$(V)rm -rf $(LITHE_INCDIR)
 	$(V)rm -rf $(LITHE_OBJDIR)
-
+	$(V)rm -rf $(LITHE_FINALLIB)

@@ -32,9 +32,9 @@
 #include <sys/wait.h>
 
 #include <ht/atomic.h>
-#include <ht/htinternal.h>
-#include <ht/tlsinternal.h>
-#include <ht/futex.h>
+#include <internal/ht.h>
+#include <internal/tls.h>
+#include <internal/futex.h>
 
 /* Array of hard threads using clone to masquerade. */
 struct hard_thread *__ht_threads = NULL;

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include <mcs.h>
+#include <parlib/mcs.h>
 #include <lithe/lithe.h>
 #include <lithe/defaults.h>
 #include <lithe/lithe_mutex.h>

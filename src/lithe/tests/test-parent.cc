@@ -3,9 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <atomic.h>
-#include <queue.h>
-#include <mcs.h>
+#include <ht/atomic.h>
+#include <parlib/queue.h>
+#include <parlib/mcs.h>
 #include <lithe/lithe.hh>
 #include <lithe/deque.h>
 #include <lithe/defaults.h>

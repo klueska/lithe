@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include <atomic.h>
+#include <ht/atomic.h>
 #include <lithe/lithe.h>
 #include <lithe/defaults.h>
 

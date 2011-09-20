@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include <mcs.h>
+#include <parlib/mcs.h>
 #include <lithe/lithe.h>
 
 #ifdef __cplusplus 

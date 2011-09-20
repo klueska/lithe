@@ -3,18 +3,24 @@
 V ?= @
 SCHEDNAME = rrthread
 
-SCHEDSDIR ?= $(PWD)/..
-LIBINCDIRS ?= $(PWD)/../..
-LIBTOPOBJDIR ?= $(PWD)/../../obj
-TESTSDIR ?= $(SCHEDSDIR)/tests
+SCHEDDIR ?= $(PWD)/..
+BUILDDIR ?= $(PWD)/build
+BUILDINCDIR ?= $(BUILDDIR)/include
+BUILDOBJDIR ?= $(BUILDDIR)/obj
+BUILDLIBDIR ?= $(BUILDDIR)/lib
+LIBBUILDDIR ?= $(PWD)/../../../build
+LIBINCDIR ?= $(LIBBUILDDIR)/include
+LIBOBJDIR ?= $(LIBBUILDDIR)/obj
+LIBLIBDIR ?= $(LIBBUILDDIR)/lib
+TESTSDIR ?= $(SCHEDDIR)/tests
 
 # Needed to point to installation of the scheduler directory where the
 # Makevars file is located.
-include $(SCHEDSDIR)/Makevars
+include $(SCHEDDIR)/Makevars
 
 # Needed to point to installation of the scheduler directory where the
 # Maketargets file is located.
-include $(SCHEDSDIR)/Maketargets
+include $(SCHEDDIR)/Maketargets
 
 # Needed to point to installation of the scheduler directory where the 
 # tests subfolder is located, to build all bthread tests for this scheduler

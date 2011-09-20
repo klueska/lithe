@@ -7,8 +7,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include <mcs.h>
-#include <atomic.h>
+#include <ht/atomic.h>
+#include <parlib/mcs.h>
 #include <lithe/lithe_mutex.h>
 
 

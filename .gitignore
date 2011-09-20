@@ -1,2 +1,3 @@
-obj
+build
+!src/tbb21_014oss/build
 *.swp

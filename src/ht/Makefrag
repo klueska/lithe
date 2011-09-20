@@ -6,12 +6,13 @@ HT_CFLAGS += -fno-exceptions -fno-strict-aliasing
 HT_CPPFLAGS = $(filter-out -std=gnu99, $(HT_CFLAGS))
 
 HT_SRCDIR := $(SRCDIR)/$(HT_LIBNAME)
-HT_OBJDIR := $(OBJDIR)/$(HT_LIBNAME)
+HT_INCDIR := $(BUILDINCDIR)/$(HT_LIBNAME)
+HT_OBJDIR := $(BUILDOBJDIR)/$(HT_LIBNAME)
+HT_LIBDIR := $(BUILDLIBDIR)
 HT_SYSDEPDIR := $(HT_SRCDIR)/sysdeps/$(SYSDEP)
 HT_TESTSDIR := $(HT_SRCDIR)/tests
-HT_INCDIRS = $(SRCDIR) $(HT_SYSDEPDIR)
 
-HT_INCS = $(patsubst %, -I%, $(HT_INCDIRS))
+HT_INCS = $(patsubst %, -I%, $(BUILDINCDIR) $(HT_SRCDIR) $(HT_SYSDEPDIR))
 
 HT_LIBUCNAME := $(call uc, $(HT_LIBNAME))
 HT_CFILES    := $(notdir $(wildcard $(HT_SRCDIR)/*.c))
@@ -28,16 +29,29 @@ OBJS += $(HT_OBJS)
 
 -include $(HT_DEPS)
 
-ifeq ($(STATICLIBS),yes)
-HT_FINALLIB = $(HT_OBJDIR)/lib$(HT_LIBNAME).a
+$(HT_LIBNAME)-mkincdir:
+	@mkdir -p $(HT_INCDIR)
 
-$(HT_FINALLIB): $(HT_OBJS)
+$(HT_INCDIR): $(HT_LIBNAME)-mkincdir
+	@count=`ls -1 $(HT_SRCDIR)/*.h 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(HT_SRCDIR)/*.h $@; fi;
+	@count=`ls -1 $(HT_SRCDIR)/*.hh 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(HT_SRCDIR)/*.hh $@; fi;
+	@count=`ls -1 $(HT_SYSDEPDIR)/*.h 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(HT_SYSDEPDIR)/*.h $@; fi;
+	@count=`ls -1 $(HT_SYSDEPDIR)/*.hh 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(HT_SYSDEPDIR)/*.hh $@; fi;
+
+ifeq ($(STATICLIBS),yes)
+HT_FINALLIB = $(HT_LIBDIR)/lib$(HT_LIBNAME).a
+
+$(HT_FINALLIB): $(HT_INCDIR) $(HT_OBJS)
 	@echo + ar [$(HT_LIBUCNAME)] $(@F)
 	@mkdir -p $(@D)
 	$(V)$(AR) rc $@ $(HT_OBJS)
 else
 HT_CFLAGS += -fPIC -ftls-model=global-dynamic 
-HT_FINALLIB = $(HT_OBJDIR)/lib$(HT_LIBNAME).so
+HT_FINALLIB = $(HT_LIBDIR)/lib$(HT_LIBNAME).so
 
 $(HT_FINALLIB): $(HT_OBJS)
 	@echo + cc [$(HT_LIBUCNAME)] $(@F)
@@ -63,16 +77,23 @@ $(HT_OBJDIR)/%.o: $(HT_SYSDEPDIR)/%.S
 	$(V)$(CC) $(HT_CFLAGS) -D__ASSEMBLER__ -c -o $@ $<
 
 $(HT_LIBNAME)_tests: all
-	$(V)V=$(V) SRCDIR=$(HT_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(HT_LIBNAME) \
-	  LIBINCDIR="$(SRCDIR)" LIBTOPOBJDIR="$(OBJDIR)" EXT_DEPS="$(FINALLIB)" \
+	$(V)V=$(V) SRCDIR="$(HT_TESTSDIR)" BUILDDIR="$(BUILDDIR)/tests/$(HT_LIBNAME)" \
+	  LIBINCDIRS="$(BUILDINCDIR)" LIBBUILDDIR="$(BUILDDIR)" \
+	  LIBLIBDIRS="$(BUILDLIBDIR)" EXT_DEPS="$(HT_FINALLIB)" \
 	  $(MAKE) -C $(HT_SRCDIR)/tests 
 
 $(HT_LIBNAME)_tests_clean:
-	$(V)V=$(V) SRCDIR=$(HT_TESTSDIR) OBJDIR=$(OBJDIR)/tests/$(HT_LIBNAME) \
-	  LIBINCDIR="$(SRCDIR)" LIBTOPOBJDIR="$(OBJDIR)" EXT_DEPS="$(FINALLIB)" \
+	$(V)V=$(V) SRCDIR="$(HT_TESTSDIR)" BUILDDIR="$(BUILDDIR)/tests/$(HT_LIBNAME)" \
+	  LIBINCDIRS="$(BUILDINCDIR)" LIBBUILDDIR="$(BUILDDIR)" \
+	  LIBLIBDIRS="$(BUILDLIBDIR)" EXT_DEPS="$(HT_FINALLIB)" \
 	  $(MAKE) -C $(HT_SRCDIR)/tests clean
 
 $(HT_LIBNAME)_clean: $(HT_LIBNAME)_tests_clean
 	@echo + clean [$(HT_LIBUCNAME)]
+	$(V)rm -rf $(HT_INCDIR)
 	$(V)rm -rf $(HT_OBJDIR)
+	$(V)rm -rf $(HT_FINALLIB)
+	$(V)if [ -d "$(BUILDINCDIR)" ]; then \
+	  [ -z "$$(ls $(BUILDINCDIR))" ] && rm -rf $(BUILDINCDIR) || echo "" > /dev/null; \
+	fi
 

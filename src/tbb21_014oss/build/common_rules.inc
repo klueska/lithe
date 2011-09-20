@@ -26,10 +26,8 @@
 
 V ?= @
 SCHEDNAME = tbb
-LIBROOT ?= $(tbb_root)/../..
-LIBINCDIRS ?= $(LIBROOT) $(LIBROOT)/ht $(LIBROOT)/parlib
-SCHEDSDIR  ?= $(LIBROOT)/schedulers
-include $(SCHEDSDIR)/Makevars
+LIBBUILDDIR ?= $(PWD)/../../build
+LIBINCDIR ?= $(LIBBUILDDIR)/include
 #CPLUS_FLAGS += -DUSE_PTHREAD
 CPLUS_FLAGS += -DUSE_LITHE
 
@@ -45,7 +43,7 @@ ifeq ($(tbb_strict),1)
 endif
 
 INCLUDES += $(INCLUDE_KEY)$(tbb_root)/src $(INCLUDE_KEY)$(tbb_root)/include
-INCLUDES += $(SCHED_INCS)
+INCLUDES += $(INCLUDE_KEY)$(LIBINCDIR)
 
 CPLUS_FLAGS += $(WARNING_KEY) $(CXXFLAGS)
 CPLUS_FLAGS += $(LIB_CXXFLAGS)

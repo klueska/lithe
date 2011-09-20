@@ -5,9 +5,9 @@
 #ifndef LITHE_MUTEX_H
 #define LITHE_MUTEX_H
 
-#include <mcs.h>
-#include "lithe.h"
-#include "deque.h"
+#include <parlib/mcs.h>
+#include <lithe/lithe.h>
+#include <lithe/deque.h>
 
 #ifdef __cplusplus
 extern "C" {
