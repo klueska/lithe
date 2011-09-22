@@ -56,9 +56,9 @@ void lithe_barrier_wait(lithe_barrier_t *barrier)
   if (id == (barrier->N - 1)) {
     /* reset barrier */
     barrier->arrived = 0;
-    rdfence();
+    rmb();
     barrier->wait = !barrier->wait;
-    wrfence();
+    wmb();
 
     /* signal everyone that they can continue */
     int i;

@@ -152,7 +152,7 @@ void uthread_yield(bool save_state)
 	printd("[U] Uthread %08p is yielding on vcore %d\n", uthread, vcoreid);
 
 	volatile bool yielding = TRUE; /* signal to short circuit when restarting */
-	wrfence();
+	cmb();
 	/* Take the current state and save it into uthread->uc when this pthread
 	 * restarts, it will continue from right after this, see yielding is false,
 	 * and short circuit the function. */
@@ -169,7 +169,7 @@ void uthread_yield(bool save_state)
 	assert(in_vcore_context());	/* technically, we aren't fully in vcore context */
 	/* After this, make sure you don't use local variables. */
 	set_stack_pointer(ht_context.uc_stack.ss_sp + ht_context.uc_stack.ss_size);
-	wrfence();
+	cmb();
 	/* Finish yielding in another function. */
 	__uthread_yield();
 	/* Should never get here */
@@ -228,7 +228,7 @@ void swap_uthreads(struct uthread *__old, struct uthread *__new)
   void *tls_desc = get_tls_desc(vcore_id());
   ucontext_t uc;
   getcontext(&uc);
-  wrfence();
+  cmb();
   if(swap) {
     swap = false;
     memcpy(&__old->uc, &uc, sizeof(ucontext_t));

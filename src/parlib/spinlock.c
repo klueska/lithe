@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <parlib/spinlock.h>
 #include <ht/atomic.h>
+#include <ht/arch.h>
 
 int spinlock_init(int *lock)
 {
@@ -45,7 +46,7 @@ int spinlock_lock(int *lock)
   }
 
   while (spinlock_trylock(lock) != UNLOCKED)
-    atomic_delay();
+    cpu_relax();
 
   return 0;
 }

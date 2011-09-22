@@ -134,7 +134,8 @@ entry:
    * we need to call pthread_mutex_unlock() in this thread, which causes a race
    * for using the main threads stack with the hard thread restarting it in
    * ht_entry(). */
-  while(!original_main_done) wrfence();
+  while(!original_main_done) 
+    cpu_relax();
   /* Use cached value of htid in case TLS changed out from under us while
    * waiting for this hard thread to get woken up. */
   assert(__ht_threads[htid].running == true);
@@ -395,7 +396,7 @@ int ht_request_async(int k)
       static int once = true;
       if(once) {
         getcontext(&main_context);
-        wrfence();
+        cmb();
         if(once) {
           once = false;
           __ht_request_async(1);
@@ -512,10 +513,8 @@ int ht_lib_init()
 
 	/* Make sure the threads have all started and are ready to be allocated
      * before moving on */
-    while (__ht_threads[i].running == true) {
-      atomic_delay();
-      wrfence();
-    }
+    while (__ht_threads[i].running == true)
+      cpu_relax();
   }
   return 0;
 }

@@ -370,7 +370,7 @@ int bthread_mutex_unlock(bthread_mutex_t* m)
 {
   /* Need to prevent the compiler (and some arches) from reordering older
    * stores */
-  wrfence();
+  wmb();
   m->lock = 0;
   return 0;
 }
@@ -510,7 +510,7 @@ int bthread_barrier_wait(bthread_barrier_t* b)
   {
     printd("Thread %d is last to hit the barrier, resetting...\n", bthread_self()->id);
     b->count = b->nprocs;
-	wrfence();
+    wmb();
     b->sense = ls;
     return BTHREAD_BARRIER_SERIAL_THREAD;
   }

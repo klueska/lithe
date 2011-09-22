@@ -38,18 +38,16 @@
 extern "C" {
 #endif
 
-
-#define atomic_delay() ({ asm volatile ("rep; nop"); })
-
-
-#define mfence() ({ asm volatile ("mfence" : : :"memory"); })
-
-
-#define rdfence() (mfence())
-
-
-#define wrfence() ({ asm volatile ("" : : :"memory"); })
-
+/* Adding "memory" to keep the compiler from fucking with us */
+#define mb() ({ asm volatile("mfence" ::: "memory"); })
+#define rmb() ({ asm volatile("lfence" ::: "memory"); })
+#define wmb() ({ asm volatile("" ::: "memory"); })
+/* Compiler memory barrier */
+#define cmb() ({ asm volatile("" ::: "memory"); })
+/* Force a wmb, used in cases where an IPI could beat a write, even though
+ * write-orderings are respected.
+ * TODO: this probably doesn't do what you want. */
+#define wmb_f() ({ asm volatile("sfence"); })
 
 #define cmpxchg(ptr, value, comparand)            \
 ({                                                \
@@ -89,7 +87,7 @@ extern "C" {
 
 #define coherent_read(v)                          \
 ({                                                \
-  rdfence();                                      \
+  mb();                                           \
   *((unsigned int *)&(v));                        \
 })
 
