@@ -23,6 +23,7 @@ SYSDEP := unix/sysv/$(OS)/$(ARCH)
 CFLAGS = -g -O2 -Wall -std=gnu99 -MMD -MP
 CFLAGS += -Wno-unused-function 
 CFLAGS += -Wno-unused-value 
+CFLAGS += -Wno-missing-braces 
 
 GCCPREFIX ?= 
 CC := $(GCCPREFIX)gcc

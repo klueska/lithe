@@ -68,7 +68,7 @@ static lithe_sched_t base_sched = {
   .vcores          = 0,
   .parent          = NULL,
   .parent_context  = NULL,
-  .start_context   = {{{0}}}
+  .start_context   = {0}
 };
 
 /* Root scheduler, i.e. the child scheduler of base. */
