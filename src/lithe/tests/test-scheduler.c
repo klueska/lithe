@@ -51,7 +51,7 @@ static void vcore_enter(lithe_sched_t *__this)
 {
   unsigned int *counter = &((test_sched_t*)__this)->counter;
   printf("enter() on vcore %d\n", vcore_id());
-  fetch_and_add(counter, 1);
+  __sync_fetch_and_add(counter, 1);
   printf("counter: %d\n", *counter);
   lithe_vcore_yield();
 }
@@ -73,7 +73,8 @@ static void test_run()
     printf("Requesting vcores\n");
     lithe_vcore_request(limit - cur);
     printf("Waiting for counter to reach: %d\n", (limit - cur));
-    while (coherent_read(sched->counter) < (limit - cur));
+    while(sched->counter < (limit - cur))
+      cpu_relax();
     printf("All vcores returned\n");
   }
   printf("Scheduler finishing!\n");

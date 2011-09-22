@@ -20,7 +20,7 @@ void TestScheduler::vcore_enter()
 {
   unsigned int *counter = &this->counter;
   printf("enter() on vcore %d\n", vcore_id());
-  fetch_and_add(counter, 1);
+  __sync_fetch_and_add(counter, 1);
   printf("counter: %d\n", *counter);
   lithe_vcore_yield();
 }
@@ -42,7 +42,8 @@ void test_run()
     printf("Wait for counter to reach: %d\n", (limit - cur));
     printf("Requesting vcores\n");
     lithe_vcore_request(limit - cur);
-    while (coherent_read(sched->counter) < (limit - cur));
+    while (sched->counter < (limit - cur))
+      cpu_relax();
     printf("All vcores returned\n");
   }
   printf("TestScheduler Finishing!\n");

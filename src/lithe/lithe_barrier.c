@@ -47,10 +47,10 @@ void lithe_barrier_wait(lithe_barrier_t *barrier)
   assert(barrier != NULL);
 
   /* toggled signal value for barrier reuse */
-  bool wait = coherent_read(barrier->wait);
+  bool wait = barrier->wait;
 
   /* increment the counter to signal arrival */
-  int id = fetch_and_add(&barrier->arrived, 1);
+  int id = __sync_fetch_and_add(&barrier->arrived, 1);
 
   /* if last to arrive at barrier, release everyone else */ 
   if (id == (barrier->N - 1)) {
@@ -83,19 +83,20 @@ void lithe_barrier_wait(lithe_barrier_t *barrier)
     /* release hart afterwards to avoid deadlock */
     const int MAXSTALLS = 1000;
     int nstalls = 0;
-    while (coherent_read(barrier->signals[id].val) == wait) { 
+    while (barrier->signals[id].val == wait) { 
       nstalls++;
       if (nstalls >= MAXSTALLS) {
-	contextq_t *blocked = &barrier->blocked[wait];
-    mcs_lock_qnode_t qnode = {0};
-	mcs_lock_lock(&blocked->mtx, &qnode);
-	if (barrier->signals[id].val == wait) {
-      blocked->qnode = &qnode;
-	  lithe_context_block(__lithe_barrier_block, (void *)blocked);
-	} else {
-	  mcs_lock_unlock(&blocked->mtx, &qnode);
-	}
+        contextq_t *blocked = &barrier->blocked[wait];
+        mcs_lock_qnode_t qnode = {0};
+        mcs_lock_lock(&blocked->mtx, &qnode);
+        if (barrier->signals[id].val == wait) {
+          blocked->qnode = &qnode;
+          lithe_context_block(__lithe_barrier_block, (void *)blocked);
+        } else {
+          mcs_lock_unlock(&blocked->mtx, &qnode);
+        }
       }
+      cpu_relax();
     }
   }
 }

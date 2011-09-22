@@ -416,7 +416,8 @@ int lithe_sched_exit()
 
   /* Don't actually end this scheduler until all vcores have been yielded
    * (except this one of course) */
-  while (coherent_read(child->vcores) != 1);
+  while (child->vcores != 1)
+    cpu_relax();
 
   /* Update child's vcore count (to 0) */
   __sync_fetch_and_add(&(child->vcores), -1);

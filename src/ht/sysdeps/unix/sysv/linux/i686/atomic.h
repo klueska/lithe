@@ -60,38 +60,6 @@ extern "C" {
   result;                                         \
 })
 
-
-#define fetch_and_add(ptr, addend)                \
-({                                                \
-  int result;                                     \
-  asm volatile ("lock\n\t"                        \
-		"xadd %0,%1\n"                    \
-		: "=r" (result), "=m" (*ptr)      \
-		: "0" (addend)                    \
-		: "memory");                      \
-  result;                                         \
-})
-
-
-#define fetch_and_store(ptr, value)               \
-({                                                \
-  void *result;                                   \
-  asm volatile ("lock\n\t"                        \
-		"xchg %0,%1\n"                    \
-		: "=r" (result), "=m" (*ptr)      \
-		: "0" (value)                     \
-		: "memory");                      \
-  result;                                         \
-})
-
-
-#define coherent_read(v)                          \
-({                                                \
-  mb();                                           \
-  *((unsigned int *)&(v));                        \
-})
-
-
 #define __arch_compare_and_exchange_val_8_acq(mem, newval, oldval) \
   ({ __typeof (*mem) ret;						      \
      __asm __volatile ("lock;" "cmpxchgb %b2, %1"			      \
