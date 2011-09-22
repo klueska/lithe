@@ -36,25 +36,31 @@ int uthread_lib_init(struct uthread* uthread)
 		return 0;
 	first = FALSE;
 
-    /* Init the vcore system */
-    assert(!vcore_lib_init());
+	/* Init the vcore system */
+	assert(!vcore_lib_init());
 
-	/* Associate the main thread's tls with the uthread passed into lib_init */
-	uthread->tls_desc = current_tls_desc;
-    /* Set the current thread */
-    current_uthread = uthread;
-	/* Set the current uthread in the vcore's tls as well */
-	vcore_set_tls_var(0, current_uthread, uthread);
+	/* Set current_uthread to the uthread passed in, so we have a place to
+         * save the main thread's context when yielding */
+	current_uthread = uthread;
+	/* Associate the main thread's tls with the current tls as well */
+	current_uthread->tls_desc = current_tls_desc;
 
-	/* Make sure we came back out of vcore context properly */
-    assert(!in_vcore_context());
+	/* Finally, switch to vcore 0's tls and set current_uthread to be the main
+         * thread, so when vcore 0 comes up it will resume the main thread.
+	 * Note: there is no need to restore the original tls here, since we
+	 * are right about to transition onto vcore 0 anyway... */
+	set_tls_desc(ht_tls_descs[0], 0);
+	safe_set_tls_var(current_uthread, uthread);
 
 	/* Request some cores ! */
 	while (num_vcores() < 1) {
+		/* Ask for a core -- this will transition the main thread onto
+                 * vcore 0 once successful */
 		vcore_request(1);
-		/* TODO: consider blocking */
 		cpu_relax();
 	}
+	/* We are now running on vcore 0 */
+
 	return 0;
 }
 
@@ -190,9 +196,8 @@ void set_current_uthread(struct uthread *uthread)
 	assert(uthread != current_uthread);
 	assert(uthread->tls_desc);
 
-	uint32_t vcoreid = vcore_id();
-	vcore_set_tls_var(vcoreid, current_uthread, uthread);
-	set_tls_desc(uthread->tls_desc, vcoreid);
+	vcore_set_tls_var(current_uthread, uthread);
+	set_tls_desc(uthread->tls_desc, vcore_id());
 }
 
 /* Runs whatever thread is vcore's current_uthread */
@@ -229,9 +234,8 @@ void swap_uthreads(struct uthread *__old, struct uthread *__new)
     memcpy(&__old->uc, &uc, sizeof(ucontext_t));
     run_uthread(__new);
   }
-  int vcoreid = vcore_id();
-  vcore_set_tls_var(vcoreid, current_uthread, __old);
-  set_tls_desc(tls_desc, vcoreid);
+  vcore_set_tls_var(current_uthread, __old);
+  set_tls_desc(tls_desc, vcore_id());
 }
 
 /* Deals with a pending preemption (checks, responds).  If the 2LS registered a

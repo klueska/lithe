@@ -59,11 +59,11 @@ static inline bool in_vcore_context(void)
 	return in_ht_context();
 }
 
-#define vcore_set_tls_var(vcoreid, name, val) \
-	vcore_set_tls_var_ARCH(vcoreid, name, val)
+#define vcore_set_tls_var(name, val) \
+	vcore_set_tls_var_ARCH(name, val)
 
-#define vcore_get_tls_var(vcoreid, name) \
-	vcore_get_tls_var_ARCH(vcoreid, name)
+#define vcore_get_tls_var(name) \
+	vcore_get_tls_var_ARCH(name)
 
 #ifdef __cplusplus
 }

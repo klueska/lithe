@@ -371,7 +371,7 @@ int lithe_sched_enter(lithe_sched_t *child)
     lithe_context_t* child_context;
   } real_arg = {parent, child, child_context};
   lithe_vcore_func_t real_func = {__lithe_sched_enter, &real_arg};
-  vcore_set_tls_var(vcore_id(), next_func, &real_func);
+  vcore_set_tls_var(next_func, &real_func);
 
   /* Yield this context to vcore context to run the function we just set up. Once
    * we return from the yield we will be fully inside the child scheduler
@@ -430,7 +430,7 @@ int lithe_sched_exit()
     lithe_sched_t* child;
   } real_arg = {parent, parent_context, child};
   lithe_vcore_func_t real_func = {__lithe_sched_exit, &real_arg};
-  vcore_set_tls_var(vcore_id(), next_func, &real_func);
+  vcore_set_tls_var(next_func, &real_func);
 
   /* Yield this context to vcore context to run the function we just set up. Once
    * we return from the yield we will be fully back in the parent scheduler
@@ -578,7 +578,7 @@ int lithe_context_block(void (*func) (lithe_context_t *, void *), void *arg)
   } real_arg = {func, current_context, arg};
   lithe_vcore_func_t real_func = {__lithe_context_block, &real_arg};
 
-  vcore_set_tls_var(vcore_id(), next_func, &real_func);
+  vcore_set_tls_var(next_func, &real_func);
   current_context->state = CONTEXT_BLOCKED;
   uthread_yield(true);
   current_context->state = CONTEXT_READY;
