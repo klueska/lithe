@@ -32,12 +32,16 @@ typedef struct {
 
 } lithe_context_stack_t;
   
+struct lithe_sched;
 /* Basic lithe context structure.  All derived scheduler contexts MUST have this as
  * their first field so that they can be cast properly within the lithe
  * scheduler. */
 typedef struct lithe_context {
   /* Userlevel thread context. */
   uthread_t uth;
+
+  /* The scheduler managing this context */
+  struct lithe_sched *sched;
 
   /* Start function for the context */
   void (*start_func) (void *);

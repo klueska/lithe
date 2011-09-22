@@ -114,7 +114,7 @@ static int __attribute__((constructor)) lithe_lib_init()
   context->stack.size = (ssize_t)-1;
 
   /* Set the scheduler associated with the context to be the base scheduler */
-  current_sched = &base_sched;
+  context->sched = &base_sched;
 
   /* Return a reference to the main context back to the uthread library. We will
    * resume this context once lithe_vcore_entry() is called from the uthread
@@ -129,6 +129,8 @@ static int __attribute__((constructor)) lithe_lib_init()
 static void __attribute__((noreturn)) __lithe_sched_reenter()
 {
   assert(in_vcore_context());
+  assert(current_sched);
+  assert(current_sched->funcs);
 
   /* Enter current scheduler. */
   assert(current_sched->funcs->vcore_enter);
@@ -153,7 +155,8 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
    * taken over to run a signal handler from the kernel, and is now being
    * restarted */
   if(current_context) {
-    current_sched = uthread_get_tls_var(&current_context->uth, current_sched);
+    current_sched = current_context->sched;
+    uthread_set_tls_var(&current_context->uth, current_sched, current_sched)
     run_current_uthread();
     assert(0); // Should never return from running context
   }
@@ -161,7 +164,8 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   /* Otherwise, if next_context is set, start it off anew. */
   if(next_context) {
     lithe_context_t *context = next_context;
-    current_sched = uthread_get_tls_var(&context->uth, current_sched);
+    current_sched = context->sched;
+    uthread_set_tls_var(&context->uth, current_sched, current_sched)
     next_context = NULL;
     run_uthread(&context->uth);
     assert(0); // Should never return from running context
@@ -194,6 +198,7 @@ static void lithe_thread_yield(uthread_t *uthread)
 {
   assert(uthread);
   assert(current_sched);
+  assert(in_vcore_context());
 
   lithe_context_t *context = (lithe_context_t*)uthread;
   if(context->state == CONTEXT_BLOCKED) {
@@ -358,13 +363,6 @@ int lithe_sched_enter(lithe_sched_t *child)
   /* Hijack the current context with the newly created one. */
   set_current_uthread(&child_context->uth);
 
-  /* Update the current scheduler to be the the child. Use the
-   * safe_set_tls_var() macros since our call to set_current_uthread() above
-   * has changed the tls_desc, and it's not 100% ensured that the gcc optimizer
-   * will recognize this. */
-  safe_set_tls_var(current_sched, child);
-  vcore_set_tls_var(vcore_id(), current_sched, child);
-
   /* Set up a function to run in vcore context to inform the parent that the
    * child has taken over */
   struct { 
@@ -426,10 +424,6 @@ int lithe_sched_exit()
   /* Hijack the current context giving it back to the original parent context */
   set_current_uthread(&current_sched->parent_context->uth);
 
-  /* Give control back to the parent */
-  current_sched = parent;
-  vcore_set_tls_var(vcore_id(), current_sched, current_sched);
-
   struct { 
     lithe_sched_t* parent;
     lithe_context_t*  parent_context;
@@ -476,7 +470,7 @@ static inline void __lithe_context_fields_init(lithe_context_t *context, lithe_s
   context->arg = NULL;
   context->cls = NULL;
   context->state  = CONTEXT_READY;
-  uthread_set_tls_var(&context->uth, current_sched, sched);
+  context->sched = sched;
 }
 
 static inline void __lithe_context_init(lithe_context_t *context, lithe_sched_t *sched)
