@@ -49,8 +49,9 @@ int vcore_request(size_t k)
 	return ht_request_async(k);
 }
 
-void vcore_yield()
+void vcore_yield(bool preempt_pending)
 {
+	//TODO: handle the preempt_pending flag passed in here...
 	ht_lock(&ht_yield_lock);
 	ht_yield();
 }

@@ -30,7 +30,7 @@ extern void vcore_entry();
 
 extern int vcore_lib_init();
 extern int vcore_request(size_t k);
-extern void vcore_yield(void);
+extern void vcore_yield(bool preempt_pending);
 extern void enable_notifs(uint32_t vcoreid);
 extern void clear_notif_pending(uint32_t vcoreid);
 static inline size_t max_vcores(void);

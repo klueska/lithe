@@ -13,7 +13,7 @@ int main(int argc, char** argv)
 
 	/* Request as many as the system will give us */
 	vcore_request(max_vcores());
-	vcore_yield();
+	vcore_yield(false);
 	assert(0);
 }
 

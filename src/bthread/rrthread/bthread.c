@@ -80,7 +80,7 @@ void __attribute__((noreturn)) pth_sched_entry(void)
 	if (!new_thread) {
 		/* TODO: consider doing something more intelligent here */
 		printd("[P] No threads, vcore %d is yielding\n", vcore_id());
-		vcore_yield();
+		vcore_yield(false);
 		assert(0);
 	}
 	run_uthread((struct uthread*)new_thread);

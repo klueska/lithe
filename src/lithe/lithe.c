@@ -228,7 +228,7 @@ static void base_vcore_return(lithe_sched_t *__this, lithe_sched_t *sched)
   /* Cleanup tls and yield the vcore back to the system. */
   __sync_fetch_and_add(&base_sched.vcores, -1);
   memset(&lithe_tls, 0, sizeof(lithe_tls));
-  vcore_yield();
+  vcore_yield(false);
 }
 
 static void base_child_entered(lithe_sched_t *__this, lithe_sched_t *sched)
