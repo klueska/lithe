@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <ht/atomic.h>
+#include <parlib/parlib.h>
 #include <parlib/mcs.h>
 #include <parlib/queue.h>
 #include <lithe/lithe.h>

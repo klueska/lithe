@@ -13,10 +13,8 @@
 #include <sys/mman.h>
 #include <assert.h>
 #include <stdio.h>
-#include <ht/atomic.h>
-#include <ht/arch.h>
-#include <parlib/vcore.h>
 #include <parlib/parlib.h>
+#include <parlib/vcore.h>
 #include <parlib/mcs.h>
 #include <rrthread/bthread.h>
 
