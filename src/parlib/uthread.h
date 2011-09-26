@@ -89,24 +89,20 @@ init_uthread_entry(uthread_t *uth, void (*entry)(void))
 	init_uthread_entry_ARCH(uth, entry);
 }
 
-#define uthread_set_tls_var(uthread, name, val)                   \
-{                                                                 \
-	int vcoreid = vcore_id();                                     \
-	volatile typeof(val) __val = val;                             \
-	void *temp_tls_desc = current_tls_desc;                       \
-	set_tls_desc(((uthread_t*)(uthread))->tls_desc, vcoreid);     \
+#define uthread_set_tls_var(uthread, name, val)                       \
+{                                                                     \
+	typeof(val) __val = val;                                      \
+	begin_access_tls_vars(((uthread_t*)(uthread))->tls_desc);     \
 	safe_set_tls_var(name, __val);                                \
-	set_tls_desc(temp_tls_desc, vcoreid);                         \
+	end_access_tls_vars();                                        \
 }
 
-#define uthread_get_tls_var(uthread, name)                        \
-({                                                                \
-	int vcoreid = vcore_id();                                     \
-	volatile typeof(name) val;                                    \
-	void *temp_tls_desc = current_tls_desc;                       \
-	set_tls_desc(((uthread_t*)(uthread))->tls_desc, vcoreid);     \
+#define uthread_get_tls_var(uthread, name)                            \
+({                                                                    \
+	typeof(name) val;                                             \
+	begin_access_tls_vars(((uthread_t*)(uthread))->tls_desc);     \
 	val = safe_get_tls_var(name);                                 \
-	set_tls_desc(temp_tls_desc, vcoreid);                         \
+	end_access_tls_vars();                                        \
 	val;                                                          \
 })
 
