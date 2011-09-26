@@ -53,7 +53,7 @@ else
 HT_CFLAGS += -fPIC -ftls-model=global-dynamic 
 HT_FINALLIB = $(HT_LIBDIR)/lib$(HT_LIBNAME).so
 
-$(HT_FINALLIB): $(HT_OBJS)
+$(HT_FINALLIB): $(HT_INCDIR) $(HT_OBJS)
 	@echo + cc [$(HT_LIBUCNAME)] $(@F)
 	@mkdir -p $(@D)
 	$(V)$(CC) -shared -Wl,-soname,lib$(HT_LIBNAME).so -o $@ $(HT_OBJS)

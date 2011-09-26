@@ -53,7 +53,7 @@ else
 LITHE_CFLAGS += -fPIC -ftls-model=global-dynamic 
 LITHE_FINALLIB = $(LITHE_LIBDIR)/lib$(LITHE_LIBNAME).so
 
-$(LITHE_FINALLIB): $(LITHE_OBJS)
+$(LITHE_FINALLIB): $(LITHE_INCDIR) $(LITHE_OBJS)
 	@echo + cc [$(LITHE_LIBUCNAME)] $(@F)
 	@mkdir -p $(@D)
 	$(V)$(CC) -shared -Wl,-soname,lib$(LITHE_LIBNAME).so -o $@ $(LITHE_OBJS)

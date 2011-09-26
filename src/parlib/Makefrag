@@ -53,7 +53,7 @@ else
 PARLIB_CFLAGS += -fPIC -ftls-model=global-dynamic 
 PARLIB_FINALLIB = $(PARLIB_LIBDIR)/lib$(PARLIB_LIBNAME).so
 
-$(PARLIB_FINALLIB): $(PARLIB_OBJS)
+$(PARLIB_FINALLIB): $(PARLIB_INCDIR) $(PARLIB_OBJS)
 	@echo + cc [$(PARLIB_LIBUCNAME)] $(@F)
 	@mkdir -p $(@D)
 	$(V)$(CC) -shared -Wl,-soname,lib$(PARLIB_LIBNAME).so -o $@ $(PARLIB_OBJS)
