@@ -78,9 +78,9 @@ void run_uthread(struct uthread *uthread) __attribute((noreturn));
 void swap_uthreads(struct uthread *__old, struct uthread *__new);
 
 static inline void
-init_uthread_stack(uthread_t *uth, void *stack_top, uint32_t size)
+init_uthread_stack(uthread_t *uth, void *stack_bottom, uint32_t size)
 {
-  init_uthread_stack_ARCH(uth, stack_top, size);
+  init_uthread_stack_ARCH(uth, stack_bottom, size);
 }
 
 static inline void
