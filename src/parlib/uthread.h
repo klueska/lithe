@@ -82,21 +82,21 @@ init_uthread_tf(uthread_t *uth, void (*entry)(void),
   init_uthread_entry_ARCH(uth, entry);
 }
 
-#define uthread_set_tls_var(uthread, name, val)                       \
-{                                                                     \
-	typeof(val) __val = val;                                      \
-	begin_access_tls_vars(((uthread_t*)(uthread))->tls_desc);     \
-	safe_set_tls_var(name, __val);                                \
-	end_access_tls_vars();                                        \
+#define uthread_set_tls_var(uthread, name, val)                        \
+{                                                                      \
+	typeof(val) __val = val;                                           \
+	begin_access_tls_vars(((uthread_t*)(uthread))->tls_desc);          \
+	name = __val;                                                      \
+	end_access_tls_vars();                                             \
 }
 
-#define uthread_get_tls_var(uthread, name)                            \
-({                                                                    \
-	typeof(name) val;                                             \
-	begin_access_tls_vars(((uthread_t*)(uthread))->tls_desc);     \
-	val = safe_get_tls_var(name);                                 \
-	end_access_tls_vars();                                        \
-	val;                                                          \
+#define uthread_get_tls_var(uthread, name)                             \
+({                                                                     \
+	typeof(name) val;                                                  \
+	begin_access_tls_vars(((uthread_t*)(uthread))->tls_desc);          \
+	val = name;                                                        \
+	end_access_tls_vars();                                             \
+	val;                                                               \
 })
 
 #endif /* _UTHREAD_H */

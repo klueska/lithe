@@ -61,25 +61,25 @@ void *get_tls_desc(uint32_t htid);
 #endif //__GNUC_PREREQ
 #endif // __PIC__
 
-#define begin_access_tls_vars(tls_desc)                               \
+#define begin_access_tls_vars(tls_desc)                           \
 	int vcoreid = vcore_id();                                     \
 	void *temp_tls_desc = current_tls_desc;                       \
-        cmb();                                                        \
+	cmb();                                                        \
 	set_tls_desc(tls_desc, vcoreid);                              \
-	begin_safe_access_tls_vars();                                 \
+	begin_safe_access_tls_vars();
 
-#define end_access_tls_vars()                                         \
+#define end_access_tls_vars()                                     \
 	end_safe_access_tls_vars();                                   \
 	set_tls_desc(temp_tls_desc, vcoreid);                         \
 	cmb();
 
-#define safe_set_tls_var(name, val)                                   \
+#define safe_set_tls_var(name, val)                               \
 	begin_safe_access_tls_vars();                                 \
 	name = val;                                                   \
 	end_safe_access_tls_vars();
 
-#define safe_get_tls_var(name)                                        \
-({                                                                    \
+#define safe_get_tls_var(name)                                    \
+({                                                                \
 	typeof(name) __val;                                           \
 	begin_safe_access_tls_vars();                                 \
 	__val = name;                                                 \

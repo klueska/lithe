@@ -59,11 +59,22 @@ static inline bool in_vcore_context(void)
 	return in_ht_context();
 }
 
-#define vcore_set_tls_var(name, val) \
-	vcore_set_tls_var_ARCH(name, val)
+#define vcore_set_tls_var(name, val)                                   \
+{                                                                      \
+	typeof(val) __val = val;                                           \
+	begin_access_tls_vars(ht_tls_descs[vcore_id()]);                   \
+	name = __val;                                                      \
+	end_access_tls_vars();                                             \
+}
 
-#define vcore_get_tls_var(name) \
-	vcore_get_tls_var_ARCH(name)
+#define vcore_get_tls_var(name)                                        \
+({                                                                     \
+	typeof(name) val;                                                  \
+	begin_access_tls_vars(ht_tls_descs[vcore_id()]);                   \
+	val = name;                                                        \
+	end_access_tls_vars();                                             \
+	val;                                                               \
+})
 
 #ifdef __cplusplus
 }
