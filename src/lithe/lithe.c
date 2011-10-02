@@ -123,6 +123,11 @@ static int __attribute__((constructor)) lithe_lib_init()
   /* Once we have set things up for the main context, initialize the uthread
    * library with that main context */
   assert(!uthread_lib_init((uthread_t*)context));
+
+  /* Now that the library is initialized, a TLS shoudl eb set up for this
+   * context, so set it's current_sched var */
+  uthread_set_tls_var(&context->uth, current_sched, &base_sched)
+
   return 0;
 }
 
@@ -156,7 +161,6 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
    * restarted */
   if(current_context) {
     current_sched = current_context->sched;
-    uthread_set_tls_var(&current_context->uth, current_sched, current_sched)
     run_current_uthread();
     assert(0); // Should never return from running context
   }
@@ -165,7 +169,6 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   if(next_context) {
     lithe_context_t *context = next_context;
     current_sched = context->sched;
-    uthread_set_tls_var(&context->uth, current_sched, current_sched)
     next_context = NULL;
     run_uthread(&context->uth);
     assert(0); // Should never return from running context
@@ -472,6 +475,7 @@ static inline void __lithe_context_fields_init(lithe_context_t *context, lithe_s
   context->cls = NULL;
   context->state  = CONTEXT_READY;
   context->sched = sched;
+  uthread_set_tls_var(&context->uth, current_sched, sched)
 }
 
 static inline void __lithe_context_reinit(lithe_context_t *context, lithe_sched_t *sched)
