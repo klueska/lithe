@@ -8,7 +8,7 @@ lc = $(shell echo $(1) | tr A-Z a-z)
 strip_tests = $(subst _tests,,$(1))
 
 LIBS := ht parlib lithe bthread
-STATICLIBS := no
+STATICLIBS := yes
 TESTS := $(patsubst %, %_tests, $(LIBS))
 
 SRCDIR ?= $(PWD)
