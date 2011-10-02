@@ -499,8 +499,8 @@ static inline void __lithe_context_set_entry(lithe_context_t *context,
 
   context->start_func = func;
   context->arg = arg;
-  init_uthread_stack(&context->uth, context->stack.bottom, context->stack.size);
-  init_uthread_entry(&context->uth, __lithe_context_run);
+  init_uthread_tf(&context->uth, __lithe_context_run, 
+                  context->stack.bottom, context->stack.size);
 }
 
 void lithe_context_init(lithe_context_t *context, void (*func) (void *), void *arg)

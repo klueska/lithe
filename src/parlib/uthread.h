@@ -75,15 +75,11 @@ void run_uthread(struct uthread *uthread) __attribute((noreturn));
 void swap_uthreads(struct uthread *__old, struct uthread *__new);
 
 static inline void
-init_uthread_stack(uthread_t *uth, void *stack_bottom, uint32_t size)
+init_uthread_tf(uthread_t *uth, void (*entry)(void), 
+                void *stack_bottom, uint32_t size)
 {
   init_uthread_stack_ARCH(uth, stack_bottom, size);
-}
-
-static inline void
-init_uthread_entry(uthread_t *uth, void (*entry)(void))
-{
-	init_uthread_entry_ARCH(uth, entry);
+  init_uthread_entry_ARCH(uth, entry);
 }
 
 #define uthread_set_tls_var(uthread, name, val)                       \

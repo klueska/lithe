@@ -269,8 +269,7 @@ int bthread_create(bthread_t* thread, const bthread_attr_t* attr,
 	/* Set the u_tf to start up in __bthread_run, which will call the real
 	 * start_routine and pass it the arg.  Note those aren't set until later in
 	 * bthread_create(). */
-    init_uthread_stack(&bthread->uthread, bthread->stack, bthread->stacksize); 
-    init_uthread_entry(&bthread->uthread, __bthread_run);
+	init_uthread_tf(&bthread->uthread, __bthread_run, bthread->stack, bthread->stacksize); 
 
 	bthread->start_routine = start_routine;
 	bthread->arg = arg;
