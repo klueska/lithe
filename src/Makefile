@@ -27,13 +27,14 @@ CFLAGS += -Wno-missing-braces
 
 GCCPREFIX ?= 
 CC := $(GCCPREFIX)gcc
+CXX := $(GCCPREFIX)g++
 GCC_ROOT := $(shell which $(CC) | xargs dirname)/../
 
 all: $(LIBS)
 
 include $(patsubst %, $(SRCDIR)/%/Makefrag, $(LIBS))
 
-tests: all $(TESTS)
+tests: $(TESTS)
 
 tests_clean: $(patsubst %, %_tests_clean, $(LIBS))
 

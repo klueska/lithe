@@ -14,13 +14,9 @@ LIBOBJDIR ?= $(LIBBUILDDIR)/obj
 LIBLIBDIR ?= $(LIBBUILDDIR)/lib
 TESTSDIR ?= $(SCHEDDIR)/tests
 
-# Needed to point to installation of the scheduler directory where the
-# Makevars file is located.
-include $(SCHEDDIR)/Makevars
-
-# Needed to point to installation of the scheduler directory where the
-# Maketargets file is located.
-include $(SCHEDDIR)/Maketargets
+# Needed to point to installation of the scheduler directory where the 
+# Makerules file is located to build all bthread libs for this scheduler
+include $(SCHEDDIR)/Makerules
 
 # Needed to point to installation of the scheduler directory where the 
 # tests subfolder is located, to build all bthread tests for this scheduler

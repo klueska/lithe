@@ -76,14 +76,16 @@ $(HT_OBJDIR)/%.o: $(HT_SYSDEPDIR)/%.S
 	@mkdir -p $(@D)
 	$(V)$(CC) $(HT_CFLAGS) -D__ASSEMBLER__ -c -o $@ $<
 
-$(HT_LIBNAME)_tests: all
-	$(V)V=$(V) SRCDIR="$(HT_TESTSDIR)" BUILDDIR="$(BUILDDIR)/tests/$(HT_LIBNAME)" \
+$(HT_LIBNAME)_tests: $(HT_LIBNAME)
+	$(V)V=$(V) CC="$(CC)" CXX="$(CXX)" SRCDIR="$(HT_TESTSDIR)" \
+	  BUILDDIR="$(BUILDDIR)/tests/$(HT_LIBNAME)" \
 	  LIBINCDIRS="$(BUILDINCDIR)" LIBBUILDDIR="$(BUILDDIR)" \
 	  LIBLIBDIRS="$(BUILDLIBDIR)" EXT_DEPS="$(HT_FINALLIB)" \
 	  $(MAKE) -C $(HT_SRCDIR)/tests 
 
 $(HT_LIBNAME)_tests_clean:
-	$(V)V=$(V) SRCDIR="$(HT_TESTSDIR)" BUILDDIR="$(BUILDDIR)/tests/$(HT_LIBNAME)" \
+	$(V)V=$(V) CC="$(CC)" CXX="$(CXX)" SRCDIR="$(HT_TESTSDIR)" \
+	  BUILDDIR="$(BUILDDIR)/tests/$(HT_LIBNAME)" \
 	  LIBINCDIRS="$(BUILDINCDIR)" LIBBUILDDIR="$(BUILDDIR)" \
 	  LIBLIBDIRS="$(BUILDLIBDIR)" EXT_DEPS="$(HT_FINALLIB)" \
 	  $(MAKE) -C $(HT_SRCDIR)/tests clean
@@ -93,7 +95,3 @@ $(HT_LIBNAME)_clean: $(HT_LIBNAME)_tests_clean
 	$(V)rm -rf $(HT_INCDIR)
 	$(V)rm -rf $(HT_OBJDIR)
 	$(V)rm -rf $(HT_FINALLIB)
-	$(V)if [ -d "$(BUILDINCDIR)" ]; then \
-	  [ -z "$$(ls $(BUILDINCDIR))" ] && rm -rf $(BUILDINCDIR) || echo "" > /dev/null; \
-	fi
-

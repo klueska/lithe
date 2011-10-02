@@ -21,9 +21,9 @@ TESTS_EXECS   := $(patsubst %, $(TESTS_EXECDIR)/%, $(TESTS_EXECS))
 TESTS_DEPS = $(patsubst %, %.d, $(TESTS_EXECS))
 -include $(TESTS_DEPS)
 
-tests: all $(TESTS_EXECS)
+tests: $(TESTS_EXECS)
 
-$(TESTS_EXECDIR)/%: $(TESTS_SRCDIR)/%.c
+$(TESTS_EXECDIR)/%: $(TESTS_SRCDIR)/%.c $(FINALSCHED)
 	@echo + cc [$(call uc, $(TESTSNAME))] $(<F)
 	@mkdir -p $(@D)
 	$(V)$(CC) $< $(TESTS_CFLAGS) $(TESTS_INCS) $(TESTS_LDFLAGS) -o $@

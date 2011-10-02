@@ -5,6 +5,7 @@ V ?= @
 
 TESTSNAME = lithe_tests
 LIBDEPS = lithe parlib ht pthread 
+#LIBDEPS = lithe parlib #ht pthread 
 
 SRCDIR ?= $(PWD)
 BUILDDIR ?= $(PWD)/build

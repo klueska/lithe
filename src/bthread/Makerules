@@ -1,0 +1,81 @@
+# Generic Makerules file for all bthread based libraries
+
+# These variables and function definitions are needed both within this
+# Makerules file as well as any others that are related to the compilation of
+# this library (i.e. tests/Makerules).  
+uc = $(shell echo $(1) | tr a-z A-Z)
+SCHEDUCNAME  := $(call uc, $(SCHEDNAME))
+SCHEDSRCDIR := $(SCHEDDIR)/$(SCHEDNAME)
+SCHEDINCDIR := $(BUILDINCDIR)/$(SCHEDNAME)
+SCHEDOBJDIR := $(BUILDOBJDIR)/$(SCHEDNAME)
+SCHEDLIBDIR := $(BUILDLIBDIR)
+
+# These variables are specific just to the compilation of the library itself.
+SCHED_CFLAGS   += -g -O2 -Wall -std=gnu99 -MMD -MP
+SCHED_CFLAGS   += -fno-strict-aliasing
+SCHED_CFLAGS   += -Wno-unused-function
+SCHED_CXXFLAGS += $(filter-out -std=gnu99, $(SCHED_CFLAGS))
+SCHED_INCS     := $(patsubst %, -I%, $(LIBINCDIR) $(SCHEDDIR) $(SCHEDSRCDIR))
+SCHED_CFILES   := $(notdir $(wildcard $(SCHEDDIR)/*.c))
+SCHED_CFILES   += $(notdir $(wildcard $(SCHEDSRCDIR)/*.c))
+SCHED_OBJS     := $(patsubst %.c, $(SCHEDOBJDIR)/%.o, $(SCHED_CFILES))
+SCHED_DEPS     := $(patsubst %.o, %.d, $(SCHED_OBJS))
+
+-include $(SCHED_DEPS)
+
+ifeq ($(STATICLIBS),yes)
+FINALSCHED = $(BUILDLIBDIR)/lib$(SCHEDNAME).a
+
+$(FINALSCHED): $(SCHEDINCDIR) $(SCHED_OBJS)
+	@echo + ar [$(SCHEDUCNAME)] $(@F)
+	@mkdir -p $(@D)
+	$(V)$(AR) rc $@ $(SCHED_OBJS)
+
+else
+SCHED_CFLAGS += -fPIC -ftls-model=global-dynamic 
+FINALSCHED = $(BUILDLIBDIR)/lib$(SCHEDNAME).so
+
+$(FINALSCHED): $(SCHEDINCDIR) $(SCHED_OBJS)
+	@echo + cc [$(SCHEDUCNAME)] $(@F)
+	@mkdir -p $(@D)
+	$(V)$(CC) -shared -Wl,-soname,lib$(SCHEDNAME).so -o $@ $(SCHED_OBJS)
+endif
+
+$(SCHEDNAME)-mkincdir:
+	@mkdir -p $(SCHEDINCDIR)
+
+$(SCHEDINCDIR): $(SCHEDNAME)-mkincdir
+	@count=`ls -1 $(SCHEDDIR)/*.h 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(SCHEDDIR)/*.h $@; fi;
+	@count=`ls -1 $(SCHEDSRCDIR)/*.h 2>/dev/null | wc -l`; \
+	if [ $$count != 0 ]; then cp -Ru $(SCHEDSRCDIR)/*.h $@; fi;
+
+$(SCHEDOBJDIR)/%.o: $(SCHEDSDIR)/%.c 
+	@echo + cc [$(SCHEDUCNAME)] $(<F)
+	@mkdir -p $(@D)
+	$(V)$(CC) $(SCHED_CFLAGS) $(SCHED_INCS) -o $@ -c $<
+
+$(SCHEDOBJDIR)/%.o: $(SCHEDSRCDIR)/%.c 
+	@echo + cc [$(SCHEDUCNAME)] $(<F)
+	@mkdir -p $(@D)
+	$(V)$(CC) $(SCHED_CFLAGS) $(SCHED_INCS) -o $@ -c $<
+
+sched_clean: tests_clean
+	@echo + clean [$(SCHEDUCNAME)]
+	$(V)rm -rf $(SCHEDINCDIR)
+	$(V)rm -rf $(SCHEDOBJDIR)
+	$(V)rm -rf $(FINALSCHED)
+	
+clean: sched_clean
+	$(V)if [ -d "$(BUILDINCDIR)" ]; then \
+	  [ -z "$$(ls $(BUILDINCDIR))" ] && rm -rf $(BUILDINCDIR) || echo "" > /dev/null; \
+	fi
+	$(V)if [ -d "$(BUILDOBJDIR)" ]; then \
+	  [ -z "$$(ls $(BUILDOBJDIR))" ] && rm -rf $(BUILDOBJDIR) || echo "" > /dev/null; \
+	fi
+	$(V)if [ -d "$(BUILDLIBDIR)" ]; then \
+	  [ -z "$$(ls $(BUILDLIBDIR))" ] && rm -rf $(BUILDLIBDIR) || echo "" > /dev/null; \
+	fi
+	$(V)if [ -d $(BUILDDIR) ]; then \
+	  [ -z "$$(ls $(BUILDDIR))" ] && rm -rf $(BUILDDIR) || echo "" > /dev/null; \
+	fi
