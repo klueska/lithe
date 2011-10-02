@@ -39,6 +39,15 @@ void *allocate_tls(void)
 	return tcb;
 }
 
+/* Reinitialize / reset / refresh a TLS to its initial values.  This doesn't do
+ * it properly yet, it merely frees and re-allocates the TLS, which is why we're
+ * slightly ghetto and return the pointer you should use for the TCB. */
+void *reinit_tls(void *tcb)
+{
+    free_tls(tcb);
+    return allocate_tls();
+}
+
 /* Free a previously allocated TLS region */
 void free_tls(void *tcb)
 {

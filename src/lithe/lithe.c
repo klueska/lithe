@@ -474,22 +474,21 @@ static inline void __lithe_context_fields_init(lithe_context_t *context, lithe_s
   context->sched = sched;
 }
 
-static inline void __lithe_context_init(lithe_context_t *context, lithe_sched_t *sched)
+static inline void __lithe_context_reinit(lithe_context_t *context, lithe_sched_t *sched)
 {
-  /* Initialize the new context as a uthread */
-  uthread_init((uthread_t*)context);
+  /* Renitialize the new context as a uthread */
+  uthread_init(&context->uth);
 
   /* Initialize the fields associated with a lithe context */
   __lithe_context_fields_init(context, sched);
 }
 
-static inline void __lithe_context_reinit(lithe_context_t *context, lithe_sched_t *sched)
+static inline void __lithe_context_init(lithe_context_t *context, lithe_sched_t *sched)
 {
-  /* Renitialize the new context as a uthread */
-  uthread_reinit((uthread_t*)context);
-
-  /* Initialize the fields associated with a lithe context */
-  __lithe_context_fields_init(context, sched);
+  /* Zero out the uthread struct before passing it down: required by
+   * uthread_init */
+  memset(&context->uth, 0, sizeof(uthread_t));
+  __lithe_context_reinit(context, sched);
 }
 
 static inline void __lithe_context_set_entry(lithe_context_t *context, 

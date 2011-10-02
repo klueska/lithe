@@ -23,6 +23,9 @@ extern __thread void *current_tls_desc;
  * scheduler needs to create a TLS. */
 void *allocate_tls(void);
 
+/* Reinitialize an already allocated TLS, returns 0 on failure.  */
+void *reinit_tls(void *tcb);
+
 /* Free a previously allocated TLS region */
 void free_tls(void *tcb);
 

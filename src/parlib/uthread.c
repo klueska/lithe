@@ -24,6 +24,7 @@ __thread struct uthread *current_uthread = 0;
 
 /* static helpers: */
 static int __uthread_allocate_tls(struct uthread *uthread);
+static int __uthread_reinit_tls(struct uthread *uthread);
 static void __uthread_free_tls(struct uthread *uthread);
 
 /* The real 2LS calls this, passing in a uthread representing thread0.  When it
@@ -89,19 +90,15 @@ void uthread_init(struct uthread *uthread)
 	// TODO: Need to revisit this since in ROS this assert is still there...
 //	assert(!in_vcore_context());
 
-	memset(uthread, 0, sizeof(struct uthread));
-	/* Get a TLS for the new thread */
-	assert(!__uthread_allocate_tls(uthread));
+	/* If a tls_desc is already set for this thread, reinit it... */
+	if (uthread->tls_desc)
+		assert(__uthread_reinit_tls(uthread));
+	/* Otherwise get a TLS for the new thread */
+	else
+		assert(!__uthread_allocate_tls(uthread));
+
 	/* Set the thread's internal tls variable for current_uthread to itself */
 	uthread_set_tls_var(uthread, current_uthread, uthread);
-}
-
-void uthread_reinit(struct uthread *uthread)
-{
-	/* Make sure a tls_desc already exists for this thread */
-	assert(uthread->tls_desc);
-	__uthread_free_tls(uthread);
-	uthread_init(uthread);
 }
 
 void uthread_cleanup(struct uthread *uthread)
@@ -266,6 +263,16 @@ static int __uthread_allocate_tls(struct uthread *uthread)
 		return -1;
 	}
 	return 0;
+}
+
+static int __uthread_reinit_tls(struct uthread *uthread)
+{
+    uthread->tls_desc = reinit_tls(uthread->tls_desc);
+    if (!uthread->tls_desc) {
+        errno = ENOMEM;
+        return -1;
+    }
+    return 0;
 }
 
 static void __uthread_free_tls(struct uthread *uthread)
