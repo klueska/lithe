@@ -13,7 +13,9 @@
 #include <lithe/fatal.h>
 
 #ifndef __linux__
-#error "expecting __linux__ to be defined (for now, Lithe only runs on Linux)"
+#ifndef __ros__
+#error "Sorry, your operating system is not yet support by lithe (Linux and Akaros, currently)"
+#endif
 #endif
 
 /* Struct to hold the function pointer and argument of a function to be called
