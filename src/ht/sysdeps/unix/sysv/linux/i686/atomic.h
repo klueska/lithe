@@ -49,6 +49,18 @@ extern "C" {
  * TODO: this probably doesn't do what you want. */
 #define wmb_f() ({ asm volatile("sfence"); })
 
+#define atomic_read(number)                                 \
+({                                                          \
+  long val;                                                 \
+  asm volatile("movl %1,%0" : "=r"(val) : "m"(*(number)));  \
+  val;                                                      \
+})
+
+#define atomic_set(number, val)                             \
+({                                                          \
+  asm volatile("movl %1,%0" : "=m"(*(number)) : "r"(val));  \
+})
+
 #define cmpxchg(ptr, value, comparand)            \
 ({                                                \
   int result;                                     \
