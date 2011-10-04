@@ -57,7 +57,7 @@ void *get_tls_desc(uint32_t htid);
   } safe_access_tls_var_internal();                                     \
 
 #else
-  #error "For PIC you must be using gcc 4.4 or above for tls support!"
+  #warning "For PIC you must be using gcc 4.4 or above for tls support!"
 #endif //__GNUC_PREREQ
 #endif // __PIC__
 
