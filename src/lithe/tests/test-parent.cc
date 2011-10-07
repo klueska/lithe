@@ -156,6 +156,14 @@ void RootScheduler::context_exit(lithe_context_t *context)
   __lithe_context_destroy_default(context, true);
 }
 
+void unlock_mcs_lock(void *arg) {
+  struct lock_data {
+    mcs_lock_t *lock;
+    mcs_lock_qnode_t *qnode;
+  } *real_lock = (struct lock_data*)arg;
+  mcs_lock_unlock(real_lock->lock, real_lock->qnode);
+}
+
 void RootScheduler::vcore_enter()
 {
   printf("RootScheduler::vcore_enter\n");
@@ -182,6 +190,11 @@ void RootScheduler::vcore_enter()
         LIST_REMOVE(req, link);
         free(req);
       }
+      struct {
+        mcs_lock_t *lock;
+        mcs_lock_qnode_t *qnode;
+      } real_lock = {&this->lock, &qnode};
+      lithe_vcore_grant(child, unlock_mcs_lock, (void*)&real_lock);
     }
     else if(this->vcores > 1) {
       this->vcores--;
@@ -196,10 +209,6 @@ void RootScheduler::vcore_enter()
       lithe_context_t *context = __lithe_context_create_default(true);
       lithe_context_init(context, child_main, NULL);
       lithe_context_run(context);
-      break;
-    }
-    case STATE_GRANT: {
-      lithe_vcore_grant(child);
       break;
     }
     case STATE_YIELD: {
@@ -226,7 +235,8 @@ static void root_run()
   RootScheduler *sched = (RootScheduler*)lithe_sched_current();
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->lock, &qnode);
-    sched->vcores = lithe_vcore_request(max_vcores()) + 1;
+    lithe_vcore_request(max_vcores());
+    sched->vcores = num_vcores();
     sched->children_expected = sched->vcores;
     printf("children_expected: %d\n", sched->children_expected);
   mcs_lock_unlock(&sched->lock, &qnode);

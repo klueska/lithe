@@ -32,6 +32,7 @@
 #include "tbb_stddef.h"
 
 #if USE_LITHE
+#include <parlib/spinlock.h>
 #include <lithe/lithe.hh>
 #include "deque.h"
 #endif /* USE_LITHE */
@@ -63,6 +64,7 @@ class task_scheduler_init: internal::no_copy {
 #if USE_LITHE
 
     lithe_sched_t **children;
+    spinlock_t children_lock;
     int *requested;
 
 protected:
@@ -73,9 +75,8 @@ protected:
     void context_unblock(lithe_context_t *context);
 
 #endif /* USE_LITHE */
-
-public:
     
+public:
     //! Typedef for number of threads that is automatic.
     static const int automatic = -1;
 

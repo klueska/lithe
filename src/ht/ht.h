@@ -83,19 +83,10 @@ extern void ht_entry() __attribute__((weak));
 extern int ht_lib_init();
 
 /**
- * Requests k additional hard threads. Returns -1 if the request is
- * impossible or ht_set_entrance has not been called. Otherwise,
- * blocks calling hard thread until the request is granted and returns
- * number of hard threads granted.
+ * Requests k additional hard threads. Returns -1 if the request is impossible.
+ * Otherwise, blocks calling hard thread until the request is granted and
+ * returns 0.
 */
-int ht_request(int k);
-
-/**
- * Requests k additional hard threads without blocking current hard
- * thread. Returns -1 if the request is impossible or ht_set_entrance
- * has not been called. If k is negative then the total number of hard
- * threads ...
- */
 int ht_request_async(int k);
 
 /**

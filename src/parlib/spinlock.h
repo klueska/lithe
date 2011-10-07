@@ -16,10 +16,12 @@ extern "C" {
 #define LOCKED (1)
 #define UNLOCKED (0)
 
-int spinlock_init(int *lock);
-int spinlock_trylock(int *lock);
-int spinlock_lock(int *lock);
-int spinlock_unlock(int *lock);
+typedef int spinlock_t;
+
+void spinlock_init(spinlock_t *lock);
+int spinlock_trylock(spinlock_t *lock);
+void spinlock_lock(spinlock_t *lock);
+void spinlock_unlock(spinlock_t *lock);
 
 
 #ifdef __cplusplus

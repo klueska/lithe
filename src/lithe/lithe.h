@@ -43,18 +43,22 @@ lithe_sched_t *lithe_sched_current();
 /**
  * Request a specified number of vcores from the parent. Note that the parent
  * is free to make a request using the calling vcore to their own parent if
- * necessary. Returns the number of vcores actually granted. These vcores will
- * trickle in over time as they are granted to the requesting scheduler.
+ * necessary. These vcores will trickle in over time as they are granted to the
+ * requesting scheduler. Returns 0 on success and -1 on error. 
  */
 int lithe_vcore_request(int k);
 
 /**
  * Grant the current vcore to another scheduler.  Triggered by a previous call
- * to lithe_vcore_request() by a child scheduler. This function never returns
- * unless child is NULL, in which case it sets errno appropriately and returns
- * -1.
+ * to lithe_vcore_request() by a child scheduler. This function never returns.
+ * The 'unlock_func()' and its corresponding 'lock' parameter are passed in by
+ * a parent scheduler so that the lithe runtime can synchronize references to
+ * the child scheduler in the rare case that the child scheduler may currently
+ * be in the process of exiting. For example, the unlock function passed in
+ * should be the same one used to add/remove the child scheduler from a list in
+ * the parent scheduler.
  */
-int lithe_vcore_grant(lithe_sched_t *child);
+void lithe_vcore_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *lock);
 
 /**
  * Yield current vcore to parent scheduler. This function should

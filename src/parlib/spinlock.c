@@ -10,27 +10,18 @@
 #include <parlib/spinlock.h>
 #include <ht/atomic.h>
 #include <ht/arch.h>
+#include <assert.h>
 
-int spinlock_init(int *lock)
+void spinlock_init(spinlock_t *lock)
 {
-  if (lock == NULL) {
-    errno = EINVAL;
-    return -1;
-  }
-
+  assert(lock);
   *lock = UNLOCKED;
-
-  return 0;
 }
 
 
-int spinlock_trylock(int *lock) 
+int spinlock_trylock(spinlock_t *lock) 
 {
-  if (lock == NULL) {
-    errno = EINVAL;
-    return -1;
-  }
-
+  assert(lock);
   if (*lock == LOCKED)
     return LOCKED;
 
@@ -38,28 +29,16 @@ int spinlock_trylock(int *lock)
 }
 
 
-int spinlock_lock(int *lock) 
+void spinlock_lock(spinlock_t *lock) 
 {
-  if (lock == NULL) {
-    errno = EINVAL;
-    return -1;
-  }
-
+  assert(lock);
   while (spinlock_trylock(lock) != UNLOCKED)
     cpu_relax();
-
-  return 0;
 }
 
 
-int spinlock_unlock(int *lock) 
+void spinlock_unlock(spinlock_t *lock) 
 {
-  if (lock == NULL) {
-    errno = EINVAL;
-    return -1;
-  }
-
+  assert(lock);
   *lock = UNLOCKED;
-
-  return 0;
 }

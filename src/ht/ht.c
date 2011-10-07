@@ -345,11 +345,6 @@ static int __ht_allocate(int k)
   return j;
 }
 
-int ht_request(int k)
-{
-  return -1;
-}
-
 static int __ht_request_async(int k)
 {
   /* Short circuit if k == 0 */
@@ -416,7 +411,7 @@ int ht_request_async(int k)
     }
   }
   pthread_mutex_unlock(&__ht_mutex);
-  return hts;
+  return 0;
 }
 
 void ht_yield()

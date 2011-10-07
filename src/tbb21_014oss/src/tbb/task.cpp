@@ -634,7 +634,7 @@ static int SchedulerTraitsId;
         called from plug-ins. */
     static DWORD TLS_Index;
 #elif USE_LITHE
-    static int OneTimeInitializationLock;
+    static spinlock_t OneTimeInitializationLock;
 #else /* !WIN */
     static pthread_mutex_t OneTimeInitializationLock = PTHREAD_MUTEX_INITIALIZER;
     static pthread_key_t TLS_Key;
@@ -709,6 +709,7 @@ atomic<int> __TBB_InitOnce::count;
     #define LockOneTimeMutex() OneTimeMutexOp(lock)
     #define UnlockOneTimeMutex() OneTimeMutexOp(unlock)
 #elif USE_LITHE
+    #define LockOneTimeMutex() spinlock_lock(&OneTimeInitializationLock)
     #define LockOneTimeMutex() spinlock_lock(&OneTimeInitializationLock)
     #define UnlockOneTimeMutex() spinlock_unlock(&OneTimeInitializationLock)
 #else
@@ -3463,18 +3464,23 @@ void task_scheduler_init::vcore_enter() {
 	}
 	/* See if we can allocate to children. */
 	for ( size_t id = 0; id <= num_workers; ++id ) {
+        spinlock_lock(&children_lock);
 	    lithe_sched_t *child = children[id];
 	    if (child != NULL) {
-		int request = requested[id];
-		while (request > 0) {
-// 		    printf("%p says requested[%d] is %d\n", pthread_self(), id, request);
-		    if (__TBB_CompareAndSwapW(&requested[id], request - 1, request) == request) {
-// 			printf("%p entering child %p\n", pthread_self(), child);
-			lithe_vcore_grant(child);
-		    }
-		    request = requested[id];
-		}
+		  int request = requested[id];
+		  while (request > 0) {
+//              printf("%p says requested[%d] is %d\n", pthread_self(), id, request);
+		      if (__TBB_CompareAndSwapW(&requested[id], request - 1, request) == request) {
+//              printf("%p entering child %p\n", pthread_self(), child);
+		  	      lithe_vcore_grant(child, (void (*)(void*))spinlock_unlock, &children_lock);
+                  fatal("Should never get here!");
+		      }
+		      request = requested[id];
+		  }
+          spinlock_unlock(&children_lock);
 	    }
+        else 
+            spinlock_unlock(&children_lock);
 	}
     }
 
@@ -3493,8 +3499,10 @@ void task_scheduler_init::child_started(lithe_sched_t *child) {
     }
     __TBB_ASSERT(id <= s->arena->prefix().number_of_workers, "bad id");
 //     printf("%p reg(%p) on worker %d\n", pthread_self(), child, id);
+    spinlock_lock(&children_lock);
     children[id] = child;
     requested[id] = 0;
+    spinlock_unlock(&children_lock);
 }
 
 void task_scheduler_init::child_finished(lithe_sched_t *child) {
@@ -3507,10 +3515,12 @@ void task_scheduler_init::child_finished(lithe_sched_t *child) {
     	id = w.id;
     }
     __TBB_ASSERT(id <= s->arena->prefix().number_of_workers, "bad id");
+    spinlock_lock(&children_lock);
     __TBB_ASSERT(children[id] == child, "bad child");
 //     printf("%p unreg(%p) on worker %d\n", pthread_self(), child, id);
     children[id] = NULL;
     requested[id] = 0;
+    spinlock_unlock(&children_lock);
 }
 
 int task_scheduler_init::vcore_request(lithe_sched_t *child, int k) {
@@ -3520,11 +3530,15 @@ int task_scheduler_init::vcore_request(lithe_sched_t *child, int k) {
 
     /* TODO(benh): Can we do it without looping through all children. */
     for ( size_t id = 0; id <= num_workers; ++id ) {
+    spinlock_lock(&children_lock);
 	if (children[id] == child) {
 	    requested[id] = k;
 	    /* TODO(benh): Should we always do a request? */
-	    return lithe_vcore_request(k);
+	    int ret = lithe_vcore_request(k);
+        spinlock_unlock(&children_lock);
+        return ret;
 	}
+    spinlock_unlock(&children_lock);
     }
 
     handle_perror(EPERM, "request from orphaned child");
@@ -3591,6 +3605,10 @@ void task_scheduler_init::initialize( int number_of_threads, stack_size_type thr
 	__TBB_ASSERT(children != NULL, "could not allocate children");
 	memset(children, 0, sizeof(lithe_sched_t *) * number_of_threads);
 
+    // Initialize the lock taht protects access to the array of children
+    spinlock_init(&children_lock);
+
+	// Allocate array of possible requested
 	requested = (int *) malloc(sizeof(int) * number_of_threads);
 	__TBB_ASSERT(requested != NULL, "could not allocate requested");
 	memset(requested, 0, sizeof(int) * number_of_threads);

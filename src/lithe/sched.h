@@ -24,7 +24,8 @@ typedef struct lithe_sched lithe_sched_t;
 typedef struct lithe_sched_funcs {
   /* Function ultimately responsible for granting vcore requests from a child
    * scheduler. This function is automatically called when a child invokes
-   * lithe_sched_request() from within it's current scheduler. */
+   * lithe_vcore_request() from within it's current scheduler. Returns 0 on
+   * success, -1 on failure. */
   int (*vcore_request) (lithe_sched_t *__this, lithe_sched_t *child, int k);
 
   /* Entry point for vcores granted to this scheduler by a call to

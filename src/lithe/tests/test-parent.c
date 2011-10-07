@@ -186,6 +186,15 @@ void root_context_exit(lithe_sched_t *__sched, lithe_context_t *context)
   lithe_context_cleanup(context);
   __lithe_context_destroy_default(context, true);
 }
+
+void unlock_mcs_lock(void *arg) {
+  struct lock_data {
+    mcs_lock_t *lock;
+    mcs_lock_qnode_t *qnode;
+  } *real_lock = (struct lock_data*)arg;
+  mcs_lock_unlock(real_lock->lock, real_lock->qnode);
+}
+
 static void root_vcore_enter(lithe_sched_t *__sched) 
 {
   printf("root_vcore_enter\n");
@@ -205,7 +214,6 @@ static void root_vcore_enter(lithe_sched_t *__sched)
     if(sched->children_started < sched->children_expected)
       state = STATE_CREATE;
     else if(!LIST_EMPTY(&sched->needy_children)) {
-      state = STATE_GRANT;
       sched_vcore_request_t *req = LIST_FIRST(&sched->needy_children);
       child = req->sched;
       req->num_vcores--;
@@ -213,6 +221,11 @@ static void root_vcore_enter(lithe_sched_t *__sched)
         LIST_REMOVE(req, link);
         free(req);
       }
+      struct {
+        mcs_lock_t *lock;
+        mcs_lock_qnode_t *qnode;
+      } real_lock = {&sched->lock, &qnode};
+      lithe_vcore_grant(child, unlock_mcs_lock, &real_lock);
     }
     else if(sched->vcores > 1) {
       sched->vcores--;
@@ -227,10 +240,6 @@ static void root_vcore_enter(lithe_sched_t *__sched)
       lithe_context_t *context = __lithe_context_create_default(true);
       lithe_context_init(context, child_main, NULL);
       lithe_context_run(context);
-      break;
-    }
-    case STATE_GRANT: {
-      lithe_vcore_grant(child);
       break;
     }
     case STATE_YIELD: {
@@ -257,7 +266,8 @@ static void root_run()
   root_sched_t *sched = (root_sched_t*)lithe_sched_current();
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->lock, &qnode);
-    sched->vcores = lithe_vcore_request(max_vcores()) + 1;
+    lithe_vcore_request(max_vcores());
+    sched->vcores = num_vcores();
     sched->children_expected = sched->vcores;
     printf("children_expected: %d\n", sched->children_expected);
   mcs_lock_unlock(&sched->lock, &qnode);

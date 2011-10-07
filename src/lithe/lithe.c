@@ -155,6 +155,7 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   if(current_sched == NULL) {
     /* Set the current scheduler as the base scheduler */
     current_sched = &base_sched;
+    __sync_fetch_and_add(&base_sched.vcores, 1);
   }
 
   /* If current_context is set, then just resume it. This will happen in one of 2
@@ -225,7 +226,7 @@ static void lithe_thread_yield(uthread_t *uthread)
 static void base_vcore_enter(lithe_sched_t *__this)
 {
   assert(root_sched != NULL);
-  lithe_vcore_grant(root_sched);
+  lithe_vcore_grant(root_sched, NULL, NULL);
 }
 
 static void base_vcore_return(lithe_sched_t *__this, lithe_sched_t *sched)
@@ -251,9 +252,7 @@ static void base_child_exited(lithe_sched_t *__this, lithe_sched_t *sched)
 static int base_vcore_request(lithe_sched_t *__this, lithe_sched_t *sched, int k)
 {
   assert(root_sched == sched);
-  int granted = vcore_request(k);
-  __sync_fetch_and_add(&base_sched.vcores, granted);
-  return granted;
+  return vcore_request(k);
 }
 
 static void base_context_block(lithe_sched_t *__this, lithe_context_t *context)
@@ -281,7 +280,7 @@ lithe_sched_t *lithe_sched_current()
   return current_sched;
 }
 
-int lithe_vcore_grant(lithe_sched_t *child)
+void lithe_vcore_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *lock)
 {
   assert(child);
   assert(in_vcore_context());
@@ -289,6 +288,9 @@ int lithe_vcore_grant(lithe_sched_t *child)
   /* Leave parent, join child. */
   assert(child != &base_sched);
   current_sched = child;
+  __sync_fetch_and_add(&child->vcores, 1);
+  if(unlock_func != NULL)
+    unlock_func(lock);
 
   /* Enter the child scheduler */
   __lithe_sched_reenter();
@@ -400,9 +402,19 @@ void __lithe_sched_exit(void *arg)
   assert(parent_context);
   assert(child);
 
-  /* Inform the parent that this child scheduler has finished */
+  /* Inform the parent that the child scheduler is about to exit */
   assert(parent->funcs->child_exited);
   parent->funcs->child_exited(parent, child);
+
+  /* Don't actually end the child scheduler until all its vcores have been
+   * yielded, except this one of course. This field is synchronized with an
+   * update to its value in lithe_vcore_grant() as protected by a
+   * parent-scheduler-specific locking function. */
+  while (child->vcores != 1) 
+    cpu_relax();
+
+  /* Update child's vcore count to 0 */
+  __sync_fetch_and_add(&(child->vcores), -1);
 
   /* Return to the original parent context */
   next_context = parent_context;
@@ -419,17 +431,11 @@ int lithe_sched_exit()
   lithe_sched_t *child = current_sched;
   lithe_context_t *child_context = current_context;
 
-  /* Don't actually end this scheduler until all vcores have been yielded
-   * (except this one of course) */
-  while (child->vcores != 1)
-    cpu_relax();
-
-  /* Update child's vcore count (to 0) */
-  __sync_fetch_and_add(&(child->vcores), -1);
-
-  /* Hijack the current context giving it back to the original parent context */
+  /* Hijack the current context so that the yield point below will save the
+   * current context into the parent context */
   set_current_uthread(&current_sched->parent_context->uth);
 
+  /* Set ourselves up to jump to vcore context and run __lithe_sched_exit() */
   struct { 
     lithe_sched_t* parent;
     lithe_context_t*  parent_context;
@@ -457,10 +463,9 @@ int lithe_vcore_request(int k)
 
   current_sched = parent;
   assert(parent->funcs->vcore_request);
-  int granted = parent->funcs->vcore_request(parent, child, k);
-  __sync_fetch_and_add(&child->vcores, granted);
+  int ret = parent->funcs->vcore_request(parent, child, k);
   current_sched = child;
-  return granted;
+  return ret;
 }
 
 static void __lithe_context_run()
