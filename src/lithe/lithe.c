@@ -355,12 +355,9 @@ int lithe_sched_enter(lithe_sched_t *child)
   lithe_context_t*  parent_context = current_context;
 
   /* Set-up child scheduler */
-  child->vcores = 0;
+  child->vcores = 1; // This one...
   child->parent = parent;
   child->parent_context = parent_context;
-
-  /* Update the number of vcores now owned by this child */
-  __sync_fetch_and_add(&(child->vcores), 1);
 
   /* Initialize the child's start context to highjack the current context */
   lithe_context_t *child_context = &child->start_context;
