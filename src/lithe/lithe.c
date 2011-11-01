@@ -287,8 +287,9 @@ void lithe_vcore_grant(lithe_sched_t *child, void (*unlock_func) (void *), void 
 
   /* Leave parent, join child. */
   assert(child != &base_sched);
-  current_sched = child;
+  __sync_fetch_and_add(&current_sched->vcores, -1);
   __sync_fetch_and_add(&child->vcores, 1);
+  current_sched = child;
   if(unlock_func != NULL)
     unlock_func(lock);
 
@@ -307,6 +308,7 @@ void lithe_vcore_yield()
 
   /* Leave child, join parent. */
   __sync_fetch_and_add(&(child->vcores), -1);
+  __sync_fetch_and_add(&(parent->vcores), 1);
 
   /* Yield the vcore to the parent */
   current_sched = parent;
@@ -333,6 +335,10 @@ static void __lithe_sched_enter(void *arg)
   assert(child);
   assert(child_context);
 
+  /* Officially grant the core to the child */
+  __sync_fetch_and_add(&(parent->vcores), -1);
+  __sync_fetch_and_add(&(child->vcores), 1);
+
   /* Inform parent. */
   assert(parent->funcs->child_entered);
   parent->funcs->child_entered(parent, child);
@@ -355,7 +361,7 @@ int lithe_sched_enter(lithe_sched_t *child)
   lithe_context_t*  parent_context = current_context;
 
   /* Set-up child scheduler */
-  child->vcores = 1; // This one...
+  child->vcores = 0;
   child->parent = parent;
   child->parent_context = parent_context;
 
@@ -412,6 +418,7 @@ void __lithe_sched_exit(void *arg)
 
   /* Update child's vcore count to 0 */
   __sync_fetch_and_add(&(child->vcores), -1);
+  __sync_fetch_and_add(&(parent->vcores), 1);
 
   /* Return to the original parent context */
   next_context = parent_context;
