@@ -4,7 +4,7 @@ MAKE = $(MAKE) -s
 V ?= @
 
 TESTSNAME = parlib_tests
-LIBDEPS = parlib ht pthread 
+LIBDEPS = parlib pthread 
 
 SRCDIR ?= $(PWD)
 BUILDDIR ?= $(PWD)/build

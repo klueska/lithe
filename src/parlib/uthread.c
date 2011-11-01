@@ -9,9 +9,9 @@
 #include <parlib/parlib.h>
 #include <parlib/vcore.h>
 #include <parlib/uthread.h>
-#include <ht/atomic.h>
-#include <ht/arch.h>
-#include <ht/tls.h>
+#include <parlib/atomic.h>
+#include <parlib/arch.h>
+#include <parlib/tls.h>
 
 #define printd(...)
 

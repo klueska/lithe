@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 
-#include <ht/arch.h>
+#include <parlib/arch.h>
 #include <internal/glibc-tls.h>
 #include <internal/ht.h>
 
@@ -83,7 +83,7 @@ static __inline void *get_current_tls_base()
 
 #endif
 
-#include <ht/tls.h>
+#include <parlib/tls.h>
 
 #endif /* HT_TLS_INTERNAL_H */
 

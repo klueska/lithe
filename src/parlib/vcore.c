@@ -14,7 +14,7 @@
 #include <parlib/vcore.h>
 #include <parlib/uthread.h>
 #include <parlib/parlib.h>
-#include <ht/ht.h>
+#include <parlib/ht.h>
 
 /**
  * Initialization function for the vcore lib.  Simply calls the underlying

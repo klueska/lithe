@@ -7,7 +7,7 @@ uc = $(shell echo $(1) | tr a-z A-Z)
 lc = $(shell echo $(1) | tr A-Z a-z)
 strip_tests = $(subst _tests,,$(1))
 
-LIBS := ht parlib lithe bthread
+LIBS := parlib lithe bthread
 STATICLIBS := yes
 TESTS := $(patsubst %, %_tests, $(LIBS))
 

@@ -1,7 +1,7 @@
 # Makefile for parlib tests
 
 TESTS_EXECS = bthread_test
-LIBDEPS = $(SCHEDNAME) parlib ht pthread
+LIBDEPS = $(SCHEDNAME) parlib pthread
 
 TESTSNAME = $(SCHEDNAME)_bthread_tests
 BUILDTESTSDIR := $(BUILDDIR)/tests

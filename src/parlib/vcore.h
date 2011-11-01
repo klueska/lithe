@@ -12,8 +12,8 @@
 extern "C" {
 #endif
 
-#include <ht/ht.h>
-#include <ht/tls.h>
+#include <parlib/ht.h>
+#include <parlib/tls.h>
 #include <sys/param.h>
 #include <string.h>
 #include <stdbool.h>

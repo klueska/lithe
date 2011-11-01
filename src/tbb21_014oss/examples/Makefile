@@ -39,7 +39,7 @@ include ../build/common.inc
 
 V ?= @
 SCHEDNAME = tbb
-LIBDEPS = lithe parlib ht pthread
+LIBDEPS = lithe parlib pthread
 LIBBUILDDIR ?= $(PWD)/../../build
 LIBINCDIR ?= $(LIBBUILDDIR)/include
 LIBOBJDIR ?= $(LIBBUILDDIR)/obj

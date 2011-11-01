@@ -6,7 +6,7 @@
 
 #include <stddef.h>
 #include <sys/syscall.h>
-#include <ht/atomic.h>
+#include <parlib/atomic.h>
 #include <internal/ht.h>
 #include <internal/tls.h>
 

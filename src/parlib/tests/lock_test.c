@@ -11,6 +11,9 @@ int main(int argc, char** argv)
 	/* Make sure we are not in vcore context */
 	assert(!in_vcore_context());
 
+	/* Init the vcore system */
+	assert(!vcore_lib_init());
+
 	/* Request as many as the system will give us */
 	vcore_request(max_vcores());
 	vcore_yield(false);

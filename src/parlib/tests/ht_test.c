@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include <ht/ht.h>
-#include <ht/tls.h>
-#include <ht/atomic.h>
+#include <parlib/ht.h>
+#include <parlib/tls.h>
+#include <parlib/atomic.h>
 
 #define NUM_HTS \
   ht_limit_hard_threads()

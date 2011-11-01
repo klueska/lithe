@@ -13,7 +13,7 @@
 #include <stdbool.h>
 #include <asm/ldt.h>
 #include <bits/local_lim.h>
-#include <ht/arch.h>
+#include <parlib/arch.h>
 
 #define HT_USE_PTHREAD
 #ifdef HT_USE_PTHREAD
@@ -54,6 +54,6 @@ extern __thread int __ht_id;
 
 /* Now #include the externally exposed ht interface header so that internal
  * files only need to #include this header */
-#include <ht/ht.h>
+#include <parlib/ht.h>
 
 #endif // HT_INTERNAL_H

@@ -8,8 +8,8 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <parlib/spinlock.h>
-#include <ht/atomic.h>
-#include <ht/arch.h>
+#include <parlib/atomic.h>
+#include <parlib/arch.h>
 #include <assert.h>
 
 void spinlock_init(spinlock_t *lock)

@@ -31,7 +31,7 @@
 #include <sys/sysinfo.h>
 #include <sys/wait.h>
 
-#include <ht/atomic.h>
+#include <parlib/atomic.h>
 #include <internal/ht.h>
 #include <internal/tls.h>
 #include <internal/futex.h>

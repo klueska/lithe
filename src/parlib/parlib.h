@@ -21,8 +21,8 @@
 #include <stdbool.h>
 #include <sys/time.h>
 #include <assert.h>
-#include <ht/atomic.h>
-#include <ht/arch.h>
+#include <parlib/atomic.h>
+#include <parlib/arch.h>
 
 enum {
 	PG_RDONLY = 4,

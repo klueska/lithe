@@ -25,8 +25,8 @@ typedef struct mcs_lock
 	mcs_lock_qnode_t* lock;
 } mcs_lock_t;
 
-#include <ht/ht.h>
-#include <ht/arch.h>
+#include <parlib/ht.h>
+#include <parlib/arch.h>
 
 typedef struct
 {
