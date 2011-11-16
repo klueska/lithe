@@ -14,7 +14,7 @@
 
 #include <parlib/arch.h>
 #include <internal/glibc-tls.h>
-#include <internal/ht.h>
+#include <internal/vcore.h>
 
 #ifdef __x86_64__
   #include <asm/prctl.h>
@@ -33,8 +33,8 @@
 /* Initialize the tls subsystem for use */
 int tls_lib_init();
 
-/* Initialize tls for use by a ht */
-void init_tls(uint32_t htid);
+/* Initialize tls for use by a vcore */
+void init_tls(uint32_t vcoreid);
 
 /* Get the current tls base address */
 static __inline void *get_current_tls_base()

@@ -266,7 +266,7 @@ static void root_run()
   root_sched_t *sched = (root_sched_t*)lithe_sched_current();
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->lock, &qnode);
-    lithe_vcore_request(max_vcores());
+    lithe_vcore_request(limit_vcores());
     sched->vcores = num_vcores();
     sched->children_expected = sched->vcores;
     printf("children_expected: %d\n", sched->children_expected);

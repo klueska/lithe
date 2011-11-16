@@ -25,13 +25,13 @@ typedef struct mcs_lock
 	mcs_lock_qnode_t* lock;
 } mcs_lock_t;
 
-#include <parlib/ht.h>
+#include <parlib/vcore.h>
 #include <parlib/arch.h>
 
 typedef struct
 {
-	volatile int myflags[2][LOG2_MAX_HTS];
-	volatile int* partnerflags[2][LOG2_MAX_HTS];
+	volatile int myflags[2][LOG2_MAX_VCORES];
+	volatile int* partnerflags[2][LOG2_MAX_VCORES];
 	int parity;
 	int sense;
 	char pad[ARCH_CL_SIZE];

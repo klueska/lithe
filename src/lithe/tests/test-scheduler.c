@@ -63,12 +63,12 @@ static void test_run()
   for(int i=0; i<100; i++) {
     int limit, cur;
     do {
-      limit = max_vcores();
+      limit = limit_vcores();
       cur = num_vcores();
     } while(!(limit - cur));
     sched->counter = 0;
     printf("counter: %d\n", sched->counter);
-    printf("max_vcores: %d\n", limit);
+    printf("limit_vcores: %d\n", limit);
     printf("num_vcores: %d\n", cur);
     printf("Requesting vcores\n");
     lithe_vcore_request(limit - cur);

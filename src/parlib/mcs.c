@@ -63,22 +63,22 @@ void mcs_lock_unlock(struct mcs_lock *lock, struct mcs_lock_qnode *qnode)
  * (when switching into the TLS, etc). */
 void mcs_lock_notifsafe(struct mcs_lock *lock, struct mcs_lock_qnode *qnode)
 {
-	if (!in_ht_context())
-		disable_notifs(ht_id());
+	if (!in_vcore_context())
+		disable_notifs(vcore_id());
 	mcs_lock_lock(lock, qnode);
 }
 
 void mcs_unlock_notifsafe(struct mcs_lock *lock, struct mcs_lock_qnode *qnode)
 {
 	mcs_lock_unlock(lock, qnode);
-	if (!in_ht_context())
-		enable_notifs(ht_id());
+	if (!in_vcore_context())
+		enable_notifs(vcore_id());
 }
 
 // MCS dissemination barrier!
 int mcs_barrier_init(mcs_barrier_t* b, size_t np)
 {
-	if(np > ht_limit_hard_threads())
+	if(np > limit_vcores())
 		return -1;
 	b->allnodes = (mcs_dissem_flags_t*)malloc(np*sizeof(mcs_dissem_flags_t));
 	memset(b->allnodes,0,np*sizeof(mcs_dissem_flags_t));

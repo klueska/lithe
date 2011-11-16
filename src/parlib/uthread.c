@@ -50,7 +50,7 @@ int uthread_lib_init(struct uthread* uthread)
          * thread, so when vcore 0 comes up it will resume the main thread.
 	 * Note: there is no need to restore the original tls here, since we
 	 * are right about to transition onto vcore 0 anyway... */
-	set_tls_desc(ht_tls_descs[0], 0);
+	set_tls_desc(vcore_tls_descs[0], 0);
 	safe_set_tls_var(current_uthread, uthread);
 
 	/* Request some cores ! */
@@ -66,10 +66,10 @@ int uthread_lib_init(struct uthread* uthread)
 }
 
 void vcore_entry() {
-	if(ht_saved_ucontext) {
+	if(vcore_saved_ucontext) {
 		assert(current_uthread);
-		memcpy(&current_uthread->uc, ht_saved_ucontext, sizeof(struct ucontext));
-		current_uthread->tls_desc = ht_saved_tls_desc;
+		memcpy(&current_uthread->uc, vcore_saved_ucontext, sizeof(struct ucontext));
+		current_uthread->tls_desc = vcore_saved_tls_desc;
 	}
 	uthread_vcore_entry();
 }
@@ -161,11 +161,11 @@ void uthread_yield(bool save_state)
 		goto yield_return_path;
 	yielding = FALSE; /* for when it starts back up */
 	/* Change to the transition context (both TLS and stack). */
-	set_tls_desc(ht_tls_descs[vcoreid], vcoreid);
+	set_tls_desc(vcore_tls_descs[vcoreid], vcoreid);
 	assert(current_uthread == uthread);	
 	assert(in_vcore_context());	/* technically, we aren't fully in vcore context */
 	/* After this, make sure you don't use local variables. */
-	set_stack_pointer(ht_context.uc_stack.ss_sp + ht_context.uc_stack.ss_size);
+	set_stack_pointer(vcore_context.uc_stack.ss_sp + vcore_context.uc_stack.ss_size);
 	cmb();
 	/* Finish yielding in another function. */
 	__uthread_yield();

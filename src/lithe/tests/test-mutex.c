@@ -71,7 +71,7 @@ static void root_enqueue_task(lithe_sched_t *__this, lithe_context_t *context)
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->qlock, &qnode);
     context_deque_enqueue(&sched->contextq, context);
-    lithe_vcore_request(max_vcores());
+    lithe_vcore_request(limit_vcores());
   mcs_lock_unlock(&sched->qlock, &qnode);
 }
 
@@ -107,7 +107,7 @@ void root_run(int context_count)
   }
 
   /* Start up some more vcores to do our work for us */
-  lithe_vcore_request(max_vcores());
+  lithe_vcore_request(limit_vcores());
 
   /* Wait for all the workers to run */
   while(1) {

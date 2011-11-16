@@ -16,7 +16,8 @@
 /* Reference to the main threads tls descriptor */
 extern void *main_tls_desc;
 
-/* Current tls_desc for each running ht, used when swapping contexts onto an ht */
+/* Current tls_desc for each running vcore, used when swapping contexts onto an
+ * vcore */
 extern __thread void *current_tls_desc;
 
 /* Get a TLS, returns 0 on failure.  Any thread created by a user-level
@@ -29,12 +30,12 @@ void *reinit_tls(void *tcb);
 /* Free a previously allocated TLS region */
 void free_tls(void *tcb);
 
-/* Passing in the htid, since it'll be in TLS of the caller */
-void set_tls_desc(void *tls_desc, uint32_t htid);
+/* Passing in the vcoreid, since it'll be in TLS of the caller */
+void set_tls_desc(void *tls_desc, uint32_t vcoreid);
 
-/* Get the tls descriptor currently set for a given hard thread. This should
- * only ever be called once the hard thread has been initialized */
-void *get_tls_desc(uint32_t htid);
+/* Get the tls descriptor currently set for a given vcore. This should
+ * only ever be called once the vcore has been initialized */
+void *get_tls_desc(uint32_t vcoreid);
 
 
 #ifndef __PIC__
