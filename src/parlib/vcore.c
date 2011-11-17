@@ -118,7 +118,7 @@ void __vcore_entry_gate()
   }
   pthread_mutex_unlock(&__vcore_mutex);
 
-  /* Wait for this hard thread to get woken up. */
+  /* Wait for this vcore to get woken up. */
   futex_wait(&(__vcores[vcoreid].running), false);
 
   /* Hard thread is awake. */
@@ -126,24 +126,24 @@ entry:
   /* Wait for the original main to reach the point of not requiring its stack
    * anymore.  TODO: Think of a better way to this.  Required for now because
    * we need to call pthread_mutex_unlock() in this thread, which causes a race
-   * for using the main threads stack with the hard thread restarting it in
+   * for using the main threads stack with the vcore restarting it in
    * ht_entry(). */
   while(!original_main_done) 
     cpu_relax();
   /* Use cached value of htid in case TLS changed out from under us while
-   * waiting for this hard thread to get woken up. */
+   * waiting for this vcore to get woken up. */
   assert(__vcores[vcoreid].running == true);
-  /* Restore the TLS associated with this hard thread's context */
+  /* Restore the TLS associated with this vcore's context */
   set_tls_desc(vcore_tls_descs[vcoreid], vcoreid);
-  /* Jump to the hard thread's entry point */
+  /* Jump to the vcore's entry point */
   vcore_entry();
 
   fprintf(stderr, "vcore: failed to invoke vcore_yield\n");
 
-  /* We never exit a hard thread ... we always park them and therefore
+  /* We never exit a vcore ... we always park them and therefore
    * we never exit them. If we did we would need to take care not to
-   * exit the main hard thread (experience shows that exits the
-   * application) and we should probably detach any created hard threads
+   * exit the main vcore (experience shows that exits the
+   * application) and we should probably detach any created vcores
    * (but this may be debatable because of our implementation of
    * htls).
    */
@@ -162,7 +162,7 @@ __vcore_trampoline_entry(void *arg)
   int vcoreid = (int) (long int) arg;
 
 #ifndef VCORE_USE_PTHREAD
-  /* Set the proper affinity for this hard thread */
+  /* Set the proper affinity for this vcore */
   cpu_set_t c;
   CPU_ZERO(&c);
   CPU_SET(htid, &c);
@@ -205,7 +205,7 @@ __vcore_trampoline_entry(void *arg)
 
   /*
    * We need to save a context because experience shows that we seg fault if we
-   * clean up this hard thread (i.e. call exit) on a stack other than the
+   * clean up this vcore (i.e. call exit) on a stack other than the
    * original stack (maybe because certain things are placed on the stack like
    * cleanup functions).
    */
@@ -225,10 +225,10 @@ __vcore_trampoline_entry(void *arg)
   makecontext(&vcore_context, (void (*) ()) __vcore_entry_gate, 0);
   setcontext(&vcore_context);
 
-  /* We never exit a hard thread ... we always park them and therefore
+  /* We never exit a vcore ... we always park them and therefore
    * we never exit them. If we did we would need to take care not to
    * exit the main thread (experience shows that exits the
-   * application) and we should probably detach any created hard threads
+   * application) and we should probably detach any created vcores
    * (but this may be debatable because of our implementation of
    * htls).
    */
@@ -345,11 +345,11 @@ static int __vcore_request(int k)
   if(k == 0)
     return 0;
 
-  /* Determine how many hard threads we can allocate. */
+  /* Determine how many vcores we can allocate. */
   int available = __limit_vcores - __max_vcores;
   k = available >= k ? k : available;
 
-  /* Update hard thread counts. */
+  /* Update vcore counts. */
   __max_vcores += k;
 
   /* Allocate as many as known available. */
@@ -361,7 +361,7 @@ static int __vcore_request(int k)
   fflush(stdout);
   assert(k == j);
 
-  /* Update hard thread counts. */
+  /* Update vcore counts. */
   __num_vcores += j;
 
   return k;
@@ -413,7 +413,7 @@ void vcore_yield()
   /* Clear out the saved ht_saved_context and ht_saved_tls_desc variables */
   vcore_saved_ucontext = NULL;
   vcore_saved_tls_desc = NULL;
-  /* Jump to the transition stack allocated on this hard thread's underlying
+  /* Jump to the transition stack allocated on this vcore's underlying
    * stack. This is only used very quickly so we can run the setcontext code */
   set_stack_pointer(__vcore_stack);
   /* Go back to the ht entry gate */
@@ -431,7 +431,7 @@ int vcore_lib_init()
   /* Initialize the tls subsystem */
   assert(!tls_lib_init());
 
-  /* Get the number of available hard threads in the system */
+  /* Get the number of available vcores in the system */
   char *limit = getenv("VCORE_LIMIT");
   if (limit != NULL) {
     __limit_vcores = atoi(limit);
@@ -440,9 +440,9 @@ int vcore_lib_init()
   }
   printf("limit_vcores: %d\n", __limit_vcores);
 
-  /* Allocate the structs containing meta data about the hard threads
+  /* Allocate the structs containing meta data about the vcores
    * themselves. Never freed though.  Just freed automatically when the program
-   * dies since hard threads should be alive for the entire lifetime of the
+   * dies since vcores should be alive for the entire lifetime of the
    * program. */
   __vcores = malloc(sizeof(struct vcore) * __limit_vcores);
   vcore_tls_descs = malloc(sizeof(uintptr_t) * __limit_vcores);
@@ -459,9 +459,9 @@ int vcore_lib_init()
     __vcores[i].running = true;
   }
 
-  /* Create all the hard threads up front */
+  /* Create all the vcores up front */
   for (int i = 0; i < __limit_vcores; i++) {
-    /* Create all the hard threads */
+    /* Create all the vcores */
     __create_vcore(i);
 
 	/* Make sure the threads have all started and are ready to be allocated

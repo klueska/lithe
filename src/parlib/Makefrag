@@ -1,4 +1,4 @@
-# Makefile for hard threads library
+# Makefile for parlib library
 
 PARLIB_LIBNAME = parlib
 PARLIB_CFLAGS := $(CFLAGS)

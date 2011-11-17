@@ -1,4 +1,4 @@
-# Makefile for hard threads library
+# Makefile for bthreads library
 
 BTHREAD_LIBNAME = bthread
 BTHREAD_SCHEDULERS = rrthread

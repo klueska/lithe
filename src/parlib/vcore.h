@@ -52,18 +52,18 @@ extern void **vcore_tls_descs;
 extern __thread ucontext_t vcore_context;
 
 /**
- * Current user context running on each hard thread, used when interrupting a
+ * Current user context running on each vcore, used when interrupting a
  * user context because of async I/O or signal handling. Hard Thread 0's
- * ht_saved_ucontext is initialized to the continuation of the main thread's
- * context the first time it's ht_entry() function is invoked.
+ * vcore_saved_ucontext is initialized to the continuation of the main thread's
+ * context the first time it's vcore_entry() function is invoked.
  */
 extern __thread ucontext_t *vcore_saved_ucontext;
 
 /**
- * Current tls_desc of the user context running on each hard thread, used when
+ * Current tls_desc of the user context running on each vcore, used when
  * interrupting a user context because of async I/O or signal handling. Hard
- * Thread 0's ht_saved_tls_desc is initialized to the tls_desc of the main
- * thread's context the first time it's ht_entry() function is invoked.
+ * Thread 0's vcore_saved_tls_desc is initialized to the tls_desc of the main
+ * thread's context the first time it's vcore_entry() function is invoked.
  */
 extern __thread void *vcore_saved_tls_desc;
 
@@ -76,7 +76,7 @@ extern void vcore_entry() __attribute__((weak));
 
 /**
  * Initialization routine for the hrd threads subsystem.  Starts the process of
- * allocating hard thread wrappers pinning them to cores, etc.
+ * allocating vcore wrappers pinning them to cores, etc.
  */
 extern int vcore_lib_init();
 
@@ -92,7 +92,7 @@ int vcore_request(int k);
 void vcore_yield();
 
 /**
- * Returns the id of the calling hard thread.
+ * Returns the id of the calling vcore.
  */
 static inline int vcore_id(void)
 {
@@ -101,7 +101,7 @@ static inline int vcore_id(void)
 }
 
 /**
- * Returns the current number of hard threads allocated.
+ * Returns the current number of vcores allocated.
  */
 static inline size_t num_vcores(void)
 {
@@ -119,7 +119,7 @@ static inline size_t max_vcores(void)
 }
 
 /**
- * Returns the limit of allocatable hard threads.
+ * Returns the limit of allocatable vcores.
  */
 static inline size_t limit_vcores(void)
 {
@@ -138,17 +138,17 @@ static inline bool in_vcore_context() {
 /**
  * Clears the flag for pending notifications
  */
-void clear_notif_pending(uint32_t htid);
+void clear_notif_pending(uint32_t vcoreid);
 
 /**
  * Enable Notifications
  */
-void enable_notifs(uint32_t htid);
+void enable_notifs(uint32_t vcoreid);
 
 /**
  * Disable Notifications
  */
-void disable_notifs(uint32_t htid);
+void disable_notifs(uint32_t vcoreid);
 
 #define vcore_set_tls_var(name, val)                                   \
 {                                                                      \

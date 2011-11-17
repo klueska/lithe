@@ -1,4 +1,4 @@
-# Makefile for hard threads library
+# Makefile for lithe library
 
 LITHE_LIBNAME = lithe
 LITHE_CFLAGS := $(CFLAGS)

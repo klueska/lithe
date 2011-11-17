@@ -2,7 +2,7 @@
  * Simple Test:
  * 
  *   Registers a root scheduler which requests the maximum number 
- *   of hard threads, then verifies that the requested number of
+ *   of harts, then verifies that the requested number of
  *   enters actually occur.
  *
  * Interface Tested: 
