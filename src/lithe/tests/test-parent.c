@@ -15,15 +15,15 @@ typedef struct child_sched {
   lithe_context_t *start_context;
 } child_sched_t;
 
-static void child_vcore_enter(lithe_sched_t *__this);
+static void child_hart_enter(lithe_sched_t *__this);
 static void child_context_unblock(lithe_sched_t *__this, lithe_context_t *context); 
 
 static const lithe_sched_funcs_t child_funcs = {
-  .vcore_request         = __vcore_request_default,
-  .vcore_enter           = child_vcore_enter,
-  .vcore_return          = __vcore_return_default,
-  .child_entered         = __child_entered_default,
-  .child_exited          = __child_exited_default,
+  .hart_request         = __hart_request_default,
+  .hart_enter           = child_hart_enter,
+  .hart_return          = __hart_return_default,
+  .child_enter          = __child_enter_default,
+  .child_exit           = __child_exit_default,
   .context_block         = __context_block_default,
   .context_unblock       = child_context_unblock,
   .context_yield         = __context_yield_default,
@@ -48,7 +48,7 @@ static void child_context_unblock(lithe_sched_t *__this, lithe_context_t *contex
   lithe_context_run(context);
 }
 
-void child_vcore_enter(lithe_sched_t *__this) 
+void child_hart_enter(lithe_sched_t *__this) 
 {
   printf("child_enter\n");
   child_sched_t *sched = (child_sched_t *)__this;
@@ -82,39 +82,39 @@ void child_main(void *arg)
   printf("child_main finish\n");
 }
 
-struct sched_vcore_request {
-  LIST_ENTRY(sched_vcore_request) link;
+struct sched_hart_request {
+  LIST_ENTRY(sched_hart_request) link;
   lithe_sched_t *sched;
-  int num_vcores;
+  int num_harts;
 }; 
-LIST_HEAD(sched_vcore_request_list, sched_vcore_request);
-typedef struct sched_vcore_request sched_vcore_request_t;
-typedef struct sched_vcore_request_list sched_vcore_request_list_t;
+LIST_HEAD(sched_hart_request_list, sched_hart_request);
+typedef struct sched_hart_request sched_hart_request_t;
+typedef struct sched_hart_request_list sched_hart_request_list_t;
 
 typedef struct root_sched {
   lithe_sched_t sched;
   mcs_lock_t lock;
-  int vcores;
+  int harts;
   int children_expected;
   int children_started;
   int children_finished;
-  sched_vcore_request_list_t needy_children;
+  sched_hart_request_list_t needy_children;
   lithe_context_t *start_context;
 } root_sched_t;
 
-int root_vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
-static void root_vcore_enter(lithe_sched_t *this);
-void root_child_entered(lithe_sched_t *__this, lithe_sched_t *child);
-void root_child_exited(lithe_sched_t *__this, lithe_sched_t *child);
+int root_hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
+static void root_hart_enter(lithe_sched_t *this);
+void root_child_enter(lithe_sched_t *__this, lithe_sched_t *child);
+void root_child_exit(lithe_sched_t *__this, lithe_sched_t *child);
 static void root_context_unblock(lithe_sched_t *__this, lithe_context_t *context);
 static void root_context_exit(lithe_sched_t *__this, lithe_context_t *context);
 
 static const lithe_sched_funcs_t root_funcs = {
-  .vcore_request         = root_vcore_request,
-  .vcore_enter           = root_vcore_enter,
-  .vcore_return          = __vcore_return_default,
-  .child_entered         = root_child_entered,
-  .child_exited          = root_child_exited,
+  .hart_request         = root_hart_request,
+  .hart_enter           = root_hart_enter,
+  .hart_return          = __hart_return_default,
+  .child_enter          = root_child_enter,
+  .child_exit           = root_child_exit,
   .context_block         = __context_block_default,
   .context_unblock       = root_context_unblock,
   .context_yield         = __context_yield_default,
@@ -136,24 +136,24 @@ static void root_sched_dtor(root_sched_t *sched)
 {
 }
 
-int root_vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
+int root_hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
 {
-  printf("root_vcore_request\n");
+  printf("root_hart_request\n");
   root_sched_t *sched = (root_sched_t *)__this;
-  sched_vcore_request_t *req = malloc(sizeof(sched_vcore_request_t));
+  sched_hart_request_t *req = malloc(sizeof(sched_hart_request_t));
   req->sched = child;
-  req->num_vcores = k;
+  req->num_harts = k;
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->lock, &qnode);
     LIST_INSERT_HEAD(&sched->needy_children, req, link);
   mcs_lock_unlock(&sched->lock, &qnode);
-  lithe_vcore_request(k);
+  lithe_hart_request(k);
   return k;
 }
 
-void root_child_entered(lithe_sched_t *__this, lithe_sched_t *child)
+void root_child_enter(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  printf("root_child_entered\n");
+  printf("root_child_enter\n");
   root_sched_t *sched = (root_sched_t *)__this;
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->lock, &qnode);
@@ -161,9 +161,9 @@ void root_child_entered(lithe_sched_t *__this, lithe_sched_t *child)
   mcs_lock_unlock(&sched->lock, &qnode);
 }
 
-void root_child_exited(lithe_sched_t *__this, lithe_sched_t *child)
+void root_child_exit(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  printf("root_child_exited\n");
+  printf("root_child_exit\n");
   root_sched_t *sched = (root_sched_t *)__this;
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->lock, &qnode);
@@ -195,9 +195,9 @@ void unlock_mcs_lock(void *arg) {
   mcs_lock_unlock(real_lock->lock, real_lock->qnode);
 }
 
-static void root_vcore_enter(lithe_sched_t *__sched) 
+static void root_hart_enter(lithe_sched_t *__sched) 
 {
-  printf("root_vcore_enter\n");
+  printf("root_hart_enter\n");
   root_sched_t *sched = (root_sched_t*) __sched;
 
   enum {
@@ -214,10 +214,10 @@ static void root_vcore_enter(lithe_sched_t *__sched)
     if(sched->children_started < sched->children_expected)
       state = STATE_CREATE;
     else if(!LIST_EMPTY(&sched->needy_children)) {
-      sched_vcore_request_t *req = LIST_FIRST(&sched->needy_children);
+      sched_hart_request_t *req = LIST_FIRST(&sched->needy_children);
       child = req->sched;
-      req->num_vcores--;
-      if(req->num_vcores == 0) {
+      req->num_harts--;
+      if(req->num_harts == 0) {
         LIST_REMOVE(req, link);
         free(req);
       }
@@ -225,10 +225,10 @@ static void root_vcore_enter(lithe_sched_t *__sched)
         mcs_lock_t *lock;
         mcs_lock_qnode_t *qnode;
       } real_lock = {&sched->lock, &qnode};
-      lithe_vcore_grant(child, unlock_mcs_lock, &real_lock);
+      lithe_hart_grant(child, unlock_mcs_lock, &real_lock);
     }
-    else if(sched->vcores > 1) {
-      sched->vcores--;
+    else if(sched->harts > 1) {
+      sched->harts--;
       state = STATE_YIELD;
     }
     else
@@ -243,7 +243,7 @@ static void root_vcore_enter(lithe_sched_t *__sched)
       break;
     }
     case STATE_YIELD: {
-      lithe_vcore_yield();
+      lithe_hart_yield();
       break;
     }
     case STATE_COMPLETE: {
@@ -266,9 +266,9 @@ static void root_run()
   root_sched_t *sched = (root_sched_t*)lithe_sched_current();
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->lock, &qnode);
-    lithe_vcore_request(limit_vcores());
-    sched->vcores = num_vcores();
-    sched->children_expected = sched->vcores;
+    lithe_hart_request(limit_harts());
+    sched->harts = num_harts();
+    sched->children_expected = sched->harts;
     printf("children_expected: %d\n", sched->children_expected);
   mcs_lock_unlock(&sched->lock, &qnode);
   lithe_context_block(block_root, NULL);

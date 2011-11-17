@@ -8,7 +8,7 @@ using namespace lithe;
 
 class TestScheduler : public Scheduler {
  protected:
-  void vcore_enter();
+  void hart_enter();
 
  public:
   unsigned int counter;
@@ -16,13 +16,13 @@ class TestScheduler : public Scheduler {
   ~TestScheduler() {}
 };
 
-void TestScheduler::vcore_enter()
+void TestScheduler::hart_enter()
 {
   unsigned int *counter = &this->counter;
-  printf("enter() on vcore %d\n", vcore_id());
+  printf("enter() on hart %d\n", hart_id());
   __sync_fetch_and_add(counter, 1);
   printf("counter: %d\n", *counter);
-  lithe_vcore_yield();
+  lithe_hart_yield();
 }
 
 void test_run()
@@ -32,19 +32,19 @@ void test_run()
   for(int i=0; i<100; i++) {
     unsigned int limit, cur;
     do {
-      limit = limit_vcores();
-      cur = num_vcores();
+      limit = limit_harts();
+      cur = num_harts();
     } while(!(limit - cur));
     sched->counter = 0;
     printf("counter: %d\n", sched->counter);
-    printf("limit_vcores: %d\n", limit);
-    printf("num_vcores: %d\n", cur);
+    printf("limit_harts: %d\n", limit);
+    printf("num_harts: %d\n", cur);
     printf("Wait for counter to reach: %d\n", (limit - cur));
-    printf("Requesting vcores\n");
-    lithe_vcore_request(limit - cur);
+    printf("Requesting harts\n");
+    lithe_hart_request(limit - cur);
     while (sched->counter < (limit - cur))
       cpu_relax();
-    printf("All vcores returned\n");
+    printf("All harts returned\n");
   }
   printf("TestScheduler Finishing!\n");
 }

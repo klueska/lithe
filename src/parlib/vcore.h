@@ -5,7 +5,7 @@
  */
 
 /**
- * Hard thread interface.
+ * Vcore interface.
  */
 
 #ifndef __GNUC__

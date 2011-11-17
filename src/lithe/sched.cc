@@ -3,29 +3,29 @@
 
 namespace lithe {
 
-int __vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
+int __hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
 {
-  return ((Scheduler*)__this)->vcore_request(child, k);
+  return ((Scheduler*)__this)->hart_request(child, k);
 }
 
-void __vcore_enter(lithe_sched_t *__this)
+void __hart_enter(lithe_sched_t *__this)
 {
-  ((Scheduler*)__this)->vcore_enter();
+  ((Scheduler*)__this)->hart_enter();
 }
 
-void __vcore_return(lithe_sched_t *__this, lithe_sched_t *child)
+void __hart_return(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  ((Scheduler*)__this)->vcore_return(child);
+  ((Scheduler*)__this)->hart_return(child);
 }
 
-void __child_entered(lithe_sched_t *__this, lithe_sched_t *child)
+void __child_enter(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  ((Scheduler*)__this)->child_entered(child);
+  ((Scheduler*)__this)->child_enter(child);
 }
 
-void __child_exited(lithe_sched_t *__this, lithe_sched_t *child)
+void __child_exit(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  ((Scheduler*)__this)->child_exited(child);
+  ((Scheduler*)__this)->child_exit(child);
 }
 
 void __context_block(lithe_sched_t *__this, lithe_context_t *context)
@@ -49,11 +49,11 @@ void __context_exit(lithe_sched_t *__this, lithe_context_t *context)
 }
 
 const lithe_sched_funcs_t Scheduler::static_funcs = {
-  /*.vcore_request         = */ __vcore_request,
-  /*.vcore_enter           = */ __vcore_enter,
-  /*.vcore_return          = */ __vcore_return,
-  /*.child_entered         = */ __child_entered,
-  /*.child_exited          = */ __child_exited,
+  /*.hart_request          = */ __hart_request,
+  /*.hart_enter            = */ __hart_enter,
+  /*.hart_return           = */ __hart_return,
+  /*.child_enter           = */ __child_enter,
+  /*.child_exit            = */ __child_exit,
   /*.context_block         = */ __context_block,
   /*.context_unblock       = */ __context_unblock,
   /*.context_yield         = */ __context_yield,

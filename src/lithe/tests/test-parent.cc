@@ -14,7 +14,7 @@ using namespace lithe;
 
 class ChildScheduler : public Scheduler {
  protected:
-  void vcore_enter();
+  void hart_enter();
   void context_unblock(lithe_context_t *context); 
 
  public:
@@ -36,9 +36,9 @@ void ChildScheduler::context_unblock(lithe_context_t *context)
   lithe_context_run(context);
 }
 
-void ChildScheduler::vcore_enter()
+void ChildScheduler::hart_enter()
 {
-  printf("ChildScheduler::vcore_enter\n");
+  printf("ChildScheduler::hart_enter\n");
   lithe_context_unblock(this->start_context);
 }
 
@@ -68,19 +68,19 @@ void child_main(void *arg)
   printf("child_main finish\n");
 }
 
-struct sched_vcore_request {
-  LIST_ENTRY(sched_vcore_request) link;
+struct sched_hart_request {
+  LIST_ENTRY(sched_hart_request) link;
   lithe_sched_t *sched;
-  int num_vcores;
+  int num_harts;
 }; 
-LIST_HEAD(sched_vcore_request_list, sched_vcore_request);
-typedef struct sched_vcore_request sched_vcore_request_t;
-typedef struct sched_vcore_request_list sched_vcore_request_list_t;
+LIST_HEAD(sched_hart_request_list, sched_hart_request);
+typedef struct sched_hart_request sched_hart_request_t;
+typedef struct sched_hart_request_list sched_hart_request_list_t;
 
 class RootScheduler : public Scheduler {
  protected:
-  void vcore_enter();
-  int vcore_request(lithe_sched_t *child, int k);
+  void hart_enter();
+  int hart_request(lithe_sched_t *child, int k);
   void child_entered(lithe_sched_t *child);
   void child_exited(lithe_sched_t *child);
   void context_unblock(lithe_context_t *context);
@@ -88,11 +88,11 @@ class RootScheduler : public Scheduler {
 
  public:
   mcs_lock_t lock;
-  int vcores;
+  int harts;
   int children_expected;
   int children_started;
   int children_finished;
-  sched_vcore_request_list_t needy_children;
+  sched_hart_request_list_t needy_children;
   lithe_context_t *start_context;
 
   RootScheduler();
@@ -109,17 +109,17 @@ RootScheduler::RootScheduler()
   this->start_context = NULL;
 }
 
-int RootScheduler::vcore_request(lithe_sched_t *child, int k)
+int RootScheduler::hart_request(lithe_sched_t *child, int k)
 {
-  printf("RootScheduler::vcore_request\n");
-  sched_vcore_request_t *req = (sched_vcore_request_t*)malloc(sizeof(sched_vcore_request_t));
+  printf("RootScheduler::hart_request\n");
+  sched_hart_request_t *req = (sched_hart_request_t*)malloc(sizeof(sched_hart_request_t));
   req->sched = child;
-  req->num_vcores = k;
+  req->num_harts = k;
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&this->lock, &qnode);
     LIST_INSERT_HEAD(&this->needy_children, req, link);
   mcs_lock_unlock(&this->lock, &qnode);
-  lithe_vcore_request(k);
+  lithe_hart_request(k);
   return k;
 }
 
@@ -164,9 +164,9 @@ void unlock_mcs_lock(void *arg) {
   mcs_lock_unlock(real_lock->lock, real_lock->qnode);
 }
 
-void RootScheduler::vcore_enter()
+void RootScheduler::hart_enter()
 {
-  printf("RootScheduler::vcore_enter\n");
+  printf("RootScheduler::hart_enter\n");
 
   enum {
     STATE_CREATE,
@@ -183,10 +183,10 @@ void RootScheduler::vcore_enter()
       state = STATE_CREATE;
     else if(!LIST_EMPTY(&this->needy_children)) {
       state = STATE_GRANT;
-      sched_vcore_request_t *req = LIST_FIRST(&this->needy_children);
+      sched_hart_request_t *req = LIST_FIRST(&this->needy_children);
       child = req->sched;
-      req->num_vcores--;
-      if(req->num_vcores == 0) {
+      req->num_harts--;
+      if(req->num_harts == 0) {
         LIST_REMOVE(req, link);
         free(req);
       }
@@ -194,10 +194,10 @@ void RootScheduler::vcore_enter()
         mcs_lock_t *lock;
         mcs_lock_qnode_t *qnode;
       } real_lock = {&this->lock, &qnode};
-      lithe_vcore_grant(child, unlock_mcs_lock, (void*)&real_lock);
+      lithe_hart_grant(child, unlock_mcs_lock, (void*)&real_lock);
     }
-    else if(this->vcores > 1) {
-      this->vcores--;
+    else if(this->harts > 1) {
+      this->harts--;
       state = STATE_YIELD;
     }
     else
@@ -212,7 +212,7 @@ void RootScheduler::vcore_enter()
       break;
     }
     case STATE_YIELD: {
-      lithe_vcore_yield();
+      lithe_hart_yield();
       break;
     }
     case STATE_COMPLETE: {
@@ -235,9 +235,9 @@ static void root_run()
   RootScheduler *sched = (RootScheduler*)lithe_sched_current();
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->lock, &qnode);
-    lithe_vcore_request(limit_vcores());
-    sched->vcores = num_vcores();
-    sched->children_expected = sched->vcores;
+    lithe_hart_request(limit_harts());
+    sched->harts = num_harts();
+    sched->children_expected = sched->harts;
     printf("children_expected: %d\n", sched->children_expected);
   mcs_lock_unlock(&sched->lock, &qnode);
   lithe_context_block(block_root, sched);

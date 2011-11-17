@@ -11,7 +11,7 @@ using namespace lithe;
 
 class RootScheduler : public Scheduler {
  protected:
-  void vcore_enter();
+  void hart_enter();
   void context_unblock(lithe_context_t *context);
   void context_yield(lithe_context_t *context);
   void context_exit(lithe_context_t *context);
@@ -33,7 +33,7 @@ RootScheduler::RootScheduler()
   context_deque_init(&this->contextq);
 }
 
-void RootScheduler::vcore_enter()
+void RootScheduler::hart_enter()
 {
   lithe_context_t *context = NULL;
 
@@ -43,7 +43,7 @@ void RootScheduler::vcore_enter()
   mcs_lock_unlock(&this->qlock, &qnode);
 
   if(context == NULL)
-    lithe_vcore_yield();
+    lithe_hart_yield();
   else 
     lithe_context_run(context);
 }
@@ -53,7 +53,7 @@ void enqueue_task(RootScheduler *sched, lithe_context_t *context)
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->qlock, &qnode);
     context_deque_enqueue(&sched->contextq, context);
-    lithe_vcore_request(limit_vcores());
+    lithe_hart_request(limit_harts());
   mcs_lock_unlock(&sched->qlock, &qnode);
 }
 
@@ -98,8 +98,8 @@ void root_run(int context_count)
     context_deque_enqueue(&sched->contextq, context);
   }
 
-  /* Start up some more vcores to do our work for us */
-  lithe_vcore_request(limit_vcores());
+  /* Start up some more harts to do our work for us */
+  lithe_hart_request(limit_harts());
 
   /* Wait for all the workers to run */
   while(1) {

@@ -42,9 +42,9 @@ struct schedule_ops lithe_sched_ops = {
 struct schedule_ops *sched_ops = &lithe_sched_ops;
 
 /* Lithe's base scheduler functions */
-static int base_vcore_request(lithe_sched_t *this, lithe_sched_t *child, int k);
-static void base_vcore_enter(lithe_sched_t *this);
-static void base_vcore_return(lithe_sched_t *this, lithe_sched_t *child);
+static int base_hart_request(lithe_sched_t *this, lithe_sched_t *child, int k);
+static void base_hart_enter(lithe_sched_t *this);
+static void base_hart_return(lithe_sched_t *this, lithe_sched_t *child);
 static void base_child_entered(lithe_sched_t *this, lithe_sched_t *child);
 static void base_child_exited(lithe_sched_t *this, lithe_sched_t *child);
 static void base_context_block(lithe_sched_t *__this, lithe_context_t *context);
@@ -53,11 +53,11 @@ static void base_context_yield(lithe_sched_t *__this, lithe_context_t *context);
 static void base_context_exit(lithe_sched_t *__this, lithe_context_t *context);
 
 static const lithe_sched_funcs_t base_funcs = {
-  .vcore_request      = base_vcore_request,
-  .vcore_enter        = base_vcore_enter,
-  .vcore_return       = base_vcore_return,
-  .child_entered      = base_child_entered,
-  .child_exited       = base_child_exited,
+  .hart_request       = base_hart_request,
+  .hart_enter         = base_hart_enter,
+  .hart_return        = base_hart_return,
+  .child_enter        = base_child_entered,
+  .child_exit         = base_child_exited,
   .context_block      = base_context_block,
   .context_unblock    = base_context_unblock,
   .context_yield      = base_context_yield,
@@ -67,7 +67,7 @@ static const lithe_sched_funcs_t base_funcs = {
 /* Base scheduler itself */
 static lithe_sched_t base_sched = { 
   .funcs           = &base_funcs,
-  .vcores          = 0,
+  .harts          = 0,
   .parent          = NULL,
   .parent_context  = NULL,
   .start_context   = {0}
@@ -118,10 +118,6 @@ static int __attribute__((constructor)) lithe_lib_init()
   /* Set the scheduler associated with the context to be the base scheduler */
   context->sched = &base_sched;
 
-  /* Return a reference to the main context back to the uthread library. We will
-   * resume this context once lithe_vcore_entry() is called from the uthread
-   * library */
-
   /* Once we have set things up for the main context, initialize the uthread
    * library with that main context */
   assert(!uthread_lib_init((uthread_t*)context));
@@ -140,8 +136,8 @@ static void __attribute__((noreturn)) __lithe_sched_reenter()
   assert(current_sched->funcs);
 
   /* Enter current scheduler. */
-  assert(current_sched->funcs->vcore_enter);
-  current_sched->funcs->vcore_enter(current_sched);
+  assert(current_sched->funcs->hart_enter);
+  current_sched->funcs->hart_enter(current_sched);
   fatal("lithe: returned from enter");
 }
 
@@ -151,11 +147,11 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   assert(in_vcore_context());
 
   /* If we are entering this vcore for the first time, we need to set the
-   * current scheduler appropriately and up the vcore count for it */
+   * current scheduler appropriately and up the hart count for it */
   if(current_sched == NULL) {
     /* Set the current scheduler as the base scheduler */
     current_sched = &base_sched;
-    __sync_fetch_and_add(&base_sched.vcores, 1);
+    __sync_fetch_and_add(&base_sched.harts, 1);
   }
 
   /* If current_context is set, then just resume it. This will happen in one of 2
@@ -185,7 +181,7 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
     assert(0); // Should never return from called function 
   }
 
-  /* Otherwise, just reenter vcore_enter of whatever the current scheduler is */
+  /* Otherwise, just reenter hart_enter of whatever the current scheduler is */
   __lithe_sched_reenter();
   assert(0); // Should never return from entered scheduler
 }
@@ -223,16 +219,16 @@ static void lithe_thread_yield(uthread_t *uthread)
    * and don't want to notify the scheduler */
 }
 
-static void base_vcore_enter(lithe_sched_t *__this)
+static void base_hart_enter(lithe_sched_t *__this)
 {
   assert(root_sched != NULL);
-  lithe_vcore_grant(root_sched, NULL, NULL);
+  lithe_hart_grant(root_sched, NULL, NULL);
 }
 
-static void base_vcore_return(lithe_sched_t *__this, lithe_sched_t *sched)
+static void base_hart_return(lithe_sched_t *__this, lithe_sched_t *sched)
 {
   /* Cleanup tls and yield the vcore back to the system. */
-  __sync_fetch_and_add(&base_sched.vcores, -1);
+  __sync_fetch_and_add(&base_sched.harts, -1);
   memset(&lithe_tls, 0, sizeof(lithe_tls));
   vcore_yield(false);
 }
@@ -249,7 +245,7 @@ static void base_child_exited(lithe_sched_t *__this, lithe_sched_t *sched)
   root_sched = NULL;
 }
 
-static int base_vcore_request(lithe_sched_t *__this, lithe_sched_t *sched, int k)
+static int base_hart_request(lithe_sched_t *__this, lithe_sched_t *sched, int k)
 {
   assert(root_sched == sched);
   return vcore_request(k);
@@ -280,15 +276,15 @@ lithe_sched_t *lithe_sched_current()
   return current_sched;
 }
 
-void lithe_vcore_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *lock)
+void lithe_hart_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *lock)
 {
   assert(child);
   assert(in_vcore_context());
 
   /* Leave parent, join child. */
   assert(child != &base_sched);
-  __sync_fetch_and_add(&current_sched->vcores, -1);
-  __sync_fetch_and_add(&child->vcores, 1);
+  __sync_fetch_and_add(&current_sched->harts, -1);
+  __sync_fetch_and_add(&child->harts, 1);
   current_sched = child;
   if(unlock_func != NULL)
     unlock_func(lock);
@@ -298,7 +294,7 @@ void lithe_vcore_grant(lithe_sched_t *child, void (*unlock_func) (void *), void 
   fatal("lithe: returned from enter");
 }
 
-void lithe_vcore_yield()
+void lithe_hart_yield()
 {
   assert(in_vcore_context());
   assert(current_sched != &base_sched);
@@ -307,13 +303,13 @@ void lithe_vcore_yield()
   lithe_sched_t *child = current_sched;
 
   /* Leave child, join parent. */
-  __sync_fetch_and_add(&(child->vcores), -1);
-  __sync_fetch_and_add(&(parent->vcores), 1);
+  __sync_fetch_and_add(&(child->harts), -1);
+  __sync_fetch_and_add(&(parent->harts), 1);
 
   /* Yield the vcore to the parent */
   current_sched = parent;
-  assert(current_sched->funcs->vcore_return);
-  current_sched->funcs->vcore_return(parent, child);
+  assert(current_sched->funcs->hart_return);
+  current_sched->funcs->hart_return(parent, child);
   __lithe_sched_reenter();
 }
 
@@ -336,12 +332,12 @@ static void __lithe_sched_enter(void *arg)
   assert(child_context);
 
   /* Officially grant the core to the child */
-  __sync_fetch_and_add(&(parent->vcores), -1);
-  __sync_fetch_and_add(&(child->vcores), 1);
+  __sync_fetch_and_add(&(parent->harts), -1);
+  __sync_fetch_and_add(&(child->harts), 1);
 
   /* Inform parent. */
-  assert(parent->funcs->child_entered);
-  parent->funcs->child_entered(parent, child);
+  assert(parent->funcs->child_enter);
+  parent->funcs->child_enter(parent, child);
 
   /* Return to to the vcore_entry point to continue running the child context now
    * that it has been properly setup */
@@ -361,7 +357,7 @@ int lithe_sched_enter(lithe_sched_t *child)
   lithe_context_t*  parent_context = current_context;
 
   /* Set-up child scheduler */
-  child->vcores = 0;
+  child->harts = 0;
   child->parent = parent;
   child->parent_context = parent_context;
 
@@ -406,19 +402,19 @@ void __lithe_sched_exit(void *arg)
   assert(child);
 
   /* Inform the parent that the child scheduler is about to exit */
-  assert(parent->funcs->child_exited);
-  parent->funcs->child_exited(parent, child);
+  assert(parent->funcs->child_exit);
+  parent->funcs->child_exit(parent, child);
 
   /* Don't actually end the child scheduler until all its vcores have been
    * yielded, except this one of course. This field is synchronized with an
-   * update to its value in lithe_vcore_grant() as protected by a
+   * update to its value in lithe_hart_grant() as protected by a
    * parent-scheduler-specific locking function. */
-  while (child->vcores != 1) 
+  while (child->harts != 1) 
     cpu_relax();
 
-  /* Update child's vcore count to 0 */
-  __sync_fetch_and_add(&(child->vcores), -1);
-  __sync_fetch_and_add(&(parent->vcores), 1);
+  /* Update child's hart count to 0 */
+  __sync_fetch_and_add(&(child->harts), -1);
+  __sync_fetch_and_add(&(parent->harts), 1);
 
   /* Return to the original parent context */
   next_context = parent_context;
@@ -459,15 +455,15 @@ int lithe_sched_exit()
   return 0;
 }
 
-int lithe_vcore_request(int k)
+int lithe_hart_request(int k)
 {
   assert(current_sched);
   lithe_sched_t *parent = current_sched->parent;
   lithe_sched_t *child = current_sched;
 
   current_sched = parent;
-  assert(parent->funcs->vcore_request);
-  int ret = parent->funcs->vcore_request(parent, child, k);
+  assert(parent->funcs->hart_request);
+  int ret = parent->funcs->hart_request(parent, child, k);
   current_sched = child;
   return ret;
 }

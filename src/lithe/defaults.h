@@ -35,27 +35,27 @@ static void __lithe_context_destroy_default(lithe_context_t *context, bool stack
 }
 
 /* Helpful defaults for the lithe callback functions */
-static int __vcore_request_default(lithe_sched_t *__this, lithe_sched_t *child, int k)
+static int __hart_request_default(lithe_sched_t *__this, lithe_sched_t *child, int k)
 {
-  return lithe_vcore_request(k);
+  return lithe_hart_request(k);
 }
 
-static void __vcore_enter_default(lithe_sched_t *__this)
+static void __hart_entry_default(lithe_sched_t *__this)
 {
-  fatal((char*)"Should not be calling vcore_entry()");
+  fatal((char*)"Should not be calling hart_entry()");
 }
 
-static void __vcore_return_default(lithe_sched_t *__this, lithe_sched_t *child)
+static void __hart_return_default(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  lithe_vcore_yield();
+  lithe_hart_yield();
 }
 
-static void __child_entered_default(lithe_sched_t *__this, lithe_sched_t *child)
+static void __child_enter_default(lithe_sched_t *__this, lithe_sched_t *child)
 {
   // Do nothing special by default when a child is entered
 }
 
-static void __child_exited_default(lithe_sched_t *__this, lithe_sched_t *child)
+static void __child_exit_default(lithe_sched_t *__this, lithe_sched_t *child)
 {
   // Do nothing special by default when a child is exited
 }

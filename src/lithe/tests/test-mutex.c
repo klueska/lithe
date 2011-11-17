@@ -18,16 +18,16 @@ typedef struct root_sched {
 } root_sched_t;
 
 /* Scheduler functions */
-static void root_vcore_enter(lithe_sched_t *__this);
+static void root_hart_enter(lithe_sched_t *__this);
 static void root_enqueue_task(lithe_sched_t *__this, lithe_context_t *context);
 static void root_context_exit(lithe_sched_t *__this, lithe_context_t *context);
 
 static const lithe_sched_funcs_t root_sched_funcs = {
-  .vcore_request         = __vcore_request_default,
-  .vcore_enter           = root_vcore_enter,
-  .vcore_return          = __vcore_return_default,
-  .child_entered         = __child_entered_default,
-  .child_exited          = __child_exited_default,
+  .hart_request         = __hart_request_default,
+  .hart_enter           = root_hart_enter,
+  .hart_return          = __hart_return_default,
+  .child_enter          = __child_enter_default,
+  .child_exit           = __child_exit_default,
   .context_block         = __context_block_default,
   .context_unblock       = root_enqueue_task,
   .context_yield         = root_enqueue_task,
@@ -47,7 +47,7 @@ static void root_sched_dtor(root_sched_t* sched)
 {
 }
 
-static void root_vcore_enter(lithe_sched_t *__this)
+static void root_hart_enter(lithe_sched_t *__this)
 {
   root_sched_t *sched = (root_sched_t *)__this;
   lithe_context_t *context = NULL;
@@ -58,7 +58,7 @@ static void root_vcore_enter(lithe_sched_t *__this)
   mcs_lock_unlock(&sched->qlock, &qnode);
 
   if(context == NULL) {
-    lithe_vcore_yield();
+    lithe_hart_yield();
   }
   else {
     lithe_context_run(context);
@@ -71,7 +71,7 @@ static void root_enqueue_task(lithe_sched_t *__this, lithe_context_t *context)
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->qlock, &qnode);
     context_deque_enqueue(&sched->contextq, context);
-    lithe_vcore_request(limit_vcores());
+    lithe_hart_request(limit_harts());
   mcs_lock_unlock(&sched->qlock, &qnode);
 }
 
@@ -106,8 +106,8 @@ void root_run(int context_count)
     context_deque_enqueue(&sched->contextq, context);
   }
 
-  /* Start up some more vcores to do our work for us */
-  lithe_vcore_request(limit_vcores());
+  /* Start up some more harts to do our work for us */
+  lithe_hart_request(limit_harts());
 
   /* Wait for all the workers to run */
   while(1) {

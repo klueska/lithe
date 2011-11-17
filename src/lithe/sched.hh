@@ -13,27 +13,27 @@ class Scheduler : public lithe_sched_t {
   static const lithe_sched_funcs_t static_funcs;
 
  private:
-  friend int __vcore_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
-  friend void __vcore_enter(lithe_sched_t *__this);
-  friend void __vcore_return(lithe_sched_t *__this, lithe_sched_t *child);
-  friend void __child_entered(lithe_sched_t *__this, lithe_sched_t *child);
-  friend void __child_exited(lithe_sched_t *__this, lithe_sched_t *child);
+  friend int __hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
+  friend void __hart_enter(lithe_sched_t *__this);
+  friend void __hart_return(lithe_sched_t *__this, lithe_sched_t *child);
+  friend void __child_enter(lithe_sched_t *__this, lithe_sched_t *child);
+  friend void __child_exit(lithe_sched_t *__this, lithe_sched_t *child);
   friend void __context_block(lithe_sched_t *__this, lithe_context_t *context);
   friend void __context_unblock(lithe_sched_t *__this, lithe_context_t *context);
   friend void __context_yield(lithe_sched_t *__this, lithe_context_t *context);
   friend void __context_exit(lithe_sched_t *__this, lithe_context_t *context);
   
  protected:
-  virtual void vcore_enter() = 0;
+  virtual void hart_enter() = 0;
 
-  virtual int vcore_request(lithe_sched_t *child, int k) 
-    { return __vcore_request_default(this, child, k); }
-  virtual void vcore_return(lithe_sched_t *child)
-    { return __vcore_return_default(this, child); }
-  virtual void child_entered(lithe_sched_t *child)
-    { return __child_entered_default(this, child); }
-  virtual void child_exited(lithe_sched_t *child)
-    { return __child_exited_default(this, child); }
+  virtual int hart_request(lithe_sched_t *child, int k) 
+    { return __hart_request_default(this, child, k); }
+  virtual void hart_return(lithe_sched_t *child)
+    { return __hart_return_default(this, child); }
+  virtual void child_enter(lithe_sched_t *child)
+    { return __child_enter_default(this, child); }
+  virtual void child_exit(lithe_sched_t *child)
+    { return __child_exit_default(this, child); }
   virtual void context_block(lithe_context_t *context)
     { return __context_block_default(this, context); }
   virtual void context_unblock(lithe_context_t *context)

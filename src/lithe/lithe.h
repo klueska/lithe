@@ -12,6 +12,7 @@
 #include <stdarg.h>
 #include <lithe/sched.h>
 #include <lithe/context.h>
+#include <lithe/hart.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,7 +21,7 @@ extern "C" {
 /**
  * Passes control to a new child scheduler. The 'funcs' field of the scheduler
  * must already be set up properly or the call will fail. It hands the current
- * vcore over to this scheduler and then returns. To exit the child, a
+ * hart over to this scheduler and then returns. To exit the child, a
  * subsequent call to lithe_sched_exit() is needed. Only at this point will
  * control be passed back to the parent scheduler. Returns -1 if there is an
  * error and sets errno appropriately.
@@ -41,16 +42,16 @@ int lithe_sched_exit();
 lithe_sched_t *lithe_sched_current();
 
 /**
- * Request a specified number of vcores from the parent. Note that the parent
- * is free to make a request using the calling vcore to their own parent if
- * necessary. These vcores will trickle in over time as they are granted to the
+ * Request a specified number of harts from the parent. Note that the parent
+ * is free to make a request using the calling hart to their own parent if
+ * necessary. These harts will trickle in over time as they are granted to the
  * requesting scheduler. Returns 0 on success and -1 on error. 
  */
-int lithe_vcore_request(int k);
+int lithe_hart_request(int k);
 
 /**
- * Grant the current vcore to another scheduler.  Triggered by a previous call
- * to lithe_vcore_request() by a child scheduler. This function never returns.
+ * Grant the current hart to another scheduler.  Triggered by a previous call
+ * to lithe_hart_request() by a child scheduler. This function never returns.
  * The 'unlock_func()' and its corresponding 'lock' parameter are passed in by
  * a parent scheduler so that the lithe runtime can synchronize references to
  * the child scheduler in the rare case that the child scheduler may currently
@@ -58,13 +59,13 @@ int lithe_vcore_request(int k);
  * should be the same one used to add/remove the child scheduler from a list in
  * the parent scheduler.
  */
-void lithe_vcore_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *lock);
+void lithe_hart_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *lock);
 
 /**
- * Yield current vcore to parent scheduler. This function should
+ * Yield current hart to parent scheduler. This function should
  * never return.
  */
-void lithe_vcore_yield();
+void lithe_hart_yield();
 
 /*
  * Initialize the proper lithe internal state for an existing context. The
@@ -90,7 +91,7 @@ void lithe_context_reinit(lithe_context_t *context, void (*func) (void *), void 
 
 /* 
  * Cleanup an existing context. This context should NOT currently be running on
- * any vcore, though this is not enforced by the lithe runtime.
+ * any hart, though this is not enforced by the lithe runtime.
  */
 void lithe_context_cleanup(lithe_context_t *context);
 
@@ -100,7 +101,7 @@ void lithe_context_cleanup(lithe_context_t *context);
 lithe_context_t *lithe_context_self();
 
 /*
- * Run the specified context.  MUST only be run from vcore context. Upon
+ * Run the specified context.  MUST only be run from hart context. Upon
  * completion, the context is yielded, and must be either retasked for other
  * use via lithe_context_reinit() or cleaned up via a call to
  * lithe_context_cleanup().  This function never returns on success and returns
