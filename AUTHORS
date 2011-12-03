@@ -1,0 +1,7 @@
+Kevin Klues ported Lithe to use the parlib library as its base, and
+significantly changed the top level Lithe interface and many of the semantics.
+The spirit of the library is still the same though.
+<klueska@cs.berkeley.edu>
+
+Ben Hindman designed and wrote the protoype implementation of Lithe.
+<benh@cs.berkeley.edu>
