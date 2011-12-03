@@ -72,6 +72,10 @@ AM_SUBST_NOTMAKE([TESTSDIR])
 
 # Check whether LIBRARY exists and contains FUNCT
 # Execute ACT-IF-FOUND if it does.  ACT-IF-NOT otherwise.
+AC_CHECK_LIB(parlib, uthread_init, [], [
+    echo "Error! You need to have parlib installed and in your LD_LIBRARY_PATH to build lithe!"
+    exit -1
+])
 #AC_CHECK_LIB(LIBRARY, FUNCT, [ACT-IF-FOUND], [ACT-IF-NOT])
 
 # Actually output all declared files
