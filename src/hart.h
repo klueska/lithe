@@ -44,4 +44,10 @@ static inline size_t limit_harts(void)
 	return limit_vcores();
 }
 
+#define hart_set_tls_var(name, val) \
+  vcore_set_tls_var(name, val)
+
+#define hart_get_tls_var(name) \
+  vcore_get_tls_var(name)
+
 #endif
