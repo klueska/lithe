@@ -2,6 +2,9 @@ Lithe 1.0 - INSTALL
 For questions or comments, please contact: Kevin Klues <klueska@cs.berkeley.edu>
 
 To install this library, simply follow the standard GNU installation procedure.
+If you have 'parlib' installed in a non-standard location, be sure and set the
+--with-parlib configure option appropriately.  Otherwise, you can just ignore
+it.
 
 If building out of the git source repo, you will need to rerun autoconf and
 automake.  You can do these two steps together, by just running autoreconf.
@@ -11,7 +14,7 @@ The installation procedure would be:
 autoreconf --install
 mkdir build
 cd build
-../configure --prefix=<install_dir>
+../configure --prefix=<install_dir>  --with-parlib=<parlib_install_dir>
 make
 make install
 
@@ -26,7 +29,7 @@ do it if you like though).
 
 mkdir build
 cd build
-../configure --prefix=<install_dir>
+../configure --prefix=<install_dir>  --with-parlib=<parlib_install_dir>
 make
 make install
 

@@ -49,7 +49,7 @@ AC_CONFIG_FILES([
 # 'configure' is not run from outerspace.
 AC_CONFIG_SRCDIR([src/lithe.c])
 
-CFLAGS="                   \
+MY_CFLAGS="                \
   -g -O2 -Wall             \
   -Wno-unused-function     \
   -Wno-unused-value        \
@@ -59,8 +59,8 @@ CFLAGS="                   \
 "
 
 # Set the common AM_CFLAGS for all Makefile.am files
-AC_SUBST([AM_CFLAGS],["-std=gnu99 $CFLAGS"])
-AC_SUBST([AM_CXXFLAGS],["$CFLAGS"])
+AC_SUBST([AM_CFLAGS],["-std=gnu99 $MY_CFLAGS"])
+AC_SUBST([AM_CXXFLAGS],["$MY_CFLAGS"])
 
 # Set up some global variables for use in the makefile
 SRCDIR=src
@@ -70,13 +70,46 @@ AC_SUBST([TESTSDIR])
 AM_SUBST_NOTMAKE([SRCDIR])
 AM_SUBST_NOTMAKE([TESTSDIR])
 
+# Check if we have gcc > 4.4
+AC_PREPROC_IFELSE(
+[
+#include <features.h>
+#if !__GNUC_PREREQ(4,4)
+  #error "Looks like I'm going to be building just static libs :("
+#endif
+],
+[STATIC_ONLY=false],
+[STATIC_ONLY=true])
+AM_CONDITIONAL([STATIC_ONLY], [test x$STATIC_ONLY = xtrue])
+
+# Add parlib -L and -I directories into LDFLAGS and C/CXXFLAGS respectively,
+# if they are not install on the system already
+AC_ARG_WITH([parlib],
+  [AS_HELP_STRING([--with-parlib],
+    [path to your parlib installation if not in a standard location])],
+  [PARLIBPATH="$withval"],
+  [with_parlib=no])
+
+CFLAGS="$CFLAGS -I$PARLIBPATH/include"
+CXXFLAGS="$CXXFLAGS -I$PARLIBPATH/include"
+LDFLAGS="$LDFLAGS -L$PARLIBPATH/lib"
+          
 # Check whether LIBRARY exists and contains FUNCT
 # Execute ACT-IF-FOUND if it does.  ACT-IF-NOT otherwise.
+#AC_CHECK_LIB(LIBRARY, FUNCT, [ACT-IF-FOUND], [ACT-IF-NOT])
+save_LDFLAGS="$LDFLAGS" 
+save_LIBS="$LIBS"
+LDFLAGS="$LDFLAGS -static -lpthread" 
+LIBS="$LIBS -lpthread" 
 AC_CHECK_LIB(parlib, uthread_init, [], [
-    echo "Error! You need to have parlib installed and in your LD_LIBRARY_PATH to build lithe!"
+    echo "Error! You need to have parlib installed on your system in order to build lithe!"
+    echo "Try setting --with-parlib=<parlib_install_dir>"
+    echo "See 'configure --help' for details."
     exit -1
 ])
-#AC_CHECK_LIB(LIBRARY, FUNCT, [ACT-IF-FOUND], [ACT-IF-NOT])
+LDFLAGS="$save_LDFLAGS"
+LIBS="$save_LIBS"
 
 # Actually output all declared files
 AC_OUTPUT
+

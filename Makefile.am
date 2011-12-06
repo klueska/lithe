@@ -40,11 +40,13 @@ TEST_EXECS = \
 # Setup parameters to build the library
 lib_LTLIBRARIES = libithe.la
 libithe_la_CFLAGS = $(AM_CFLAGS)
-libithe_la_CFLAGS += 
 libithe_la_CXXFLAGS = $(AM_CXXFLAGS)
 libithe_la_SOURCES = $(LIB_CFILES) $(LIB_HFILES)
 libithe_la_SOURCES += $(LIB_CXXFILES) $(LIB_HHFILES)
 libithe_la_LIBADD = -lparlib
+if STATIC_ONLY 
+libithe_la_LDFLAGS = -all-static 
+endif 
 
 # Setup a directory where all of the include files will be installed
 litheincdir = $(includedir)/$(LIBNAME)
