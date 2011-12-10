@@ -213,7 +213,7 @@ latex_logo = "_static/logo.png"
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'lithe', u'Lithe Documentation',
+    ('api_reference', 'lithe', u'Lithe Documentation',
      [u'Kevin Klues, Ben Hindman, Heidi Pan, Rimas Avizienis, Krste Asanovi\u0107'], 1)
 ]
 
@@ -227,7 +227,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'Lithe', u'Lithe Documentation',
+  ('sitemap', 'Lithe', u'Lithe Documentation',
    u'Kevin Klues, Ben Hindman, Heidi Pan, Rimas Avizienis, Krste Asanovi\u0107', 
     'Lithe', 'One line description of project.', 'Miscellaneous'),
 ]
