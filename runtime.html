@@ -1,0 +1,314 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Lithe Runtime &mdash; Lithe 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="top" title="Lithe 1.0 documentation" href="index.html" />
+    <link rel="up" title="API Reference" href="api_reference.html" />
+    <link rel="next" title="Lithe Contexts" href="context.html" />
+    <link rel="prev" title="API Reference" href="api_reference.html" /> 
+  </head>
+  <body>
+<div style="background-color: white; text-align: left; padding: 10px 10px 0px 10px">
+<div style="float:left;">
+<a href="index.html">
+  <img src="_static/logo.png" border="0" alt="Lithe"/>
+</a>
+</div>
+<div style="position:relative; top:115px; float:right; font-size:20px;">
+<i>Enabling Efficient Composition of Parallel Libraries</i>
+</div>
+<div style="clear:both"></div>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="context.html" title="Lithe Contexts"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="api_reference.html" title="API Reference"
+             accesskey="P">previous</a> |</li>
+  <li><a href="index.html">Home</a>|&nbsp;</li>
+  <li><a href="download.html">Download</a>|&nbsp;</li>
+  <li><a href="tutorials.html">Tutorials</a>|&nbsp;</li>
+  <li><a href="api_reference.html">API Reference</a>|&nbsp;</li>
+  <li><a href="about.html">About</a>|&nbsp;</li>
+  <li><a href="search.html">Search</a>|&nbsp;</li>
+  <li><a href="sitemap.html">Sitemap</a>&raquo;</li>
+
+          <li><a href="api_reference.html" accesskey="U">API Reference</a> &raquo;</li> 
+      </ul>
+    </div>
+
+  
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <a href="http://amplab.cs.berkeley.edu">
+    <img src="_static/amplab.png" width=100% border="0" alt="Amplab"/>
+  </a>
+  <a href="http://parlab.eecs.berkeley.edu">
+    <img src="_static/parlab.png" width=100% border="0" alt="Amplab"/>
+  </a>
+  
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="api_reference.html"
+                        title="previous chapter">API Reference</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="context.html"
+                        title="next chapter">Lithe Contexts</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/runtime.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="lithe-runtime">
+<h1>Lithe Runtime<a class="headerlink" href="#lithe-runtime" title="Permalink to this headline">¶</a></h1>
+<div class="highlight-python"><pre>int lithe_sched_enter(lithe_sched_t *child);
+int lithe_sched_exit();
+lithe_sched_t *lithe_sched_current();
+int lithe_hart_request(int k);
+void lithe_hart_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *lock);
+void lithe_hart_yield();
+void lithe_context_init(lithe_context_t *context, void (*func) (void *), void *arg);
+void lithe_context_reinit(lithe_context_t *context, void (*func) (void *), void *arg);
+void lithe_context_cleanup(lithe_context_t *context);
+lithe_context_t *lithe_context_self();
+int lithe_context_run(lithe_context_t *context);
+int lithe_context_block(void (*func) (lithe_context_t *, void *), void *arg);
+int lithe_context_unblock(lithe_context_t *context);
+void lithe_context_yield();
+void lithe_context_set_cls(lithe_context_t *context, void *cls);
+void *lithe_context_get_cls(lithe_context_t *context);</pre>
+</div>
+<dl class="function">
+<dt id="lithe_sched_enter">
+int <tt class="descname">lithe_sched_enter</tt><big>(</big><a class="reference internal" href="sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*child</em><big>)</big><a class="headerlink" href="#lithe_sched_enter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Passes control to a new child scheduler. The &#8216;funcs&#8217; field of the scheduler
+must already be set up properly or the call will fail. It hands the current
+hart over to this scheduler and then returns. To exit the child, a
+subsequent call to lithe_sched_exit() is needed. Only at this point will
+control be passed back to the parent scheduler. Returns -1 if there is an
+error and sets errno appropriately.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_sched_exit">
+int <tt class="descname">lithe_sched_exit</tt><big>(</big><big>)</big><a class="headerlink" href="#lithe_sched_exit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exits the current scheduler, returning control to its parent. Must be paired
+with a previous call to lithe_sched_enter(). Returns -1 if there is an error
+and sets errno appropriately.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_sched_current">
+<a class="reference internal" href="sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a> *<tt class="descname">lithe_sched_current</tt><big>(</big><big>)</big><a class="headerlink" href="#lithe_sched_current" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a pointer to the current scheduler. I.e. the pointer passed in
+when the scheduler was entered.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_hart_request">
+int <tt class="descname">lithe_hart_request</tt><big>(</big>int<em>&nbsp;k</em><big>)</big><a class="headerlink" href="#lithe_hart_request" title="Permalink to this definition">¶</a></dt>
+<dd><p>Request a specified number of harts from the parent. Note that the parent
+is free to make a request using the calling hart to their own parent if
+necessary. These harts will trickle in over time as they are granted to the
+requesting scheduler. Returns 0 on success and -1 on error.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_hart_grant">
+void <tt class="descname">lithe_hart_grant</tt><big>(</big><a class="reference internal" href="sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*child</em>, void (*unlock_func) (void<em>&nbsp;*)</em>, void<em>&nbsp;*lock</em><big>)</big><a class="headerlink" href="#lithe_hart_grant" title="Permalink to this definition">¶</a></dt>
+<dd><p>Grant the current hart to another scheduler.  Triggered by a previous call
+to lithe_hart_request() by a child scheduler. This function never returns.
+The &#8216;unlock_func()&#8217; and its corresponding &#8216;lock&#8217; parameter are passed in by
+a parent scheduler so that the lithe runtime can synchronize references to
+the child scheduler in the rare case that the child scheduler may currently
+be in the process of exiting. For example, the unlock function passed in
+should be the same one used to add/remove the child scheduler from a list in
+the parent scheduler.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_hart_yield">
+void <tt class="descname">lithe_hart_yield</tt><big>(</big><big>)</big><a class="headerlink" href="#lithe_hart_yield" title="Permalink to this definition">¶</a></dt>
+<dd><p>Yield current hart to parent scheduler. This function should
+never return.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_context_init">
+void <tt class="descname">lithe_context_init</tt><big>(</big><a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em>, void (*func) (void<em>&nbsp;*)</em>, void<em>&nbsp;*arg</em><big>)</big><a class="headerlink" href="#lithe_context_init" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize the proper lithe internal state for an existing context. The
+context parameter MUST already contain a valid stack pointer and stack size.
+This function MUST be paired with a call to lithe_context_cleanup() in order
+to properly cleanup the lithe internal state once the context is no longer
+usable.  To reinitialize a context with a new start function without calling
+lithe_context_cleanup() first, use lithe_context_reinit() instead.  Once the
+context is restarted it will run from the entry point specified.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_context_reinit">
+void <tt class="descname">lithe_context_reinit</tt><big>(</big><a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em>, void (*func) (void<em>&nbsp;*)</em>, void<em>&nbsp;*arg</em><big>)</big><a class="headerlink" href="#lithe_context_reinit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Used to reinitialize the lithe internal state for a context already
+initialized via lithe_context_cleanup().  Normally each call to
+lithe_context_init() must be paired with a call to lithe_context_cleanup()
+before the context can be reused for anything. The lithe_context_reinit()
+function allows you to reinitialize this context with a new start function
+any number of times before pairing it with lithe_context_cleanup(). Once the
+context is restarted it will run from the entry point specified.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_context_cleanup">
+void <tt class="descname">lithe_context_cleanup</tt><big>(</big><a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em><big>)</big><a class="headerlink" href="#lithe_context_cleanup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Cleanup an existing context. This context should NOT currently be running on
+any hart, though this is not enforced by the lithe runtime.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_context_self">
+<a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a> *<tt class="descname">lithe_context_self</tt><big>(</big><big>)</big><a class="headerlink" href="#lithe_context_self" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a pointer to the currently executing context.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_context_run">
+int <tt class="descname">lithe_context_run</tt><big>(</big><a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em><big>)</big><a class="headerlink" href="#lithe_context_run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run the specified context.  MUST only be run from hart context. Upon
+completion, the context is yielded, and must be either retasked for other
+use via lithe_context_reinit() or cleaned up via a call to
+lithe_context_cleanup().  This function never returns on success and returns
+-1 on error and sets errno appropriately.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_context_block">
+int <tt class="descname">lithe_context_block</tt><big>(</big>void (*func) (<a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*</em>, void<em>&nbsp;*)</em>, void<em>&nbsp;*arg</em><big>)</big><a class="headerlink" href="#lithe_context_block" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invoke the specified function with the current context and block that
+context. This function is useful for blocking a context and managing when to
+unblock it by some component other than the scheduler associated with this
+context.  The scheduler will recieve a callback notifying it that this
+context has blocked and should not be run. The scheduler will receive
+another callback later to notify it when this context has unblocked and can
+once again be resumed. Returns 0 on success (after the context has been
+resumed) and -1 on error and sets errno appropriately.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_context_unblock">
+int <tt class="descname">lithe_context_unblock</tt><big>(</big><a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em><big>)</big><a class="headerlink" href="#lithe_context_unblock" title="Permalink to this definition">¶</a></dt>
+<dd><p>Notifies the current scheduler that the specified context is now resumable.
+This chould only be called on contexts previously blocked via a call to
+lithe_context_block(). Returns 0 on success and -1 on error and sets errno
+appropriately.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_context_yield">
+void <tt class="descname">lithe_context_yield</tt><big>(</big><big>)</big><a class="headerlink" href="#lithe_context_yield" title="Permalink to this definition">¶</a></dt>
+<dd><p>Cooperatively yield the current context to the current scheduler.  The
+scheduler receives a callback notifiying it that the context has yielded and
+can decide from there when to resume it.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_context_set_cls">
+void <tt class="descname">lithe_context_set_cls</tt><big>(</big><a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em>, void<em>&nbsp;*cls</em><big>)</big><a class="headerlink" href="#lithe_context_set_cls" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the context local storage of the current context.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_context_get_cls">
+void *<tt class="descname">lithe_context_get_cls</tt><big>(</big><a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em><big>)</big><a class="headerlink" href="#lithe_context_get_cls" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the context local storage of the current context.</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="context.html" title="Lithe Contexts"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="api_reference.html" title="API Reference"
+             >previous</a> |</li>
+  <li><a href="index.html">Home</a>|&nbsp;</li>
+  <li><a href="download.html">Download</a>|&nbsp;</li>
+  <li><a href="tutorials.html">Tutorials</a>|&nbsp;</li>
+  <li><a href="api_reference.html">API Reference</a>|&nbsp;</li>
+  <li><a href="about.html">About</a>|&nbsp;</li>
+  <li><a href="search.html">Search</a>|&nbsp;</li>
+  <li><a href="sitemap.html">Sitemap</a>&raquo;</li>
+
+          <li><a href="api_reference.html" >API Reference</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2011, The Regents of the University of California.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>
