@@ -37,7 +37,7 @@ source_suffix = '.rst'
 #source_encoding = 'utf-8-sig'
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = 'sitemap'
 
 # General information about the project.
 project = u'Lithe'
@@ -183,7 +183,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'Lithe.tex', u'Lithe Documentation',
+  ('sitemap', 'Lithe.tex', u'Lithe Documentation',
    u'Kevin Klues, Ben Hindman, Heidi Pan,\\\\ Rimas Avizienis, Krste Asanovi\u0107', 'manual'),
 ]
 

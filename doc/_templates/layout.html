@@ -2,17 +2,25 @@
 
 {% block rootrellink %}
   <li><a href="{{ pathto('index') }}">Home</a>|&nbsp;</li>
-  <li><a href="{{ pathto('search') }}">Search</a>|&nbsp;</li>
+  <li><a href="{{ pathto('download') }}">Download</a>|&nbsp;</li>
+  <li><a href="{{ pathto('tutorials') }}">Tutorials</a>|&nbsp;</li>
+  <li><a href="{{ pathto('api_reference') }}">API Reference</a>|&nbsp;</li>
   <li><a href="{{ pathto('about') }}">About</a>|&nbsp;</li>
-  <li><a href="{{ pathto('contact') }}">Contact</a>|&nbsp;</li>
-  <li><a href="{{ pathto('contents') }}">Documentation </a> &raquo;</li>
+  <li><a href="{{ pathto('search') }}">Search</a>|&nbsp;</li>
+  <li><a href="{{ pathto('sitemap') }}">Sitemap</a>&raquo;</li>
 {% endblock %}
 
 {% block relbar1 %}
-<div style="background-color: white; text-align: left; padding: 10px 10px 15px 15px">
+<div style="background-color: white; text-align: left; padding: 10px 10px 0px 10px">
+<div style="float:left;">
 <a href="{{ pathto('index') }}">
   <img src="{{ pathto("_static/logo.png", 1) }}" border="0" alt="Lithe"/>
 </a>
+</div>
+<div style="position:relative; top:115px; float:right; font-size:20px;">
+<i>Enabling Efficient Composition of Parallel Libraries</i>
+</div>
+<div style="clear:both"></div>
 </div>
 {{ super() }}
 {% endblock %}
