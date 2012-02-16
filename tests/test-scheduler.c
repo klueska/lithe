@@ -47,10 +47,17 @@ static void test_run()
 {
   printf("Scheduler Started!\n");
   test_sched_t *sched = (test_sched_t*)lithe_sched_current();
+  unsigned int limit = limit_harts();
+  if(limit == 1) {
+    printf("ERROR: This simple test spins on one hart.\n");
+    printf("       Therefore, it requires at least 2 harts in order to run.\n");
+    printf("       Other tests in this suite are more sophisticated and should run just fine.\n");
+    printf("       Are you running this test on a machine with only 1 CPU?\n");
+    exit(1);
+  }
   for(int i=0; i<100; i++) {
-    unsigned int limit, cur;
+    unsigned int cur;
     do {
-      limit = limit_harts();
       cur = num_harts();
     } while(!(limit - cur));
     sched->counter = 0;
@@ -62,7 +69,6 @@ static void test_run()
     printf("Waiting for counter to reach: %d\n", (limit - cur));
     while(sched->counter < (limit - cur))
       cpu_relax();
-    printf("All harts returned\n");
   }
   printf("Scheduler finishing!\n");
 }

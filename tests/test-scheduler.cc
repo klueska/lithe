@@ -29,10 +29,17 @@ void test_run()
 {
   printf("TestScheduler Starting!\n");
   TestScheduler *sched = (TestScheduler*)lithe_sched_current();
+  unsigned int limit = limit_harts();
+  if(limit == 1) {
+    printf("ERROR: This simple test spins on one hart.\n");
+    printf("       It requires at least 2 harts in order to run.\n");
+    printf("       Other tests in this suite are more sophisticated and should run just fine.\n");
+    printf("       Are you running this on a machine with only 1 CPU?\n");
+    exit(1);
+  }
   for(int i=0; i<100; i++) {
-    unsigned int limit, cur;
+    unsigned int cur;
     do {
-      limit = limit_harts();
       cur = num_harts();
     } while(!(limit - cur));
     sched->counter = 0;
