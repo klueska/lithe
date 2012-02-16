@@ -82,6 +82,10 @@ AC_PREPROC_IFELSE(
 [STATIC_ONLY=true])
 AM_CONDITIONAL([STATIC_ONLY], [test x$STATIC_ONLY = xtrue])
 
+# Check if we have the sphinx documentation tool installed
+SPHINX_BUILD=`which sphinx-build`
+AM_CONDITIONAL([SPHINX_BUILD], [test x$SPHINX_BUILD != x])
+
 # Add parlib -L and -I directories into LDFLAGS and C/CXXFLAGS respectively,
 # if they are not install on the system already
 AC_ARG_WITH([parlib],

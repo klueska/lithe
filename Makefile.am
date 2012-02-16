@@ -86,6 +86,7 @@ test_scheduler_cc_CXXFLAGS = $(AM_CXXFLAGS)
 test_scheduler_cc_CXXFLAGS += -I$(SRCDIR)
 test_scheduler_cc_LDADD = -lithe
 
+if SPHINX_BUILD
 man_MANS = \
   doc/man/$(LIBNAME).1
 
@@ -142,12 +143,6 @@ doc: \
   $(abs_builddir)/doc/texinfo/$(CAP_LIBNAME).info \
   $(abs_builddir)/doc/latex/$(CAP_LIBNAME).pdf
 
-ChangeLog:
-	cd $(srcdir); \
-	if [ -f git-changelog.sh ]; then \
-	  ./git-changelog.sh; \
-	fi;
-
 clean-local:
 	rm -rf doc
 
@@ -158,6 +153,13 @@ install-data-hook: doc
 	cp -r $(abs_builddir)/doc/singlehtml $(docdir)
 	cp -r $(abs_builddir)/doc/texinfo/$(CAP_LIBNAME).info $(infodir)
 	cp -r $(abs_builddir)/doc/latex/$(CAP_LIBNAME).pdf $(docdir)
+endif
+
+ChangeLog:
+	cd $(srcdir); \
+	if [ -f git-changelog.sh ]; then \
+	  ./git-changelog.sh; \
+	fi;
 
 uninstall-hook:
 	rm -rf $(litheincdir)
