@@ -476,8 +476,10 @@ int lithe_hart_request(int k)
 
 static void __lithe_context_run()
 {
+  assert(current_context);
+  assert(current_context->start_func);
   current_context->start_func(current_context->arg);
-  current_context->state = CONTEXT_FINISHED;
+  safe_get_tls_var(current_context)->state = CONTEXT_FINISHED;
   uthread_yield(false);
 }
 
@@ -598,7 +600,7 @@ int lithe_context_block(void (*func) (lithe_context_t *, void *), void *arg)
   vcore_set_tls_var(next_func, &real_func);
   current_context->state = CONTEXT_BLOCKED;
   uthread_yield(true);
-  current_context->state = CONTEXT_READY;
+  safe_get_tls_var(current_context)->state = CONTEXT_READY;
   return 0;
 }
 
@@ -616,7 +618,7 @@ void lithe_context_yield()
   assert(current_context);
   current_context->state = CONTEXT_YIELDED;
   uthread_yield(true);
-  current_context->state = CONTEXT_READY;
+  safe_get_tls_var(current_context)->state = CONTEXT_READY;
 }
 
 void lithe_context_set_cls(lithe_context_t *context, void *cls) 
