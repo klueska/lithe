@@ -44,9 +44,11 @@ libithe_la_CFLAGS = $(AM_CFLAGS)
 libithe_la_CXXFLAGS = $(AM_CXXFLAGS)
 libithe_la_SOURCES = $(LIB_CFILES) $(LIB_HFILES)
 libithe_la_SOURCES += $(LIB_CXXFILES) $(LIB_HHFILES)
-libithe_la_LIBADD = -lparlib
 if STATIC_ONLY 
+libithe_la_LIBADD = -lparlib -lpthread
 libithe_la_LDFLAGS = -all-static 
+else
+libithe_la_LIBADD = -lparlib
 endif 
 
 # Setup a directory where all of the include files will be installed
