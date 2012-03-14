@@ -112,7 +112,7 @@ RootScheduler::RootScheduler()
 int RootScheduler::hart_request(lithe_sched_t *child, int k)
 {
   printf("RootScheduler::hart_request\n");
-  sched_hart_request_t *req = (sched_hart_request_t*)malloc(sizeof(sched_hart_request_t));
+  sched_hart_request_t *req = (sched_hart_request_t*)new char[sizeof(sched_hart_request_t)];
   req->sched = child;
   req->num_harts = k;
   mcs_lock_qnode_t qnode = {0};
@@ -187,7 +187,7 @@ void RootScheduler::hart_enter()
       req->num_harts--;
       if(req->num_harts == 0) {
         LIST_REMOVE(req, link);
-        free(req);
+        delete req;
       }
       struct {
         mcs_lock_t *lock;

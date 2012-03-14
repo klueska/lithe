@@ -8,6 +8,7 @@ SRCDIR = $(srcdir)/@SRCDIR@
 
 LIB_CFILES = \
   @SRCDIR@/fatal.c         \
+  @SRCDIR@/defaults.c      \
   @SRCDIR@/lithe_barrier.c \
   @SRCDIR@/lithe.c         \
   @SRCDIR@/lithe_mutex.c

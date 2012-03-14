@@ -2,10 +2,10 @@
 #include <unistd.h>
 
 #include <parlib/mcs.h>
-#include "lithe.h"
-#include "defaults.h"
-#include "lithe_mutex.h"
-#include "fatal.h"
+#include <src/lithe.h>
+#include <src/defaults.h>
+#include <src/lithe_mutex.h>
+#include <src/fatal.h>
 
 /* The root scheduler itself */
 typedef struct root_sched {
