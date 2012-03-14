@@ -2,10 +2,10 @@
 #include <unistd.h>
 
 #include <parlib/mcs.h>
-#include "lithe.hh"
-#include "defaults.h"
-#include "lithe_mutex.h"
-#include "fatal.h"
+#include <src/lithe.hh>
+#include <src/defaults.h>
+#include <src/lithe_mutex.h>
+#include <src/fatal.h>
 
 using namespace lithe;
 

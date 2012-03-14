@@ -2,8 +2,8 @@
 #include <unistd.h>
 
 #include <parlib/parlib.h>
-#include "lithe.h"
-#include "defaults.h"
+#include <src/lithe.h>
+#include <src/defaults.h>
 
 typedef struct test_sched {
   lithe_sched_t sched;

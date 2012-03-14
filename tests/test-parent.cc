@@ -6,9 +6,9 @@
 #include <parlib/parlib.h>
 #include <parlib/mcs.h>
 #include <parlib/queue.h>
-#include "lithe.hh"
-#include "deque.h"
-#include "defaults.h"
+#include <src/lithe.hh>
+#include <src/deque.h>
+#include <src/defaults.h>
 
 using namespace lithe;
 

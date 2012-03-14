@@ -2,7 +2,7 @@
 #include <unistd.h>
 
 #include <parlib/parlib.h>
-#include "lithe.hh"
+#include <src/lithe.hh>
 
 using namespace lithe;
 
