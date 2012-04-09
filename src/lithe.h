@@ -16,6 +16,7 @@
 #endif
 
 #include <stdarg.h>
+#include <parlib/parlib.h>
 #include "sched.h"
 #include "context.h"
 #include "hart.h"

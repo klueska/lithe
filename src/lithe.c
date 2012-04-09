@@ -237,6 +237,8 @@ static void base_hart_return(lithe_sched_t *__this, lithe_sched_t *sched)
   __sync_fetch_and_add(&base_sched.harts, -1);
   memset(&lithe_tls, 0, sizeof(lithe_tls));
   vcore_yield(false);
+  /* I should ONLY get here if vcore_yield() decided to return for some reason */
+  lithe_vcore_entry();
 }
 
 static void base_child_entered(lithe_sched_t *__this, lithe_sched_t *sched)
@@ -373,7 +375,8 @@ int lithe_sched_enter(lithe_sched_t *child)
   __lithe_context_init(child_context, child);
 
   /* Hijack the current context with the newly created one. */
-  set_current_uthread(&child_context->uth);
+  highjack_current_uthread(&child_context->uth);
+  printf("current_uthread->state: %d\n", (current_context->uth).state);
 
   /* Set up a function to run in vcore context to inform the parent that the
    * child has taken over */
@@ -439,7 +442,7 @@ int lithe_sched_exit()
 
   /* Hijack the current context so that the yield point below will save the
    * current context into the parent context */
-  set_current_uthread(&current_sched->parent_context->uth);
+  highjack_current_uthread(&current_sched->parent_context->uth);
 
   /* Set ourselves up to jump to vcore context and run __lithe_sched_exit() */
   struct { 

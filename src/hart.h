@@ -21,7 +21,7 @@ static inline int hart_id(void)
 }
 
 /**
- * Returns the current number of vcores allocated.
+ * Returns the current number of harts allocated.
  */
 static inline size_t num_harts(void)
 {
@@ -29,19 +29,11 @@ static inline size_t num_harts(void)
 }
 
 /**
- * Returns the maximum number of vcores requested.
+ * Returns the maximum number of harts ever able to be allocated.
  */
 static inline size_t max_harts(void)
 {
 	return max_vcores();
-}
-
-/**
- * Returns the limit of allocatable vcores.
- */
-static inline size_t limit_harts(void)
-{
-	return limit_vcores();
 }
 
 #define hart_set_tls_var(name, val) \

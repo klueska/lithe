@@ -47,7 +47,7 @@ static void test_run()
 {
   printf("Scheduler Started!\n");
   test_sched_t *sched = (test_sched_t*)lithe_sched_current();
-  unsigned int limit = limit_harts();
+  unsigned int limit = max_harts();
   if(limit == 1) {
     printf("ERROR: This simple test spins on one hart.\n");
     printf("       Therefore, it requires at least 2 harts in order to run.\n");
@@ -62,7 +62,7 @@ static void test_run()
     } while(!(limit - cur));
     sched->counter = 0;
     printf("counter: %d\n", sched->counter);
-    printf("limit_harts: %d\n", limit);
+    printf("max_harts: %d\n", limit);
     printf("num_harts: %d\n", cur);
     printf("Requesting harts\n");
     lithe_hart_request(limit - cur);

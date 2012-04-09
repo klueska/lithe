@@ -5,7 +5,7 @@
 
 #include <parlib/parlib.h>
 #include <parlib/mcs.h>
-#include <parlib/queue.h>
+#include <sys/queue.h>
 #include <src/lithe.hh>
 #include <src/deque.h>
 #include <src/defaults.h>
@@ -234,7 +234,7 @@ static void root_run()
   RootScheduler *sched = (RootScheduler*)lithe_sched_current();
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->lock, &qnode);
-    lithe_hart_request(limit_harts());
+    lithe_hart_request(max_harts());
     sched->harts = num_harts();
     sched->children_expected = sched->harts;
     printf("children_expected: %d\n", sched->children_expected);
