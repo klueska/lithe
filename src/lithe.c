@@ -227,7 +227,8 @@ static void lithe_thread_yield(uthread_t *uthread)
 
 static void base_hart_enter(lithe_sched_t *__this)
 {
-  assert(root_sched != NULL);
+  if(root_sched == NULL)
+    vcore_yield(false);
   lithe_hart_grant(root_sched, NULL, NULL);
 }
 
@@ -376,7 +377,6 @@ int lithe_sched_enter(lithe_sched_t *child)
 
   /* Hijack the current context with the newly created one. */
   highjack_current_uthread(&child_context->uth);
-  printf("current_uthread->state: %d\n", (current_context->uth).state);
 
   /* Set up a function to run in vcore context to inform the parent that the
    * child has taken over */
