@@ -100,6 +100,7 @@ typedef struct root_sched {
   int children_finished;
   sched_hart_request_list_t needy_children;
   lithe_context_t *start_context;
+  bool complete;
 } root_sched_t;
 
 int root_hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
@@ -130,6 +131,7 @@ static void root_sched_ctor(root_sched_t *sched)
   sched->children_finished = 0;
   LIST_INIT(&sched->needy_children);
   sched->start_context = NULL;
+  sched->complete = FALSE;
 }
 
 static void root_sched_dtor(root_sched_t *sched)
@@ -205,6 +207,7 @@ static void root_hart_enter(lithe_sched_t *__sched)
     STATE_GRANT,
     STATE_YIELD,
     STATE_COMPLETE,
+    STATE_OVERFLOW,
   };
 
   uint8_t state = 0;
@@ -231,8 +234,12 @@ static void root_hart_enter(lithe_sched_t *__sched)
       sched->harts--;
       state = STATE_YIELD;
     }
-    else
+    else if(!sched->complete) {
+      sched->complete = TRUE;
       state = STATE_COMPLETE;
+    }
+    else
+      state = STATE_OVERFLOW;
   mcs_lock_unlock(&sched->lock, &qnode);
 
   switch(state) {
@@ -242,12 +249,12 @@ static void root_hart_enter(lithe_sched_t *__sched)
       lithe_context_run(context);
       break;
     }
-    case STATE_YIELD: {
-      lithe_hart_yield();
-      break;
-    }
     case STATE_COMPLETE: {
       lithe_context_unblock(sched->start_context);
+      break;
+    }
+    default: {
+      lithe_hart_yield();
       break;
     }
   }
@@ -266,7 +273,7 @@ static void root_run()
   root_sched_t *sched = (root_sched_t*)lithe_sched_current();
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->lock, &qnode);
-    lithe_hart_request(max_harts());
+    lithe_hart_request(max_harts()-num_harts());
     sched->harts = num_harts();
     sched->children_expected = sched->harts;
     printf("children_expected: %d\n", sched->children_expected);

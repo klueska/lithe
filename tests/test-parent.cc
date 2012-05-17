@@ -94,6 +94,7 @@ class RootScheduler : public Scheduler {
   int children_finished;
   sched_hart_request_list_t needy_children;
   lithe_context_t *start_context;
+  bool complete;
 
   RootScheduler();
   ~RootScheduler() {}
@@ -107,6 +108,7 @@ RootScheduler::RootScheduler()
   this->children_finished = 0;
   LIST_INIT(&this->needy_children);
   this->start_context = NULL;
+  this->complete = FALSE;
 }
 
 int RootScheduler::hart_request(lithe_sched_t *child, int k)
@@ -173,6 +175,7 @@ void RootScheduler::hart_enter()
     STATE_GRANT,
     STATE_YIELD,
     STATE_COMPLETE,
+    STATE_OVERFLOW,
   };
 
   uint8_t state = 0;
@@ -199,8 +202,12 @@ void RootScheduler::hart_enter()
       this->harts--;
       state = STATE_YIELD;
     }
-    else
+    else if(!this->complete) {
+      this->complete = TRUE;
       state = STATE_COMPLETE;
+    }
+    else
+      state = STATE_OVERFLOW;
   mcs_lock_unlock(&this->lock, &qnode);
 
   switch(state) {
@@ -210,12 +217,12 @@ void RootScheduler::hart_enter()
       lithe_context_run(context);
       break;
     }
-    case STATE_YIELD: {
-      lithe_hart_yield();
-      break;
-    }
     case STATE_COMPLETE: {
       lithe_context_unblock(this->start_context);
+      break;
+    }
+    default: {
+      lithe_hart_yield();
       break;
     }
   }
@@ -234,7 +241,7 @@ static void root_run()
   RootScheduler *sched = (RootScheduler*)lithe_sched_current();
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->lock, &qnode);
-    lithe_hart_request(max_harts());
+    lithe_hart_request(max_harts()-num_harts());
     sched->harts = num_harts();
     sched->children_expected = sched->harts;
     printf("children_expected: %d\n", sched->children_expected);
