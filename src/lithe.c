@@ -34,13 +34,11 @@ typedef struct lithe_vcore_func {
 /* Hooks from uthread code into lithe */
 static void         lithe_vcore_entry(void);
 static void         lithe_thread_runnable(uthread_t *uthread);
-static void         lithe_thread_yield(uthread_t *uthread);
 
 /* Unique function pointer table required by uthread code */
 struct schedule_ops lithe_sched_ops = {
   .sched_entry      = lithe_vcore_entry,
   .thread_runnable  = lithe_thread_runnable,
-  .thread_yield     = lithe_thread_yield,
   .preempt_pending  = NULL, /* lithe_preempt_pending, */
   .spawn_thread     = NULL, /* lithe_spawn_thread, */
 };
@@ -102,6 +100,8 @@ static __thread struct {
 
 /* Helper function for initializing the barebones of a lithe context */
 static inline void __lithe_context_init(lithe_context_t *context, lithe_sched_t *sched);
+/* Helper function for determining which state to resume from after yielding */
+static void __lithe_context_yield(uthread_t *uthread, void *arg);
 
 static int __attribute__((constructor)) lithe_lib_init()
 {
@@ -200,29 +200,6 @@ static void lithe_thread_runnable(uthread_t *uthread)
 
   lithe_context_t *context = (lithe_context_t*)uthread;
   current_sched->funcs->context_unblock(current_sched, context);
-}
-
-static void lithe_thread_yield(uthread_t *uthread)
-{
-  assert(uthread);
-  assert(current_sched);
-  assert(in_vcore_context());
-
-  lithe_context_t *context = (lithe_context_t*)uthread;
-  if(context->state == CONTEXT_BLOCKED) {
-    assert(current_sched->funcs->context_block);
-    current_sched->funcs->context_block(current_sched, context);
-  }
-  else if(context->state == CONTEXT_FINISHED) {
-    assert(current_sched->funcs->context_exit);
-    current_sched->funcs->context_exit(current_sched, context);
-  }
-  else if(context->state == CONTEXT_YIELDED) {
-    assert(current_sched->funcs->context_yield);
-    current_sched->funcs->context_yield(current_sched, context);
-  }
-  /* Otherwise, just fall through, we have yielded internally for some reasone
-   * and don't want to notify the scheduler */
 }
 
 static void base_hart_enter(lithe_sched_t *__this)
@@ -391,7 +368,7 @@ int lithe_sched_enter(lithe_sched_t *child)
   /* Yield this context to vcore context to run the function we just set up. Once
    * we return from the yield we will be fully inside the child scheduler
    * running the child context. */
-  uthread_yield(true);
+  uthread_yield(true, __lithe_context_yield, NULL);
   return 0;
 }
 
@@ -456,7 +433,7 @@ int lithe_sched_exit()
   /* Yield this context to vcore context to run the function we just set up. Once
    * we return from the yield we will be fully back in the parent scheduler
    * running the original parent context. */
-  uthread_yield(true);
+  uthread_yield(true, __lithe_context_yield, NULL);
 
   /* Cleanup the child context we initialized in lithe_sched_entry() */
   lithe_context_cleanup(child_context);
@@ -477,13 +454,13 @@ int lithe_hart_request(int k)
   return ret;
 }
 
-static void __lithe_context_run()
+static void __lithe_context_start()
 {
   assert(current_context);
   assert(current_context->start_func);
   current_context->start_func(current_context->arg);
   safe_get_tls_var(current_context)->state = CONTEXT_FINISHED;
-  uthread_yield(false);
+  uthread_yield(false, __lithe_context_yield, NULL);
 }
 
 static inline void __lithe_context_fields_init(lithe_context_t *context, lithe_sched_t *sched)
@@ -521,7 +498,7 @@ static inline void __lithe_context_set_entry(lithe_context_t *context,
 
   context->start_func = func;
   context->arg = arg;
-  init_uthread_tf(&context->uth, __lithe_context_run, 
+  init_uthread_tf(&context->uth, __lithe_context_start, 
                   context->stack.bottom, context->stack.size);
 }
 
@@ -602,7 +579,7 @@ int lithe_context_block(void (*func) (lithe_context_t *, void *), void *arg)
 
   vcore_set_tls_var(next_func, &real_func);
   current_context->state = CONTEXT_BLOCKED;
-  uthread_yield(true);
+  uthread_yield(true, __lithe_context_yield, NULL);
   safe_get_tls_var(current_context)->state = CONTEXT_READY;
   return 0;
 }
@@ -614,13 +591,36 @@ int lithe_context_unblock(lithe_context_t *context)
   return 0;
 }
 
+static void __lithe_context_yield(uthread_t *uthread, void *arg)
+{
+  assert(uthread);
+  assert(current_sched);
+  assert(in_vcore_context());
+
+  lithe_context_t *context = (lithe_context_t*)uthread;
+  if(context->state == CONTEXT_BLOCKED) {
+    assert(current_sched->funcs->context_block);
+    current_sched->funcs->context_block(current_sched, context);
+  }
+  else if(context->state == CONTEXT_FINISHED) {
+    assert(current_sched->funcs->context_exit);
+    current_sched->funcs->context_exit(current_sched, context);
+  }
+  else if(context->state == CONTEXT_YIELDED) {
+    assert(current_sched->funcs->context_yield);
+    current_sched->funcs->context_yield(current_sched, context);
+  }
+  /* Otherwise, just fall through, we have yielded internally for some reason
+   * and don't want to notify the scheduler */
+}
+
 void lithe_context_yield()
 {
   assert(!in_vcore_context());
   assert(current_sched);
   assert(current_context);
   current_context->state = CONTEXT_YIELDED;
-  uthread_yield(true);
+  uthread_yield(true, __lithe_context_yield, NULL);
   safe_get_tls_var(current_context)->state = CONTEXT_READY;
 }
 
