@@ -62,32 +62,32 @@ check_PROGRAMS = $(TEST_EXECS)
 test_mutex_SOURCES = @TESTSDIR@/test-mutex.c
 test_mutex_CFLAGS = $(AM_CFLAGS)
 test_mutex_CFLAGS += -I$(srcdir)
-test_mutex_LDADD = -lithe
+test_mutex_LDADD = -lithe -lparlib
 
 test_parent_SOURCES = @TESTSDIR@/test-parent.c
 test_parent_CFLAGS = $(AM_CFLAGS)
 test_parent_CFLAGS += -I$(srcdir)
-test_parent_LDADD = -lithe
+test_parent_LDADD = -lithe -lparlib
 
 test_scheduler_SOURCES = @TESTSDIR@/test-scheduler.c
 test_scheduler_CFLAGS = $(AM_CFLAGS)
 test_scheduler_CFLAGS += -I$(srcdir)
-test_scheduler_LDADD = -lithe
+test_scheduler_LDADD = -lithe -lparlib
 
 test_mutex_cc_SOURCES = @TESTSDIR@/test-mutex.cc
 test_mutex_cc_CXXFLAGS = $(AM_CXXFLAGS)
 test_mutex_cc_CXXFLAGS += -I$(srcdir)
-test_mutex_cc_LDADD = -lithe
+test_mutex_cc_LDADD = -lithe -lparlib
 
 test_parent_cc_SOURCES = @TESTSDIR@/test-parent.cc
 test_parent_cc_CXXFLAGS = $(AM_CXXFLAGS)
 test_parent_cc_CXXFLAGS += -I$(srcdir)
-test_parent_cc_LDADD = -lithe
+test_parent_cc_LDADD = -lithe -lparlib
 
 test_scheduler_cc_SOURCES = @TESTSDIR@/test-scheduler.cc
 test_scheduler_cc_CXXFLAGS = $(AM_CXXFLAGS)
 test_scheduler_cc_CXXFLAGS += -I$(srcdir)
-test_scheduler_cc_LDADD = -lithe
+test_scheduler_cc_LDADD = -lithe -lparlib
 
 if SPHINX_BUILD
 man_MANS = \
