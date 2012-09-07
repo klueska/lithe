@@ -31,6 +31,9 @@ typedef struct lithe_mutex {
 /* Initialize a mutex. */
 int lithe_mutex_init(lithe_mutex_t *mutex);
 
+/* Try and lock a mutex. */
+int lithe_mutex_trylock(lithe_mutex_t *mutex);
+
 /* Lock a mutex. */
 int lithe_mutex_lock(lithe_mutex_t *mutex);
 

@@ -43,6 +43,24 @@ void block(lithe_context_t *context, void *arg)
   mcs_lock_unlock(&mutex->lock, mutex->qnode);
 }
 
+int lithe_mutex_trylock(lithe_mutex_t *mutex)
+{
+  if (mutex == NULL) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  int retval = 0;
+  mcs_lock_qnode_t qnode = {0};
+  mcs_lock_lock(&mutex->lock, &qnode);
+  if (mutex->locked)
+    retval = -1;
+  else
+    mutex->locked = true;
+  mcs_lock_unlock(&mutex->lock, &qnode);
+  return retval;
+}
+
 int lithe_mutex_lock(lithe_mutex_t *mutex)
 {
   if (mutex == NULL) {
