@@ -9,9 +9,9 @@ SRCDIR = $(srcdir)/@SRCDIR@
 LIB_CFILES = \
   @SRCDIR@/fatal.c         \
   @SRCDIR@/defaults.c      \
-  @SRCDIR@/lithe_barrier.c \
+  @SRCDIR@/barrier.c \
   @SRCDIR@/lithe.c         \
-  @SRCDIR@/lithe_mutex.c
+  @SRCDIR@/mutex.c
 
 LIB_CXXFILES = \
   @SRCDIR@/sched.cc
@@ -22,8 +22,8 @@ LIB_HFILES = \
   @SRCDIR@/deque.h         \
   @SRCDIR@/fatal.h         \
   @SRCDIR@/hart.h          \
-  @SRCDIR@/lithe_barrier.h \
-  @SRCDIR@/lithe_mutex.h   \
+  @SRCDIR@/barrier.h \
+  @SRCDIR@/mutex.h   \
   @SRCDIR@/lithe.h         \
   @SRCDIR@/sched.h
 

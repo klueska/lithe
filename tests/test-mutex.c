@@ -4,7 +4,7 @@
 #include <parlib/mcs.h>
 #include <src/lithe.h>
 #include <src/defaults.h>
-#include <src/lithe_mutex.h>
+#include <src/mutex.h>
 #include <src/fatal.h>
 
 /* The root scheduler itself */

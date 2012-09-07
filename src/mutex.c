@@ -15,7 +15,7 @@
 
 #include <parlib/parlib.h>
 #include <parlib/mcs.h>
-#include "lithe_mutex.h"
+#include "mutex.h"
 
 
 DEFINE_TYPED_DEQUE(context, lithe_context_t *);

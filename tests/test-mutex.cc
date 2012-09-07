@@ -4,7 +4,7 @@
 #include <parlib/mcs.h>
 #include <src/lithe.hh>
 #include <src/defaults.h>
-#include <src/lithe_mutex.h>
+#include <src/mutex.h>
 #include <src/fatal.h>
 
 using namespace lithe;
