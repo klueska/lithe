@@ -11,6 +11,7 @@ LIB_CFILES = \
   @SRCDIR@/defaults.c      \
   @SRCDIR@/barrier.c \
   @SRCDIR@/lithe.c         \
+  @SRCDIR@/condvar.c         \
   @SRCDIR@/mutex.c
 
 LIB_CXXFILES = \
@@ -23,6 +24,7 @@ LIB_HFILES = \
   @SRCDIR@/fatal.h         \
   @SRCDIR@/hart.h          \
   @SRCDIR@/barrier.h \
+  @SRCDIR@/condvar.h   \
   @SRCDIR@/mutex.h   \
   @SRCDIR@/lithe.h         \
   @SRCDIR@/sched.h
@@ -33,9 +35,11 @@ LIB_HHFILES = \
 
 TEST_EXECS = \
   test_mutex        \
+  test_condvar        \
   test_parent       \
   test_scheduler    \
   test_mutex_cc     \
+  test_condvar_cc     \
   test_parent_cc    \
   test_scheduler_cc
 
@@ -64,6 +68,11 @@ test_mutex_CFLAGS = $(AM_CFLAGS)
 test_mutex_CFLAGS += -I$(srcdir)
 test_mutex_LDADD = -lithe -lparlib
 
+test_condvar_SOURCES = @TESTSDIR@/test-condvar.c
+test_condvar_CFLAGS = $(AM_CFLAGS)
+test_condvar_CFLAGS += -I$(srcdir)
+test_condvar_LDADD = -lithe -lparlib
+
 test_parent_SOURCES = @TESTSDIR@/test-parent.c
 test_parent_CFLAGS = $(AM_CFLAGS)
 test_parent_CFLAGS += -I$(srcdir)
@@ -78,6 +87,11 @@ test_mutex_cc_SOURCES = @TESTSDIR@/test-mutex.cc
 test_mutex_cc_CXXFLAGS = $(AM_CXXFLAGS)
 test_mutex_cc_CXXFLAGS += -I$(srcdir)
 test_mutex_cc_LDADD = -lithe -lparlib
+
+test_condvar_cc_SOURCES = @TESTSDIR@/test-condvar.cc
+test_condvar_cc_CXXFLAGS = $(AM_CXXFLAGS)
+test_condvar_cc_CXXFLAGS += -I$(srcdir)
+test_condvar_cc_LDADD = -lithe -lparlib
 
 test_parent_cc_SOURCES = @TESTSDIR@/test-parent.cc
 test_parent_cc_CXXFLAGS = $(AM_CXXFLAGS)
