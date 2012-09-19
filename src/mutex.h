@@ -13,19 +13,16 @@
 
 #include <parlib/mcs.h>
 #include "lithe.h"
-#include "deque.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-DECLARE_TYPED_DEQUE(context, lithe_context_t *);
-
 typedef struct lithe_mutex {
   mcs_lock_t lock;
   mcs_lock_qnode_t *qnode;
   int locked;
-  struct context_deque deque;
+  struct lithe_context_deque deque;
 } lithe_mutex_t;
 
 /* Initialize a mutex. */

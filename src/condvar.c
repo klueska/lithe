@@ -19,13 +19,13 @@
 /* Initialize a condition variable. */
 void lithe_condvar_init(lithe_condvar_t* c) {
   mcs_lock_init(&c->lock);
-  context_deque_init(&c->queue);
+  lithe_context_deque_init(&c->queue);
 }
 
 static void block(lithe_context_t *context, void *arg)
 {
   lithe_condvar_t *condvar = (lithe_condvar_t *) arg;
-  context_deque_enqueue(&condvar->queue, context);
+  lithe_context_deque_enqueue(&condvar->queue, context);
   lithe_mutex_unlock(condvar->waiting_mutex);
   mcs_lock_unlock(&condvar->lock, condvar->waiting_qnode);
 }
@@ -46,8 +46,8 @@ void lithe_condvar_signal(lithe_condvar_t* c) {
 
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&c->lock, &qnode);
-  if (context_deque_length(&c->queue) > 0) {
-    context_deque_dequeue(&c->queue, &context);
+  if (lithe_context_deque_length(&c->queue) > 0) {
+    lithe_context_deque_dequeue(&c->queue, &context);
   }
   mcs_lock_unlock(&c->lock, &qnode);
 
@@ -63,8 +63,8 @@ void lithe_condvar_broadcast(lithe_condvar_t* c) {
   mcs_lock_qnode_t qnode = {0};
   while(1) {
     mcs_lock_lock(&c->lock, &qnode);
-    if (context_deque_length(&c->queue) > 0) {
-      context_deque_dequeue(&c->queue, &context);
+    if (lithe_context_deque_length(&c->queue) > 0) {
+      lithe_context_deque_dequeue(&c->queue, &context);
     }
     else break;
     mcs_lock_unlock(&c->lock, &qnode);

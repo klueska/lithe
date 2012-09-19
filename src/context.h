@@ -11,10 +11,16 @@
 
 #include <stdarg.h>
 #include <parlib/uthread.h>
+#include "deque.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* Declare types and functions for maintaining a queue of lithe contexts */
+struct lithe_context;
+typedef struct lithe_context lithe_context_t;
+DECLARE_TYPED_DEQUE(lithe_context, lithe_context_t *);
 
 enum {
   CONTEXT_READY,
@@ -36,7 +42,7 @@ struct lithe_sched;
 /* Basic lithe context structure.  All derived scheduler contexts MUST have this as
  * their first field so that they can be cast properly within the lithe
  * scheduler. */
-typedef struct lithe_context {
+struct lithe_context {
   /* Userlevel thread context. */
   uthread_t uth;
 
@@ -58,7 +64,7 @@ typedef struct lithe_context {
   /* State used internally by the lithe runtime to manage contexts */
   size_t state;
 
-} lithe_context_t;
+};
 
 #ifdef __cplusplus
 }

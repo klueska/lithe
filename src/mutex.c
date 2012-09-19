@@ -17,9 +17,6 @@
 #include <parlib/mcs.h>
 #include "mutex.h"
 
-
-DEFINE_TYPED_DEQUE(context, lithe_context_t *);
-
 int lithe_mutex_init(lithe_mutex_t *mutex)
 {
   if (mutex == NULL) {
@@ -30,7 +27,7 @@ int lithe_mutex_init(lithe_mutex_t *mutex)
   /* Do initialization. */
   mcs_lock_init(&mutex->lock);
   mutex->locked = false;
-  context_deque_init(&mutex->deque);
+  lithe_context_deque_init(&mutex->deque);
 
   return 0;
 }
@@ -39,7 +36,7 @@ int lithe_mutex_init(lithe_mutex_t *mutex)
 void block(lithe_context_t *context, void *arg)
 {
   lithe_mutex_t *mutex = (lithe_mutex_t *) arg;
-  context_deque_enqueue(&mutex->deque, context);
+  lithe_context_deque_enqueue(&mutex->deque, context);
   mcs_lock_unlock(&mutex->lock, mutex->qnode);
 }
 
@@ -99,8 +96,8 @@ int lithe_mutex_unlock(lithe_mutex_t *mutex)
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&mutex->lock, &qnode);
   {
-    if (context_deque_length(&mutex->deque) > 0) {
-      context_deque_dequeue(&mutex->deque, &context);
+    if (lithe_context_deque_length(&mutex->deque) > 0) {
+      lithe_context_deque_dequeue(&mutex->deque, &context);
     }
     mutex->locked = false;
   }

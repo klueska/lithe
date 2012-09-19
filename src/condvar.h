@@ -22,7 +22,7 @@ typedef struct lithe_condvar {
   mcs_lock_t lock;
   mcs_lock_qnode_t *waiting_qnode;
   lithe_mutex_t *waiting_mutex;
-  struct context_deque queue;
+  struct lithe_context_deque queue;
 } lithe_condvar_t;
 
 /* Initialize a condition variable. */
