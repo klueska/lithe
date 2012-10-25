@@ -29,7 +29,7 @@ class RootScheduler : public Scheduler {
 RootScheduler::RootScheduler()
 {  
   this->context_count = 0;
-  lithe_mutex_init(&this->mutex);
+  lithe_mutex_init(&this->mutex, NULL);
   mcs_lock_init(&this->qlock);
   lithe_context_deque_init(&this->contextq);
 }
@@ -87,7 +87,7 @@ void work(void *arg)
   lithe_mutex_unlock(&sched->mutex);
 }
 
-void root_run(int context_count)
+void root_run(unsigned int context_count)
 {
   printf("root_run start\n");
   /* Create a bunch of worker contexts */

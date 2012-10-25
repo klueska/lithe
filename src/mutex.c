@@ -17,23 +17,50 @@
 #include <parlib/mcs.h>
 #include "mutex.h"
 
-int lithe_mutex_init(lithe_mutex_t *mutex)
+int lithe_mutexattr_init(lithe_mutexattr_t *attr)
 {
-  if (mutex == NULL) {
-    errno = EINVAL;
-    return -1;
-  }
+  if(attr == NULL)
+    return EINVAL;
+  attr->type = LITHE_MUTEX_DEFAULT;
+}
 
-  /* Do initialization. */
-  mcs_lock_init(&mutex->lock);
-  mutex->locked = false;
-  lithe_context_deque_init(&mutex->deque);
-
+int lithe_mutexattr_settype(lithe_mutexattr_t *attr, int type)
+{
+  if(attr == NULL)
+    return EINVAL;
+  if(type >= NUM_LITHE_MUTEX_TYPES)
+	return EINVAL;
+  attr->type = type;
   return 0;
 }
 
+int lithe_mutexattr_gettype(lithe_mutexattr_t *attr, int *type)
+{
+  if(attr == NULL)
+    return EINVAL;
+  *type = attr->type;
+  return 0;
+}
 
-void block(lithe_context_t *context, void *arg)
+int lithe_mutex_init(lithe_mutex_t *mutex, lithe_mutexattr_t *attr)
+{
+  if(mutex == NULL)
+    return EINVAL;
+  if(attr == NULL)
+    lithe_mutexattr_init(&mutex->attr);
+  else
+    mutex->attr = *attr;
+
+  /* Do initialization. */
+  mcs_lock_init(&mutex->lock);
+  mutex->qnode = NULL;
+  mutex->locked = 0;
+  lithe_context_deque_init(&mutex->deque);
+  mutex->owner = NULL;
+  return 0;
+}
+
+static void block(lithe_context_t *context, void *arg)
 {
   lithe_mutex_t *mutex = (lithe_mutex_t *) arg;
   lithe_context_deque_enqueue(&mutex->deque, context);
@@ -42,70 +69,77 @@ void block(lithe_context_t *context, void *arg)
 
 int lithe_mutex_trylock(lithe_mutex_t *mutex)
 {
-  if (mutex == NULL) {
-    errno = EINVAL;
-    return -1;
-  }
+  if(mutex == NULL)
+    return EINVAL;
 
   int retval = 0;
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&mutex->lock, &qnode);
-  if (mutex->locked)
-    retval = -1;
-  else
-    mutex->locked = true;
+  if(mutex->attr.type == LITHE_MUTEX_RECURSIVE &&
+     mutex->owner == lithe_context_self()) {
+    mutex->locked++;
+  }
+  else if(mutex->locked) {
+    retval = EBUSY;
+  }
+  else {
+    mutex->owner = lithe_context_self();
+    mutex->locked++;
+  }
   mcs_lock_unlock(&mutex->lock, &qnode);
   return retval;
 }
 
 int lithe_mutex_lock(lithe_mutex_t *mutex)
 {
-  if (mutex == NULL) {
-    errno = EINVAL;
-    return -1;
-  }
+  if(mutex == NULL)
+    return EINVAL;
 
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&mutex->lock, &qnode);
-  {
-    while (mutex->locked) {
+  if(mutex->attr.type == LITHE_MUTEX_RECURSIVE &&
+     mutex->owner == lithe_context_self()) {
+    mutex->locked++;
+  }
+  else {
+    while(mutex->locked) {
       mutex->qnode = &qnode;
       lithe_context_block(block, mutex);
 
       memset(&qnode, 0, sizeof(mcs_lock_qnode_t));
       mcs_lock_lock(&mutex->lock, &qnode);
     }
-    
-    mutex->locked = true;
+    mutex->owner = lithe_context_self();
+    mutex->locked++;
   }
   mcs_lock_unlock(&mutex->lock, &qnode);
-
   return 0;
 }
-
 
 int lithe_mutex_unlock(lithe_mutex_t *mutex)
 {
-  if (mutex == NULL) {
-    errno = EINVAL;
-    return -1;
-  }
-
-  lithe_context_t *context = NULL;
+  if(mutex == NULL)
+    return EINVAL;
 
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&mutex->lock, &qnode);
-  {
-    if (lithe_context_deque_length(&mutex->deque) > 0) {
+  mutex->locked--;
+  if(mutex->locked == 0) {
+    lithe_context_t *context = NULL;
+    if(lithe_context_deque_length(&mutex->deque) > 0) {
       lithe_context_deque_dequeue(&mutex->deque, &context);
     }
     mutex->locked = false;
-  }
-  mcs_lock_unlock(&mutex->lock, &qnode);
+    mutex->owner = NULL;
+    mcs_lock_unlock(&mutex->lock, &qnode);
 
-  if (context != NULL) {
-    lithe_context_unblock(context);
+    if(context != NULL) {
+      lithe_context_unblock(context);
+    }
   }
-  
+  else {
+    mcs_lock_unlock(&mutex->lock, &qnode);
+  }
   return 0;
 }
+

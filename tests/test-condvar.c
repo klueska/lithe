@@ -40,7 +40,7 @@ static void root_sched_ctor(root_sched_t* sched)
 {
   sched->sched.funcs = &root_sched_funcs;
   sched->context_count = 0;
-  lithe_mutex_init(&sched->mutex);
+  lithe_mutex_init(&sched->mutex, NULL);
   lithe_condvar_init(&sched->condvar);
   mcs_lock_init(&sched->qlock);
   lithe_context_deque_init(&sched->contextq);
