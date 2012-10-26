@@ -26,16 +26,16 @@ typedef struct lithe_condvar {
 } lithe_condvar_t;
 
 /* Initialize a condition variable. */
-void lithe_condvar_init(lithe_condvar_t* c);
+int lithe_condvar_init(lithe_condvar_t* c);
 
 /* Wait on a condition variable */
-void lithe_condvar_wait(lithe_condvar_t* c, lithe_mutex_t* m);
+int lithe_condvar_wait(lithe_condvar_t* c, lithe_mutex_t* m);
 
 /* Signal the next lithe context waiting on the condition variable */
-void lithe_condvar_signal(lithe_condvar_t* c);
+int lithe_condvar_signal(lithe_condvar_t* c);
 
 /* Broadcast a signal to all lithe contexts waiting on the condition variable */
-void lithe_condvar_broadcast(lithe_condvar_t* c);
+int lithe_condvar_broadcast(lithe_condvar_t* c);
 
 #ifdef __cplusplus
 }

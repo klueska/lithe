@@ -17,9 +17,13 @@
 #include "condvar.h"
 
 /* Initialize a condition variable. */
-void lithe_condvar_init(lithe_condvar_t* c) {
+int lithe_condvar_init(lithe_condvar_t* c) {
+  if(c == NULL)
+    return NULL;
+
   mcs_lock_init(&c->lock);
   lithe_context_deque_init(&c->queue);
+  return 0;
 }
 
 static void block(lithe_context_t *context, void *arg)
@@ -31,19 +35,26 @@ static void block(lithe_context_t *context, void *arg)
 }
 
 /* Wait on a condition variable */
-void lithe_condvar_wait(lithe_condvar_t* c, lithe_mutex_t* m) {
+int lithe_condvar_wait(lithe_condvar_t* c, lithe_mutex_t* m) {
+  if(c == NULL)
+    return EINVAL;
+  if(m == NULL)
+    return EINVAL;
+
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&c->lock, &qnode);
   c->waiting_mutex = m;
   c->waiting_qnode = &qnode;
   lithe_context_block(block, c);
-  lithe_mutex_lock(m);
+  return lithe_mutex_lock(m);
 }
 
 /* Signal the next lithe context waiting on the condition variable */
-void lithe_condvar_signal(lithe_condvar_t* c) {
-  lithe_context_t *context = NULL;
+int lithe_condvar_signal(lithe_condvar_t* c) {
+  if(c == NULL)
+    return EINVAL;
 
+  lithe_context_t *context = NULL;
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&c->lock, &qnode);
   if (lithe_context_deque_length(&c->queue) > 0) {
@@ -54,12 +65,15 @@ void lithe_condvar_signal(lithe_condvar_t* c) {
   if (context != NULL) {
     lithe_context_unblock(context);
   }
+  return 0;
 }
 
 /* Broadcast a signal to all lithe contexts waiting on the condition variable */
-void lithe_condvar_broadcast(lithe_condvar_t* c) {
-  lithe_context_t *context = NULL;
+int lithe_condvar_broadcast(lithe_condvar_t* c) {
+  if(c == NULL)
+    return EINVAL;
 
+  lithe_context_t *context = NULL;
   mcs_lock_qnode_t qnode = {0};
   while(1) {
     mcs_lock_lock(&c->lock, &qnode);
@@ -72,5 +86,6 @@ void lithe_condvar_broadcast(lithe_condvar_t* c) {
     memset(&qnode, 0, sizeof(mcs_lock_qnode_t));
   }
   mcs_lock_unlock(&c->lock, &qnode);
+  return 0;
 }
 
