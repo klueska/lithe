@@ -144,14 +144,25 @@ int lithe_context_unblock(lithe_context_t *context);
 void lithe_context_yield();
 
 /*
- * Set the context local storage of the current context. 
+ * Initialize a clskey for dynamically setting/getting context local storage in a
+ * lithe context.
  */
-void lithe_context_set_cls(lithe_context_t *context, void *cls);
+void lithe_clskey_init(lithe_clskey_t *key);
 
 /*
- * Get the context local storage of the current context. 
+ * Destroy a lithe clskey.
  */
-void *lithe_context_get_cls(lithe_context_t *context);
+void lithe_clskey_destroy(lithe_clskey_t *key);
+
+/*
+ * Set context local storage for the provided clskey in the current context. 
+ */
+void lithe_context_set_cls(lithe_clskey_t *key, void *cls);
+
+/*
+ * Get context local storage for the provided clskey in the current context. 
+ */
+void *lithe_context_get_cls(lithe_clskey_t *key);
 
 #ifdef __cplusplus
 }

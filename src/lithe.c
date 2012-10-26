@@ -470,7 +470,6 @@ static inline void __lithe_context_fields_init(lithe_context_t *context, lithe_s
 {
   context->start_func = NULL;
   context->arg = NULL;
-  context->cls = NULL;
   context->state  = CONTEXT_READY;
   context->sched = sched;
   uthread_set_tls_var(&context->uth, current_sched, sched)
@@ -627,15 +626,58 @@ void lithe_context_yield()
   safe_get_tls_var(current_context)->state = CONTEXT_READY;
 }
 
-void lithe_context_set_cls(lithe_context_t *context, void *cls) 
+void lithe_clskey_init(lithe_clskey_t *key)
 {
-  assert(context);
-  context->cls = cls;
+  TAILQ_INIT(&key->list);
+  spinlock_init(&key->list_lock);
 }
 
-void *lithe_context_get_cls(lithe_context_t *context)
+void lithe_clskey_destroy(lithe_clskey_t *key)
 {
-  assert(context);
-  return context->cls;
+  struct lithe_clskey_list_element *c,*n;
+  spinlock_lock(&key->list_lock);
+  c = TAILQ_FIRST(&key->list);
+  while(c != NULL) {
+    n = TAILQ_NEXT(c, link);
+    free(c);
+    c = n;
+  }
+}
+
+void lithe_context_set_cls(lithe_clskey_t *key, void *cls)
+{
+  struct lithe_clskey_list_element *e = NULL;
+  struct lithe_clskey_list_element *found = NULL;
+  spinlock_lock(&key->list_lock);
+  TAILQ_FOREACH(e, &key->list, link) {
+    if(e->context == current_context) {
+      found = e;
+      break;
+    }
+  }
+  spinlock_unlock(&key->list_lock);
+  if(!found) {
+    found = malloc(sizeof(struct lithe_clskey_list_element));
+    found->context = current_context;
+    spinlock_lock(&key->list_lock);
+    TAILQ_INSERT_TAIL(&key->list, found, link);
+    spinlock_unlock(&key->list_lock);
+  }
+  found->cls = cls;
+}
+
+void *lithe_context_get_cls(lithe_clskey_t *key)
+{
+  struct lithe_clskey_list_element *e = NULL;
+  void *found = NULL;
+  spinlock_lock(&key->list_lock);
+  TAILQ_FOREACH(e, &key->list, link) {
+    if(e->context == current_context) {
+      found = e->cls;
+      break;
+    }
+  }
+  spinlock_unlock(&key->list_lock);
+  return found;
 }
 

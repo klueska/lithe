@@ -34,6 +34,7 @@ LIB_HHFILES = \
   @SRCDIR@/sched.hh
 
 TEST_EXECS = \
+  test_cls        \
   test_mutex        \
   test_recursive_mutex        \
   test_condvar        \
@@ -64,6 +65,11 @@ dist_litheinc_DATA = $(LIB_HFILES) $(LIB_HHFILES)
 
 # Setup parameters to build the test programs
 check_PROGRAMS = $(TEST_EXECS)
+
+test_cls_SOURCES = @TESTSDIR@/test-cls.c
+test_cls_CFLAGS = $(AM_CFLAGS)
+test_cls_CFLAGS += -I$(srcdir)
+test_cls_LDADD = -lithe -lparlib
 
 test_mutex_SOURCES = @TESTSDIR@/test-mutex.c
 test_mutex_CFLAGS = $(AM_CFLAGS)

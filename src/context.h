@@ -58,13 +58,27 @@ struct lithe_context {
   /* The context_stack associated with this context */
   lithe_context_stack_t stack;
 
-  /* Context local storage */
-  void *cls;
-
   /* State used internally by the lithe runtime to manage contexts */
   size_t state;
 
 };
+
+/* Keys used to dynamically manage context local storage regions */
+/* NOTE: The current implementation uses a locked linked list to find the cls
+ * for a given thread. We should probably find a better way to do this based on
+ * a custom lock-free hash table or something. */
+#include <parlib/queue.h>
+#include <parlib/spinlock.h>
+struct lithe_clskey_list_element {
+  TAILQ_ENTRY(lithe_clskey_list_element) link;
+  lithe_context_t *context;
+  void *cls;
+};
+TAILQ_HEAD(lithe_clskey_list, lithe_clskey_list_element);
+typedef struct lithe_clskey {
+  spinlock_t list_lock;
+  struct lithe_clskey_list list;
+} lithe_clskey_t;
 
 #ifdef __cplusplus
 }
