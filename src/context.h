@@ -29,6 +29,7 @@ enum {
   CONTEXT_FINISHED,
 };
 
+/* Struct to maintain lithe stacks */
 typedef struct {
   /* Stack bottom for a lithe context. */
   void *bottom;
@@ -38,6 +39,31 @@ typedef struct {
 
 } lithe_context_stack_t;
   
+/* Keys used to dynamically manage context local storage regions */
+/* NOTE: The current implementation uses a locked linked list to find the key 
+ * for a given thread. We should probably find a better way to do this based on
+ * a custom lock-free hash table or something. */
+#include <parlib/queue.h>
+#include <parlib/spinlock.h>
+
+/* The key structure itself */
+typedef struct lithe_clskey {
+  spinlock_t lock;
+  int ref_count;
+  bool valid;
+  void (*dtor)(struct lithe_clskey*);
+} lithe_clskey_t;
+
+/* The definition of a clskey element */
+typedef struct lithe_cls_list_element {
+  TAILQ_ENTRY(lithe_cls_list_element) link;
+  lithe_clskey_t *key;
+  void *cls;
+} lithe_cls_list_element_t;
+TAILQ_HEAD(lithe_cls_list, lithe_cls_list_element);
+typedef struct lithe_cls_list lithe_cls_list_t;
+typedef void (*lithe_cls_dtor_t)(lithe_clskey_t*);
+
 struct lithe_sched;
 /* Basic lithe context structure.  All derived scheduler contexts MUST have this as
  * their first field so that they can be cast properly within the lithe
@@ -58,27 +84,13 @@ struct lithe_context {
   /* The context_stack associated with this context */
   lithe_context_stack_t stack;
 
+  /* The list of cls chunks associated with this context */
+  lithe_cls_list_t cls_list;
+
   /* State used internally by the lithe runtime to manage contexts */
   size_t state;
 
 };
-
-/* Keys used to dynamically manage context local storage regions */
-/* NOTE: The current implementation uses a locked linked list to find the cls
- * for a given thread. We should probably find a better way to do this based on
- * a custom lock-free hash table or something. */
-#include <parlib/queue.h>
-#include <parlib/spinlock.h>
-struct lithe_clskey_list_element {
-  TAILQ_ENTRY(lithe_clskey_list_element) link;
-  lithe_context_t *context;
-  void *cls;
-};
-TAILQ_HEAD(lithe_clskey_list, lithe_clskey_list_element);
-typedef struct lithe_clskey {
-  spinlock_t list_lock;
-  struct lithe_clskey_list list;
-} lithe_clskey_t;
 
 #ifdef __cplusplus
 }

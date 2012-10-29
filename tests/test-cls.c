@@ -14,13 +14,14 @@ typedef struct root_sched {
   lithe_mutex_t mutex;
   mcs_lock_t qlock;
   struct lithe_context_deque contextq;
-  lithe_clskey_t clskeys[NUM_CLSKEYS];
+  lithe_clskey_t *clskeys[NUM_CLSKEYS];
 } root_sched_t;
 
 /* Scheduler functions */
 static void root_hart_enter(lithe_sched_t *__this);
 static void root_enqueue_task(lithe_sched_t *__this, lithe_context_t *context);
 static void root_context_exit(lithe_sched_t *__this, lithe_context_t *context);
+static void destroy_cls(lithe_clskey_t *key);
 
 static const lithe_sched_funcs_t root_sched_funcs = {
   .hart_request         = __hart_request_default,
@@ -42,14 +43,14 @@ static void root_sched_ctor(root_sched_t* sched)
   mcs_lock_init(&sched->qlock);
   lithe_context_deque_init(&sched->contextq);
   for(int i=0; i<NUM_CLSKEYS; i++) {
-    lithe_clskey_init(&sched->clskeys[i]);
+    sched->clskeys[i] = lithe_clskey_create(destroy_cls);
   }
 }
 
 static void root_sched_dtor(root_sched_t *sched)
 {
   for(int i=0; i<NUM_CLSKEYS; i++) {
-    lithe_clskey_destroy(&sched->clskeys[i]);
+    lithe_clskey_delete(sched->clskeys[i]);
   }
 }
 
@@ -86,21 +87,32 @@ static void root_context_exit(lithe_sched_t *__this, lithe_context_t *context)
   __lithe_context_destroy_default(context, true);
 }
 
+static void destroy_cls(lithe_clskey_t *key) {
+  root_sched_t *sched = (root_sched_t*)lithe_sched_current();
+  void *cls = lithe_context_get_cls(key);
+  
+  lithe_mutex_lock(&sched->mutex);
+  printf("Context %p freeing cls %p.\n", lithe_context_self(), cls);
+  free(cls);
+  lithe_mutex_unlock(&sched->mutex);
+}
+
 static void work(void *arg)
 {
   root_sched_t *sched = (root_sched_t*)arg;
 
-  long cls_value[NUM_CLSKEYS];
+  long *cls_value[NUM_CLSKEYS];
   for(int i=0; i<NUM_CLSKEYS; i++) {
-    cls_value[i] = (long)lithe_context_self() + i;
-    lithe_context_set_cls(&sched->clskeys[i], &cls_value[i]);
+    cls_value[i] = malloc(sizeof(long));
+    *cls_value[i] = (long)lithe_context_self() + i;
+    lithe_context_set_cls(sched->clskeys[i], cls_value[i]);
   }
   lithe_mutex_lock(&sched->mutex);
   long self = (long)lithe_context_self();
-  printf("In context %p (%d)\n", self, self);
+  printf("In context %p (%ld)\n", (void*)self, self);
   for(int i=0; i<NUM_CLSKEYS; i++) {
-    long *value = lithe_context_get_cls(&sched->clskeys[i]);
-    printf("  cls_value[%d] = %d\n", i, *value);
+    long *value = lithe_context_get_cls(sched->clskeys[i]);
+    printf("  cls_value[%d] = %ld\n", i, *value);
   }
   sched->context_count--;
   lithe_mutex_unlock(&sched->mutex);

@@ -105,6 +105,8 @@ static __thread struct {
 static inline void __lithe_context_init(lithe_context_t *context, lithe_sched_t *sched);
 /* Helper function for determining which state to resume from after yielding */
 static void __lithe_context_yield(uthread_t *uthread, void *arg);
+/* Helper function for deleting all of the cls associated with a lithe context */
+static void __destroy_cls();
 
 static int __attribute__((constructor)) lithe_lib_init()
 {
@@ -462,6 +464,7 @@ static void __lithe_context_start()
   assert(current_context);
   assert(current_context->start_func);
   current_context->start_func(current_context->arg);
+  __destroy_cls();
   safe_get_tls_var(current_context)->state = CONTEXT_FINISHED;
   uthread_yield(false, __lithe_context_yield, NULL);
 }
@@ -472,6 +475,7 @@ static inline void __lithe_context_fields_init(lithe_context_t *context, lithe_s
   context->arg = NULL;
   context->state  = CONTEXT_READY;
   context->sched = sched;
+  TAILQ_INIT(&context->cls_list);
   uthread_set_tls_var(&context->uth, current_sched, sched)
 }
 
@@ -626,58 +630,76 @@ void lithe_context_yield()
   safe_get_tls_var(current_context)->state = CONTEXT_READY;
 }
 
-void lithe_clskey_init(lithe_clskey_t *key)
-{
-  TAILQ_INIT(&key->list);
-  spinlock_init(&key->list_lock);
+static void __destroy_cls() {
+  lithe_cls_list_element_t *e = NULL;
+  TAILQ_FOREACH(e, &current_context->cls_list, link) {
+    lithe_clskey_t *key = e->key;
+    bool run_dtor = false;
+    spinlock_lock(&key->lock);
+    if(key->valid)
+      if(key->dtor)
+        run_dtor = true;
+    spinlock_unlock(&key->lock);
+	// MUST run the dtor outside the spinlock if we want it to be able to call
+	// code that may deschedule it for a while (i.e. a lithe_mutex). Probably a
+	// good idea anyway since it can be arbitrarily long and is written by the
+	// user. Note, there is a small race here on the valid field, whereby we
+	// may run a destructor on an invalid key. At least the keys memory wont
+	// be deleted though, as protected by the ref count. Any reasonable usage
+	// of this interface should safeguard that a key is never destroyed before
+	// all of the threads that use it have exited anyway.
+    if(run_dtor)
+      key->dtor(key);
+    spinlock_lock(&key->lock);
+    key->ref_count--;
+    spinlock_unlock(&key->lock);
+    if(key->ref_count == 0)
+      free(key);
+  }
 }
 
-void lithe_clskey_destroy(lithe_clskey_t *key)
+lithe_clskey_t *lithe_clskey_create(lithe_cls_dtor_t dtor)
 {
-  struct lithe_clskey_list_element *c,*n;
-  spinlock_lock(&key->list_lock);
-  c = TAILQ_FIRST(&key->list);
-  while(c != NULL) {
-    n = TAILQ_NEXT(c, link);
-    free(c);
-    c = n;
-  }
+  lithe_clskey_t *key = malloc(sizeof(lithe_clskey_t));
+  spinlock_init(&key->lock);
+  key->ref_count = 1;
+  key->valid = true;
+  key->dtor = dtor;
+  return key;
+}
+
+void lithe_clskey_delete(lithe_clskey_t *key)
+{
+  spinlock_lock(&key->lock);
+  key->valid = false;
+  key->ref_count--;
+  spinlock_unlock(&key->lock);
+  if(key->ref_count == 0)
+    free(key);
 }
 
 void lithe_context_set_cls(lithe_clskey_t *key, void *cls)
 {
-  struct lithe_clskey_list_element *e = NULL;
-  struct lithe_clskey_list_element *found = NULL;
-  spinlock_lock(&key->list_lock);
-  TAILQ_FOREACH(e, &key->list, link) {
-    if(e->context == current_context) {
-      found = e;
-      break;
-    }
+  spinlock_lock(&key->lock);
+  key->ref_count++;
+  spinlock_unlock(&key->lock);
+
+  lithe_cls_list_element_t *e = NULL;
+  TAILQ_FOREACH(e, &current_context->cls_list, link)
+    if(e->key == key) break;
+  if(!e) {
+    e = malloc(sizeof(lithe_cls_list_element_t));
+    e->key = key;
+    TAILQ_INSERT_TAIL(&current_context->cls_list, e, link);
   }
-  spinlock_unlock(&key->list_lock);
-  if(!found) {
-    found = malloc(sizeof(struct lithe_clskey_list_element));
-    found->context = current_context;
-    spinlock_lock(&key->list_lock);
-    TAILQ_INSERT_TAIL(&key->list, found, link);
-    spinlock_unlock(&key->list_lock);
-  }
-  found->cls = cls;
+  e->cls = cls;
 }
 
 void *lithe_context_get_cls(lithe_clskey_t *key)
 {
-  struct lithe_clskey_list_element *e = NULL;
-  void *found = NULL;
-  spinlock_lock(&key->list_lock);
-  TAILQ_FOREACH(e, &key->list, link) {
-    if(e->context == current_context) {
-      found = e->cls;
-      break;
-    }
-  }
-  spinlock_unlock(&key->list_lock);
-  return found;
+  lithe_cls_list_element_t *e = NULL;
+  TAILQ_FOREACH(e, &current_context->cls_list, link)
+    if(e->key == key) return e->cls;
+  return e;
 }
 
