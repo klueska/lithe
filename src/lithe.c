@@ -632,6 +632,7 @@ void lithe_context_yield()
 
 static void __destroy_cls() {
   lithe_cls_list_element_t *e = NULL;
+  assert(current_context);
   TAILQ_FOREACH(e, &current_context->cls_list, link) {
     lithe_clskey_t *key = e->key;
     bool run_dtor = false;
@@ -661,6 +662,8 @@ static void __destroy_cls() {
 lithe_clskey_t *lithe_clskey_create(lithe_cls_dtor_t dtor)
 {
   lithe_clskey_t *key = malloc(sizeof(lithe_clskey_t));
+  assert(key);
+
   spinlock_init(&key->lock);
   key->ref_count = 1;
   key->valid = true;
@@ -670,6 +673,8 @@ lithe_clskey_t *lithe_clskey_create(lithe_cls_dtor_t dtor)
 
 void lithe_clskey_delete(lithe_clskey_t *key)
 {
+  assert(key);
+
   spinlock_lock(&key->lock);
   key->valid = false;
   key->ref_count--;
@@ -680,6 +685,9 @@ void lithe_clskey_delete(lithe_clskey_t *key)
 
 void lithe_context_set_cls(lithe_clskey_t *key, void *cls)
 {
+  assert(key);
+  assert(current_context);
+
   spinlock_lock(&key->lock);
   key->ref_count++;
   spinlock_unlock(&key->lock);
@@ -689,14 +697,18 @@ void lithe_context_set_cls(lithe_clskey_t *key, void *cls)
     if(e->key == key) break;
   if(!e) {
     e = malloc(sizeof(lithe_cls_list_element_t));
+    assert(e);
     e->key = key;
-    TAILQ_INSERT_TAIL(&current_context->cls_list, e, link);
+    TAILQ_INSERT_HEAD(&current_context->cls_list, e, link);
   }
   e->cls = cls;
 }
 
 void *lithe_context_get_cls(lithe_clskey_t *key)
 {
+  assert(key);
+  assert(current_context);
+
   lithe_cls_list_element_t *e = NULL;
   TAILQ_FOREACH(e, &current_context->cls_list, link)
     if(e->key == key) return e->cls;

@@ -63,6 +63,7 @@ int lithe_mutex_init(lithe_mutex_t *mutex, lithe_mutexattr_t *attr)
 static void block(lithe_context_t *context, void *arg)
 {
   lithe_mutex_t *mutex = (lithe_mutex_t *) arg;
+  assert(mutex);
   lithe_context_deque_enqueue(&mutex->deque, context);
   mcs_lock_unlock(&mutex->lock, mutex->qnode);
 }

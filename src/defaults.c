@@ -68,7 +68,7 @@ void __context_block_default(lithe_sched_t *__this, lithe_context_t *context)
 
 void __context_unblock_default(lithe_sched_t *__this, lithe_context_t *context)
 {
-  fatal((char*)"Should not be calling context_unblock()");
+  // Do nothing special by default when a context is unblocked
 }
 
 void __context_yield_default(lithe_sched_t *__this, lithe_context_t *context)

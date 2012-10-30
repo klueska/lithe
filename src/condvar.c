@@ -29,6 +29,7 @@ int lithe_condvar_init(lithe_condvar_t* c) {
 static void block(lithe_context_t *context, void *arg)
 {
   lithe_condvar_t *condvar = (lithe_condvar_t *) arg;
+  assert(condvar);
   lithe_context_deque_enqueue(&condvar->queue, context);
   lithe_mutex_unlock(condvar->waiting_mutex);
   mcs_lock_unlock(&condvar->lock, condvar->waiting_qnode);
