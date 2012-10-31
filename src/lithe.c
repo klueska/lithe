@@ -344,8 +344,8 @@ int lithe_sched_enter(lithe_sched_t *child)
   /* Make sure that the childs 'funcs' have already been set up properly */
   assert(child->funcs);
  
-  lithe_sched_t* parent = current_sched;
-  lithe_context_t*  parent_context = current_context;
+  lithe_sched_t *parent = current_sched;
+  lithe_context_t *parent_context = current_context;
 
   /* Set-up child scheduler */
   child->harts = 0;
@@ -356,6 +356,12 @@ int lithe_sched_enter(lithe_sched_t *child)
   lithe_context_t *child_context = &child->start_context;
   child_context->stack = current_context->stack;
   __lithe_context_init(child_context, child);
+  
+  /* Set the cls_list of the child to be the same as the cls_list of the
+   * parent. The child will never call __destroy_cls() (which is what we want),
+   * because it only ever gets called if we go thorugh a call to
+   * __lithe_context_start(), which we don't in this case. */
+  child_context->cls_list = parent_context->cls_list;
 
   /* Hijack the current context with the newly created one. */
   highjack_current_uthread(&child_context->uth);
@@ -631,16 +637,20 @@ void lithe_context_yield()
 }
 
 static void __destroy_cls() {
-  lithe_cls_list_element_t *e = NULL;
   assert(current_context);
-  TAILQ_FOREACH(e, &current_context->cls_list, link) {
+
+  lithe_cls_list_element_t *e,*n;
+  e = TAILQ_FIRST(&current_context->cls_list);
+  while(e != NULL) {
     lithe_clskey_t *key = e->key;
     bool run_dtor = false;
+  
     spinlock_lock(&key->lock);
     if(key->valid)
       if(key->dtor)
         run_dtor = true;
     spinlock_unlock(&key->lock);
+
 	// MUST run the dtor outside the spinlock if we want it to be able to call
 	// code that may deschedule it for a while (i.e. a lithe_mutex). Probably a
 	// good idea anyway since it can be arbitrarily long and is written by the
@@ -651,11 +661,17 @@ static void __destroy_cls() {
 	// all of the threads that use it have exited anyway.
     if(run_dtor)
       key->dtor(key);
+
     spinlock_lock(&key->lock);
     key->ref_count--;
     spinlock_unlock(&key->lock);
     if(key->ref_count == 0)
       free(key);
+
+    n = TAILQ_NEXT(e, link);
+    TAILQ_REMOVE(&current_context->cls_list, e, link);
+    free(e);
+    e = n;
   }
 }
 
