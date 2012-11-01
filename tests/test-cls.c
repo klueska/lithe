@@ -21,7 +21,7 @@ typedef struct root_sched {
 static void root_hart_enter(lithe_sched_t *__this);
 static void root_enqueue_task(lithe_sched_t *__this, lithe_context_t *context);
 static void root_context_exit(lithe_sched_t *__this, lithe_context_t *context);
-static void destroy_cls(lithe_clskey_t *key);
+static void destroy_cls(void *cls);
 
 static const lithe_sched_funcs_t root_sched_funcs = {
   .hart_request         = __hart_request_default,
@@ -87,9 +87,8 @@ static void root_context_exit(lithe_sched_t *__this, lithe_context_t *context)
   __lithe_context_destroy_default(context, true);
 }
 
-static void destroy_cls(lithe_clskey_t *key) {
+static void destroy_cls(void *cls) {
   root_sched_t *sched = (root_sched_t*)lithe_sched_current();
-  void *cls = lithe_context_get_cls(key);
   
   lithe_mutex_lock(&sched->mutex);
   printf("Context %p freeing cls %p.\n", lithe_context_self(), cls);

@@ -51,7 +51,7 @@ typedef struct lithe_clskey {
   spinlock_t lock;
   int ref_count;
   bool valid;
-  void (*dtor)(struct lithe_clskey*);
+  void (*dtor)(void*);
 } lithe_clskey_t;
 
 /* The definition of a clskey element */
@@ -62,7 +62,7 @@ typedef struct lithe_cls_list_element {
 } lithe_cls_list_element_t;
 TAILQ_HEAD(lithe_cls_list, lithe_cls_list_element);
 typedef struct lithe_cls_list lithe_cls_list_t;
-typedef void (*lithe_cls_dtor_t)(lithe_clskey_t*);
+typedef void (*lithe_cls_dtor_t)(void*);
 
 struct lithe_sched;
 /* Basic lithe context structure.  All derived scheduler contexts MUST have this as

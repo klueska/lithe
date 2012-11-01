@@ -659,8 +659,11 @@ static void __destroy_cls() {
 	// be deleted though, as protected by the ref count. Any reasonable usage
 	// of this interface should safeguard that a key is never destroyed before
 	// all of the threads that use it have exited anyway.
-    if(run_dtor)
-      key->dtor(key);
+    if(run_dtor) {
+	  void *cls = e->cls;
+      e->cls = NULL;
+      key->dtor(cls);
+    }
 
     spinlock_lock(&key->lock);
     key->ref_count--;
