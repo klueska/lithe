@@ -13,6 +13,14 @@
 #include <parlib/vcore.h>
 
 /**
+ * Returns whether we are currently running in hart context or not.
+ */
+static inline bool in_hart_context(void)
+{
+	return in_vcore_context();
+}
+
+/**
  * Returns the id of the calling hart.
  */
 static inline int hart_id(void)
