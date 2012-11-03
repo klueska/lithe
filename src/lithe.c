@@ -48,6 +48,9 @@ struct schedule_ops lithe_sched_ops = {
 /* Publish these schedule_ops, overriding the weak defaults setup in uthread */
 struct schedule_ops *sched_ops = &lithe_sched_ops;
 
+/* A statically defined global to store the main context */
+static lithe_context_t lithe_main_context;
+
 /* Lithe's base scheduler functions */
 static int base_hart_request(lithe_sched_t *this, lithe_sched_t *child, int k);
 static void base_hart_enter(lithe_sched_t *this);
@@ -117,7 +120,7 @@ static int __attribute__((constructor)) lithe_lib_init()
   initialized = true;
 
   /* Create a lithe context for the main thread to run in */
-  lithe_context_t *context = (lithe_context_t*)malloc(sizeof(lithe_context_t));
+  lithe_context_t *context = &lithe_main_context;
   assert(context);
 
   /* Fill in the main context stack info with some data. This data is garbage,
