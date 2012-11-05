@@ -2,11 +2,12 @@
 #include <unistd.h>
 
 #include <parlib/parlib.h>
+#include <parlib/tls.h>
 #include <src/lithe.h>
 #include <src/mutex.h>
 #include <src/defaults.h>
 
-#define NUM_CLSKEYS 10
+#define NUM_dtls_keyS 10
 typedef struct root_sched {
   lithe_sched_t sched;
 
@@ -14,7 +15,7 @@ typedef struct root_sched {
   lithe_mutex_t mutex;
   mcs_lock_t qlock;
   struct lithe_context_deque contextq;
-  lithe_clskey_t *clskeys[NUM_CLSKEYS];
+  dtls_key_t *dtls_keys[NUM_dtls_keyS];
 } root_sched_t;
 
 /* Scheduler functions */
@@ -42,15 +43,15 @@ static void root_sched_ctor(root_sched_t* sched)
   lithe_mutex_init(&sched->mutex, NULL);
   mcs_lock_init(&sched->qlock);
   lithe_context_deque_init(&sched->contextq);
-  for(int i=0; i<NUM_CLSKEYS; i++) {
-    sched->clskeys[i] = lithe_clskey_create(destroy_cls);
+  for(int i=0; i<NUM_dtls_keyS; i++) {
+    sched->dtls_keys[i] = dtls_key_create(destroy_cls);
   }
 }
 
 static void root_sched_dtor(root_sched_t *sched)
 {
-  for(int i=0; i<NUM_CLSKEYS; i++) {
-    lithe_clskey_delete(sched->clskeys[i]);
+  for(int i=0; i<NUM_dtls_keyS; i++) {
+    dtls_key_delete(sched->dtls_keys[i]);
   }
 }
 
@@ -100,17 +101,17 @@ static void work(void *arg)
 {
   root_sched_t *sched = (root_sched_t*)arg;
 
-  long *cls_value[NUM_CLSKEYS];
-  for(int i=0; i<NUM_CLSKEYS; i++) {
+  long *cls_value[NUM_dtls_keyS];
+  for(int i=0; i<NUM_dtls_keyS; i++) {
     cls_value[i] = malloc(sizeof(long));
     *cls_value[i] = (long)lithe_context_self() + i;
-    lithe_context_set_cls(sched->clskeys[i], cls_value[i]);
+    set_dtls(sched->dtls_keys[i], cls_value[i]);
   }
   lithe_mutex_lock(&sched->mutex);
   long self = (long)lithe_context_self();
   printf("In context %p (%ld)\n", (void*)self, self);
-  for(int i=0; i<NUM_CLSKEYS; i++) {
-    long *value = lithe_context_get_cls(sched->clskeys[i]);
+  for(int i=0; i<NUM_dtls_keyS; i++) {
+    long *value = get_dtls(sched->dtls_keys[i]);
     printf("  cls_value[%d] = %ld\n", i, *value);
   }
   sched->context_count--;

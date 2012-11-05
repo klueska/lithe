@@ -108,8 +108,6 @@ static __thread struct {
 static inline void __lithe_context_init(lithe_context_t *context, lithe_sched_t *sched);
 /* Helper function for determining which state to resume from after yielding */
 static void __lithe_context_yield(uthread_t *uthread, void *arg);
-/* Helper function for deleting all of the cls associated with a lithe context */
-static void __destroy_cls();
 
 static int __attribute__((constructor)) lithe_lib_init()
 {
@@ -136,9 +134,9 @@ static int __attribute__((constructor)) lithe_lib_init()
    * library with that main context */
   assert(!uthread_lib_init((uthread_t*)context));
 
-  /* Now that the library is initialized, a TLS shoudl eb set up for this
+  /* Now that the library is initialized, a TLS should be set up for this
    * context, so set it's current_sched var */
-  uthread_set_tls_var(&context->uth, current_sched, &base_sched)
+  uthread_set_tls_var(&context->uth, current_sched, &base_sched);
 
   return 0;
 }
@@ -360,12 +358,6 @@ int lithe_sched_enter(lithe_sched_t *child)
   child_context->stack = current_context->stack;
   __lithe_context_init(child_context, child);
   
-  /* Set the cls_list of the child to be the same as the cls_list of the
-   * parent. The child will never call __destroy_cls() (which is what we want),
-   * because it only ever gets called if we go thorugh a call to
-   * __lithe_context_start(), which we don't in this case. */
-  child_context->cls_list = parent_context->cls_list;
-
   /* Hijack the current context with the newly created one. */
   highjack_current_uthread(&child_context->uth);
 
@@ -473,7 +465,7 @@ static void __lithe_context_start()
   assert(current_context);
   assert(current_context->start_func);
   current_context->start_func(current_context->arg);
-  __destroy_cls();
+
   safe_get_tls_var(current_context)->state = CONTEXT_FINISHED;
   uthread_yield(false, __lithe_context_yield, NULL);
 }
@@ -484,8 +476,7 @@ static inline void __lithe_context_fields_init(lithe_context_t *context, lithe_s
   context->arg = NULL;
   context->state  = CONTEXT_READY;
   context->sched = sched;
-  TAILQ_INIT(&context->cls_list);
-  uthread_set_tls_var(&context->uth, current_sched, sched)
+  uthread_set_tls_var(&context->uth, current_sched, sched);
 }
 
 static inline void __lithe_context_reinit(lithe_context_t *context, lithe_sched_t *sched)
@@ -637,103 +628,5 @@ void lithe_context_yield()
   current_context->state = CONTEXT_YIELDED;
   uthread_yield(true, __lithe_context_yield, NULL);
   safe_get_tls_var(current_context)->state = CONTEXT_READY;
-}
-
-static void __destroy_cls() {
-  assert(current_context);
-
-  lithe_cls_list_element_t *e,*n;
-  e = TAILQ_FIRST(&current_context->cls_list);
-  while(e != NULL) {
-    lithe_clskey_t *key = e->key;
-    bool run_dtor = false;
-  
-    spinlock_lock(&key->lock);
-    if(key->valid)
-      if(key->dtor)
-        run_dtor = true;
-    spinlock_unlock(&key->lock);
-
-	// MUST run the dtor outside the spinlock if we want it to be able to call
-	// code that may deschedule it for a while (i.e. a lithe_mutex). Probably a
-	// good idea anyway since it can be arbitrarily long and is written by the
-	// user. Note, there is a small race here on the valid field, whereby we
-	// may run a destructor on an invalid key. At least the keys memory wont
-	// be deleted though, as protected by the ref count. Any reasonable usage
-	// of this interface should safeguard that a key is never destroyed before
-	// all of the threads that use it have exited anyway.
-    if(run_dtor) {
-	  void *cls = e->cls;
-      e->cls = NULL;
-      key->dtor(cls);
-    }
-
-    spinlock_lock(&key->lock);
-    key->ref_count--;
-    spinlock_unlock(&key->lock);
-    if(key->ref_count == 0)
-      free(key);
-
-    n = TAILQ_NEXT(e, link);
-    TAILQ_REMOVE(&current_context->cls_list, e, link);
-    free(e);
-    e = n;
-  }
-}
-
-lithe_clskey_t *lithe_clskey_create(lithe_cls_dtor_t dtor)
-{
-  lithe_clskey_t *key = malloc(sizeof(lithe_clskey_t));
-  assert(key);
-
-  spinlock_init(&key->lock);
-  key->ref_count = 1;
-  key->valid = true;
-  key->dtor = dtor;
-  return key;
-}
-
-void lithe_clskey_delete(lithe_clskey_t *key)
-{
-  assert(key);
-
-  spinlock_lock(&key->lock);
-  key->valid = false;
-  key->ref_count--;
-  spinlock_unlock(&key->lock);
-  if(key->ref_count == 0)
-    free(key);
-}
-
-void lithe_context_set_cls(lithe_clskey_t *key, void *cls)
-{
-  assert(key);
-  assert(current_context);
-
-  spinlock_lock(&key->lock);
-  key->ref_count++;
-  spinlock_unlock(&key->lock);
-
-  lithe_cls_list_element_t *e = NULL;
-  TAILQ_FOREACH(e, &current_context->cls_list, link)
-    if(e->key == key) break;
-  if(!e) {
-    e = malloc(sizeof(lithe_cls_list_element_t));
-    assert(e);
-    e->key = key;
-    TAILQ_INSERT_HEAD(&current_context->cls_list, e, link);
-  }
-  e->cls = cls;
-}
-
-void *lithe_context_get_cls(lithe_clskey_t *key)
-{
-  assert(key);
-  assert(current_context);
-
-  lithe_cls_list_element_t *e = NULL;
-  TAILQ_FOREACH(e, &current_context->cls_list, link)
-    if(e->key == key) return e->cls;
-  return e;
 }
 
