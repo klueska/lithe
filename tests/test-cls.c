@@ -15,7 +15,7 @@ typedef struct root_sched {
   lithe_mutex_t mutex;
   mcs_lock_t qlock;
   struct lithe_context_deque contextq;
-  dtls_key_t *dtls_keys[NUM_dtls_keyS];
+  dtls_key_t dtls_keys[NUM_dtls_keyS];
 } root_sched_t;
 
 /* Scheduler functions */
