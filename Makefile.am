@@ -12,6 +12,7 @@ LIB_CFILES = \
   @SRCDIR@/barrier.c \
   @SRCDIR@/lithe.c         \
   @SRCDIR@/condvar.c         \
+  @SRCDIR@/semaphore.c         \
   @SRCDIR@/mutex.c
 
 LIB_CXXFILES = \
@@ -25,6 +26,7 @@ LIB_HFILES = \
   @SRCDIR@/hart.h          \
   @SRCDIR@/barrier.h \
   @SRCDIR@/condvar.h   \
+  @SRCDIR@/semaphore.h   \
   @SRCDIR@/mutex.h   \
   @SRCDIR@/lithe.h         \
   @SRCDIR@/sched.h
