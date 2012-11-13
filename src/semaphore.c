@@ -22,6 +22,7 @@ int lithe_sem_init(lithe_sem_t *sem, int count)
   sem->count = count;
   mcs_lock_init(&sem->lock);
   lithe_mutex_init(&sem->mutex, NULL);
+  return 0;
 }
 
 int lithe_sem_wait(lithe_sem_t *sem)
@@ -40,6 +41,7 @@ int lithe_sem_wait(lithe_sem_t *sem)
     sem->count--;
     mcs_lock_unlock(&sem->lock, &qnode);
   }  
+  return 0;
 }
 
 int lithe_sem_post(lithe_sem_t *sem)
@@ -53,5 +55,6 @@ int lithe_sem_post(lithe_sem_t *sem)
     lithe_mutex_unlock(&sem->mutex);
   sem->count++;
   mcs_lock_unlock(&sem->lock, &qnode);
+  return 0;
 }
 
