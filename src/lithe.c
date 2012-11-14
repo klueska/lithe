@@ -107,7 +107,7 @@ static inline void __lithe_context_init(lithe_context_t *context, lithe_sched_t 
 /* Helper function for determining which state to resume from after yielding */
 static void __lithe_context_yield(uthread_t *uthread, void *arg);
 
-static int __attribute__((constructor)) lithe_lib_init()
+int __attribute__((constructor)) lithe_lib_init()
 {
   /* Make sure this only runs once */
   static bool initialized = false;
