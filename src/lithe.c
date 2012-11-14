@@ -256,7 +256,6 @@ static void base_context_unblock(lithe_sched_t *__this, lithe_context_t *context
 static void base_context_yield(lithe_sched_t *__this, lithe_context_t *context)
 {
   next_context = context;
-  lithe_vcore_entry();
 }
 
 static void base_context_exit(lithe_sched_t *__this, lithe_context_t *context)
@@ -429,11 +428,11 @@ int lithe_sched_exit()
   /* Don't actually allow this context to continue until all of the child's
    * harts have been yielded. This field is synchronized with an update to its
    * value in lithe_hart_grant() as protected by a parent-scheduler-specific
-   * locking function. */
-  while (child->harts != 0) {
-    vcore_set_tls_var(next_context, current_context);
-    uthread_yield(true, __lithe_context_yield, NULL);
-  }
+   * locking function. 
+   * Also, do a full blown lithe context yield so that this hart can do useful
+   * work while waiting */
+  while (child->harts != 0)
+    lithe_context_yield();
 
   return 0;
 }
