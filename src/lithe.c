@@ -133,7 +133,7 @@ int __attribute__((constructor)) lithe_lib_init()
   assert(!parlib_init((uthread_t*)context));
 
   /* Now that the library is initialized, a TLS should be set up for this
-   * context, so set it's current_sched var */
+   * context, so set some of it */
   uthread_set_tls_var(&context->uth, current_sched, &base_sched);
 
   return 0;
@@ -211,6 +211,7 @@ static void base_hart_enter(lithe_sched_t *__this)
   if(root_sched == NULL)
     vcore_yield(false);
   lithe_hart_grant(root_sched, NULL, NULL);
+  assert(0);
 }
 
 static void base_hart_return(lithe_sched_t *__this, lithe_sched_t *sched)
@@ -220,6 +221,7 @@ static void base_hart_return(lithe_sched_t *__this, lithe_sched_t *sched)
   memset(&lithe_tls, 0, sizeof(lithe_tls));
   vcore_yield(false);
   /* I should ONLY get here if vcore_yield() decided to return for some reason */
+  __sync_fetch_and_add(&base_sched.harts, 1);
   lithe_vcore_entry();
 }
 
@@ -253,7 +255,8 @@ static void base_context_unblock(lithe_sched_t *__this, lithe_context_t *context
 
 static void base_context_yield(lithe_sched_t *__this, lithe_context_t *context)
 {
-  fatal("The base context should never be yielding!\n");
+  next_context = context;
+  lithe_vcore_entry();
 }
 
 static void base_context_exit(lithe_sched_t *__this, lithe_context_t *context)
@@ -300,7 +303,7 @@ void lithe_hart_yield()
   current_sched = parent;
   assert(current_sched->funcs->hart_return);
   current_sched->funcs->hart_return(parent, child);
-  __lithe_sched_reenter();
+  fatal("lithe: returned from hart yield");
 }
 
 static void __lithe_sched_enter(void *arg)
@@ -321,7 +324,7 @@ static void __lithe_sched_enter(void *arg)
   assert(child);
   assert(context);
 
-  /* Officially grant the core to the child */
+  /* Officially grant the hart to the child */
   __sync_fetch_and_add(&(parent->harts), -1);
   __sync_fetch_and_add(&(child->harts), 1);
 
@@ -364,8 +367,7 @@ int lithe_sched_enter(lithe_sched_t *child)
   vcore_set_tls_var(next_func, &real_func);
 
   /* Yield this context to vcore context to run the function we just set up. Once
-   * we return from the yield we will be fully inside the child scheduler
-   * running the child context. */
+   * we return from the yield we will be fully inside the child scheduler. */
   uthread_yield(true, __lithe_context_yield, NULL);
   return 0;
 }
@@ -389,20 +391,13 @@ void __lithe_sched_exit(void *arg)
   assert(parent->funcs->child_exit);
   parent->funcs->child_exit(parent, child);
 
-  /* Set the scheduler to the parent in the context that was blocked */
-  context->sched = parent;
-  uthread_set_tls_var(&context->uth, current_sched, parent);
-
-  /* Don't actually end the child scheduler until all its vcores have been
-   * yielded, except this one of course. This field is synchronized with an
-   * update to its value in lithe_hart_grant() as protected by a
-   * parent-scheduler-specific locking function. */
-  while (child->harts != 1) 
-    cpu_relax();
-
   /* Update child's hart count to 0 */
   __sync_fetch_and_add(&(child->harts), -1);
   __sync_fetch_and_add(&(parent->harts), 1);
+
+  /* Set the scheduler to the parent in the context that was blocked */
+  context->sched = parent;
+  uthread_set_tls_var(&context->uth, current_sched, parent);
 
   /* Return to the original parent context */
   next_context = context;
@@ -430,6 +425,16 @@ int lithe_sched_exit()
    * we return from the yield we will be fully back in the parent scheduler
    * running the original parent context. */
   uthread_yield(true, __lithe_context_yield, NULL);
+
+  /* Don't actually allow this context to continue until all of the child's
+   * harts have been yielded. This field is synchronized with an update to its
+   * value in lithe_hart_grant() as protected by a parent-scheduler-specific
+   * locking function. */
+  while (child->harts != 0) {
+    vcore_set_tls_var(next_context, current_context);
+    uthread_yield(true, __lithe_context_yield, NULL);
+  }
+
   return 0;
 }
 
