@@ -272,17 +272,19 @@ void lithe_hart_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *
 {
   assert(child);
   assert(in_vcore_context());
+  assert(child != &base_sched);
+
+  lithe_sched_t *parent = current_sched;
 
   /* Leave parent, join child. */
-  assert(child != &base_sched);
-  __sync_fetch_and_add(&current_sched->harts, -1);
+  __sync_fetch_and_add(&parent->harts, -1);
   __sync_fetch_and_add(&child->harts, 1);
+
+  /* Enter the child scheduler */
   current_sched = child;
   if(unlock_func != NULL)
     unlock_func(lock);
-
-  /* Enter the child scheduler */
-  __lithe_sched_reenter();
+  vcore_reenter(__lithe_sched_reenter);
   fatal("lithe: returned from enter");
 }
 
@@ -295,10 +297,10 @@ void lithe_hart_yield()
   lithe_sched_t *child = current_sched;
 
   /* Leave child, join parent. */
-  __sync_fetch_and_add(&(child->harts), -1);
-  __sync_fetch_and_add(&(parent->harts), 1);
+  __sync_fetch_and_add(&child->harts, -1);
+  __sync_fetch_and_add(&parent->harts, 1);
 
-  /* Yield the vcore to the parent */
+  /* Enter the parent scheduler */
   current_sched = parent;
   assert(current_sched->funcs->hart_return);
   current_sched->funcs->hart_return(parent, child);
@@ -324,8 +326,8 @@ static void __lithe_sched_enter(void *arg)
   assert(context);
 
   /* Officially grant the hart to the child */
-  __sync_fetch_and_add(&(parent->harts), -1);
-  __sync_fetch_and_add(&(child->harts), 1);
+  __sync_fetch_and_add(&parent->harts, -1);
+  __sync_fetch_and_add(&child->harts, 1);
 
   /* Set the scheduler to the child in the context that was blocked */
   context->sched = child;
@@ -391,8 +393,8 @@ void __lithe_sched_exit(void *arg)
   parent->funcs->child_exit(parent, child);
 
   /* Update child's hart count to 0 */
-  __sync_fetch_and_add(&(child->harts), -1);
-  __sync_fetch_and_add(&(parent->harts), 1);
+  __sync_fetch_and_add(&child->harts, -1);
+  __sync_fetch_and_add(&parent->harts, 1);
 
   /* Set the scheduler to the parent in the context that was blocked */
   context->sched = parent;
@@ -431,8 +433,10 @@ int lithe_sched_exit()
    * locking function. 
    * Also, do a full blown lithe context yield so that this hart can do useful
    * work while waiting */
-  while (child->harts != 0)
+  while (child->harts != 0) {
+    assert(child->harts >= 0);
     lithe_context_yield();
+  }
 
   return 0;
 }
