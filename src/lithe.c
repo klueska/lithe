@@ -96,10 +96,15 @@ static __thread struct {
   /* The current scheduler to run any contexts / functions with */
   lithe_sched_t *current_sched;
 
+  /* Space for an arbitrary pointer of data we may wish to pass between
+   * functions without using arguments */
+  void *vcore_data;
+
 } lithe_tls = {NULL, NULL, NULL};
 #define next_context     (lithe_tls.next_context)
 #define next_func        (lithe_tls.next_func)
 #define current_sched    (lithe_tls.current_sched)
+#define vcore_data       (lithe_tls.vcore_data)
 #define current_context  ((lithe_context_t*)current_uthread)
 
 /* Helper function for initializing the barebones of a lithe context */
@@ -148,6 +153,23 @@ static void __attribute__((noreturn)) __lithe_sched_reenter()
   /* Enter current scheduler. */
   assert(current_sched->funcs->hart_enter);
   current_sched->funcs->hart_enter(current_sched);
+  fatal("lithe: returned from enter");
+}
+
+static void __attribute__((noreturn)) __lithe_hart_return()
+{
+  assert(in_vcore_context());
+  assert(current_sched);
+  assert(current_sched->funcs);
+  assert(vcore_data);
+
+  /* Extract the child pointer from our thread local vcore_data */
+  lithe_sched_t *child = vcore_data;
+  vcore_data = NULL;
+
+  /* Enter current scheduler. */
+  assert(current_sched->funcs->hart_return);
+  current_sched->funcs->hart_return(current_sched, child);
   fatal("lithe: returned from enter");
 }
 
@@ -302,8 +324,8 @@ void lithe_hart_yield()
 
   /* Enter the parent scheduler */
   current_sched = parent;
-  assert(current_sched->funcs->hart_return);
-  current_sched->funcs->hart_return(parent, child);
+  vcore_data = child;
+  vcore_reenter(__lithe_hart_return);
   fatal("lithe: returned from hart yield");
 }
 
