@@ -67,6 +67,7 @@ SRCDIR=src
 TESTSDIR=tests
 AC_SUBST([SRCDIR])
 AC_SUBST([TESTSDIR])
+AC_SUBST([LPARLIB])
 AM_SUBST_NOTMAKE([SRCDIR])
 AM_SUBST_NOTMAKE([TESTSDIR])
 
@@ -114,6 +115,9 @@ AC_CHECK_LIB(parlib, uthread_init, [], [
 ])
 LDFLAGS="$save_LDFLAGS"
 LIBS="$save_LIBS"
+LPARLIB=-lparlib
+else
+LPARLIB=
 fi
 
 # Actually output all declared files
