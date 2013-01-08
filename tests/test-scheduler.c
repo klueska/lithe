@@ -59,6 +59,7 @@ static void test_run()
     unsigned int cur;
     do {
       cur = num_harts();
+      cpu_relax();
     } while(!(limit - cur));
     sched->counter = 0;
     printf("counter: %d\n", sched->counter);
