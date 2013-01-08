@@ -1,0 +1,2 @@
+autoreconf --install
+git checkout build-aux/config.sub
