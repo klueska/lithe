@@ -2,7 +2,7 @@
 #include <unistd.h>
 
 #include <parlib/parlib.h>
-#include <parlib/tls.h>
+#include <parlib/dtls.h>
 #include <src/lithe.h>
 #include <src/mutex.h>
 #include <src/defaults.h>
