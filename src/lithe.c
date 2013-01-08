@@ -135,7 +135,7 @@ int __attribute__((constructor)) lithe_lib_init()
 
   /* Once we have set things up for the main context, initialize the uthread
    * library with that main context */
-  assert(!parlib_init((uthread_t*)context));
+  uthread_lib_init((uthread_t*)context);
 
   /* Now that the library is initialized, a TLS should be set up for this
    * context, so set some of it */
