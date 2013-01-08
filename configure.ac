@@ -101,6 +101,7 @@ LDFLAGS="$LDFLAGS -L$PARLIBPATH/lib"
 # Check whether LIBRARY exists and contains FUNCT
 # Execute ACT-IF-FOUND if it does.  ACT-IF-NOT otherwise.
 #AC_CHECK_LIB(LIBRARY, FUNCT, [ACT-IF-FOUND], [ACT-IF-NOT])
+if [[ "$host_os" != "ros" ]]; then
 save_LDFLAGS="$LDFLAGS" 
 save_LIBS="$LIBS"
 LDFLAGS="$LDFLAGS -static -lpthread" 
@@ -113,6 +114,7 @@ AC_CHECK_LIB(parlib, uthread_init, [], [
 ])
 LDFLAGS="$save_LDFLAGS"
 LIBS="$save_LIBS"
+fi
 
 # Actually output all declared files
 AC_OUTPUT

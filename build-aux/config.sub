@@ -298,6 +298,7 @@ case $basic_machine in
 	| pdp10 | pdp11 | pj | pjl \
 	| powerpc | powerpc64 | powerpc64le | powerpcle \
 	| pyramid \
+	| riscv \
 	| rl78 | rx \
 	| score \
 	| sh | sh[1234] | sh[24]a | sh[24]aeb | sh[23]e | sh[34]eb | sheb | shbe | shle | sh[1234]le | sh3ele \
@@ -502,6 +503,15 @@ case $basic_machine in
 		basic_machine=i386-pc
 		os=-aros
 		;;
+	i686-ros)
+		basic_machine=i686-ros
+		os=-ros
+		;;
+	riscv-ros)
+		basic_machine=riscv-ros
+		os=-ros
+		;;
+
 	aux)
 		basic_machine=m68k-apple
 		os=-aux
@@ -1342,7 +1352,7 @@ case $os in
 	      | -hpux* | -unos* | -osf* | -luna* | -dgux* | -auroraux* | -solaris* \
 	      | -sym* | -kopensolaris* \
 	      | -amigaos* | -amigados* | -msdos* | -newsos* | -unicos* | -aof* \
-	      | -aos* | -aros* \
+	      | -aos* | -aros* | -ros* \
 	      | -nindy* | -vxsim* | -vxworks* | -ebmon* | -hms* | -mvs* \
 	      | -clix* | -riscos* | -uniplus* | -iris* | -rtu* | -xenix* \
 	      | -hiux* | -386bsd* | -knetbsd* | -mirbsd* | -netbsd* \
@@ -1485,6 +1495,9 @@ case $os in
 		;;
 	-aros*)
 		os=-aros
+		;;
+	-ros*)
+		os=-ros
 		;;
 	-kaos*)
 		os=-kaos
