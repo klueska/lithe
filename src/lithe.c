@@ -646,3 +646,12 @@ void lithe_context_yield()
   safe_get_tls_var(current_context)->state = CONTEXT_READY;
 }
 
+void lithe_context_exit()
+{
+  assert(!in_vcore_context());
+  assert(current_sched);
+  assert(current_context);
+  current_context->state = CONTEXT_FINISHED;
+  uthread_yield(false, __lithe_context_yield, NULL);
+}
+

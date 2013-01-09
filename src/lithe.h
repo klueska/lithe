@@ -143,6 +143,13 @@ int lithe_context_unblock(lithe_context_t *context);
  */
 void lithe_context_yield();
 
+/**
+ * Stop execution of the current context immediately. The scheduler receives a
+ * callback notifiying it that the context has exited and can decide from there
+ * what to do.
+ */
+void lithe_context_exit();
+
 #ifdef __cplusplus
 }
 #endif
