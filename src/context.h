@@ -47,6 +47,9 @@ struct lithe_context {
   /* Userlevel thread context. */
   uthread_t uth;
 
+  /* A unique ID for this lithe context */
+  int id;
+
   /* The scheduler managing this context */
   struct lithe_sched *sched;
 

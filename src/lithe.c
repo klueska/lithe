@@ -51,6 +51,10 @@ struct schedule_ops *sched_ops = &lithe_sched_ops;
 /* A statically defined global to store the main context */
 static lithe_context_t lithe_main_context;
 
+/* A statically defined global used to assign the next id to a newly
+ * initialized context */
+static int next_context_id = 0;
+
 /* Lithe's base scheduler functions */
 static int base_hart_request(lithe_sched_t *this, lithe_sched_t *child, int k);
 static void base_hart_enter(lithe_sched_t *this);
@@ -499,6 +503,9 @@ static inline void __lithe_context_reinit(lithe_context_t *context, lithe_sched_
 {
   /* Renitialize the new context as a uthread */
   uthread_init(&context->uth);
+
+  /* Assign the context a new id */
+  context->id = next_context_id++;
 
   /* Initialize the fields associated with a lithe context */
   __lithe_context_fields_init(context, sched);
