@@ -1,5 +1,4 @@
 #include <sys/queue.h>
-#include <parlib/slab.h>
 #include <parlib/mcs.h>
 #include <assert.h>
 #include <stdio.h>
@@ -43,10 +42,10 @@ static inline int futex_wait(int *uaddr, int val)
   mcs_lock_lock(&__futex.lock, &qnode);
   if(*uaddr == val) {
     // We unlock in the body of __futex_block
-    struct futex_element *e = kmem_cache_alloc(__futex.element_cache, 0); 
-    e->uaddr = uaddr;
-    e->qnode = &qnode;
-    lithe_context_yield(__futex_block, e);
+    struct futex_element e;
+    e.uaddr = uaddr;
+    e.qnode = &qnode;
+    lithe_context_block(__futex_block, &e);
   }
   else {
     mcs_lock_unlock(&__futex.lock, &qnode);
@@ -66,7 +65,6 @@ static inline int futex_wake(int *uaddr, int count)
       if(e->uaddr == uaddr) {
         TAILQ_REMOVE(&__futex.queue, e, link);
         lithe_context_unblock(e->context);
-        kmem_cache_free(__futex.element_cache, e); 
         count--;
       }
       e = n;
