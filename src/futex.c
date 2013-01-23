@@ -32,6 +32,7 @@ static inline void futex_init()
 
 static void __futex_block(lithe_context_t *context, void *arg) {
   struct futex_element *e = (struct futex_element*)arg;
+  e->context = context;
   TAILQ_INSERT_TAIL(&__futex.queue, e, link);
   mcs_lock_unlock(&__futex.lock, e->qnode);
 }
