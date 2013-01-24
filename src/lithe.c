@@ -111,8 +111,6 @@ static __thread struct {
 #define vcore_data       (lithe_tls.vcore_data)
 #define current_context  ((lithe_context_t*)current_uthread)
 
-/* Helper function for initializing the barebones of a lithe context */
-static inline void __lithe_context_init(lithe_context_t *context, lithe_sched_t *sched);
 /* Helper function for determining which state to resume from after yielding */
 static void __lithe_context_yield(uthread_t *uthread, void *arg);
 
@@ -511,14 +509,6 @@ static inline void __lithe_context_reinit(lithe_context_t *context, lithe_sched_
   __lithe_context_fields_init(context, sched);
 }
 
-static inline void __lithe_context_init(lithe_context_t *context, lithe_sched_t *sched)
-{
-  /* Zero out the uthread struct before passing it down: required by
-   * uthread_init */
-  memset(&context->uth, 0, sizeof(uthread_t));
-  __lithe_context_reinit(context, sched);
-}
-
 static inline void __lithe_context_set_entry(lithe_context_t *context, 
                                              void (*func) (void *), void *arg)
 {
@@ -536,8 +526,10 @@ void lithe_context_init(lithe_context_t *context, void (*func) (void *), void *a
   /* Assert that this is a valid context */
   assert(context);
 
-  /* Call the internal lithe context init */
-  __lithe_context_init(context, current_sched);
+  /* Zero out the uthread struct before passing it down: required by
+   * uthread_init */
+  memset(&context->uth, 0, sizeof(uthread_t));
+  __lithe_context_reinit(context, current_sched);
 
   /* Initialize context start function and stack */
   __lithe_context_set_entry(context, func, arg);
@@ -550,6 +542,18 @@ void lithe_context_reinit(lithe_context_t *context, void (*func) (void *), void 
 
   /* Call the internal lithe context reinit */
   __lithe_context_reinit(context, current_sched);
+
+  /* Initialize context start function and stack */
+  __lithe_context_set_entry(context, func, arg);
+}
+
+void lithe_context_recycle(lithe_context_t *context, void (*func) (void *), void *arg)
+{
+  /* Assert that this is a valid context */
+  assert(context);
+
+  /* Initialize the fields associated with a lithe context */
+  __lithe_context_fields_init(context, current_sched);
 
   /* Initialize context start function and stack */
   __lithe_context_set_entry(context, func, arg);

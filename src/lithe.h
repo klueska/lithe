@@ -79,26 +79,40 @@ void lithe_hart_yield();
  * context parameter MUST already contain a valid stack pointer and stack size.
  * This function MUST be paired with a call to lithe_context_cleanup() in order
  * to properly cleanup the lithe internal state once the context is no longer
- * usable.  To reinitialize a context with a new start function without calling
- * lithe_context_cleanup() first, use lithe_context_reinit() instead.  Once the
- * context is restarted it will run from the entry point specified.
+ * usable. This fucntion MUST only be called exactly ONCE for each newly
+ * created lithe context. To reinitialize a context with a new start function
+ * without calling lithe_context_cleanup() use lithe_context_reinit() or
+ * lithe_context_recycle() as described below.  Once the context is restarted
+ * it will run from the entry point specified.
  */
 void lithe_context_init(lithe_context_t *context, void (*func) (void *), void *arg);
 
 /*
  * Used to reinitialize the lithe internal state for a context already
- * initialized via lithe_context_cleanup().  Normally each call to
+ * initialized via lithe_context_init().  Normally each call to
  * lithe_context_init() must be paired with a call to lithe_context_cleanup()
  * before the context can be reused for anything. The lithe_context_reinit()
- * function allows you to reinitialize this context with a new start function
- * any number of times before pairing it with lithe_context_cleanup(). Once the
- * context is restarted it will run from the entry point specified.
+ * function allows you to reinitialize this context with a new start function,
+ * context id, and tls region (assuming tls support is enabled in the
+ * underlying parlib library). It can be called any number of times before
+ * pairing it with lithe_context_cleanup(). Once the context is restarted it
+ * will run from the entry point specified.
  */
 void lithe_context_reinit(lithe_context_t *context, void (*func) (void *), void *arg);
 
+/*
+ * Similar to lithe_context_reinit() except that the context id and tls region
+ * are preserved. Useful when tls and context id should be preserved across
+ * lithe scheduler invocations.
+ */
+void lithe_context_recycle(lithe_context_t *context, void (*func) (void *), void *arg);
+
 /* 
  * Cleanup an existing context. This context should NOT currently be running on
- * any hart, though this is not enforced by the lithe runtime.
+ * any hart, though this is not enforced by the lithe runtime. Once called,
+ * lithe_context_reinit() can no longer be called on this context.  It is now
+ * safe to either call lithe_context_init() to reinitialize this context from
+ * scratch, or simply free any memory associated with the context.
  */
 void lithe_context_cleanup(lithe_context_t *context);
 
