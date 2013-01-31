@@ -107,6 +107,13 @@ void lithe_context_reinit(lithe_context_t *context, void (*func) (void *), void 
  */
 void lithe_context_recycle(lithe_context_t *context, void (*func) (void *), void *arg);
 
+/*
+ * Reassociate a lithe context with a new scheduler.  Leaving the rest of it
+ * alone. Useful when a context is parked on a barrier instead of exited and
+ * then reused accross scheduler invocations.
+ */
+void lithe_context_reassociate(lithe_context_t *context, lithe_sched_t *sched);
+
 /* 
  * Cleanup an existing context. This context should NOT currently be running on
  * any hart, though this is not enforced by the lithe runtime. Once called,

@@ -104,7 +104,7 @@ static __thread struct {
    * functions without using arguments */
   void *vcore_data;
 
-} lithe_tls = {NULL, NULL, NULL};
+} lithe_tls = {NULL, NULL, NULL, NULL};
 #define next_context     (lithe_tls.next_context)
 #define next_func        (lithe_tls.next_func)
 #define current_sched    (lithe_tls.current_sched)
@@ -559,6 +559,12 @@ void lithe_context_recycle(lithe_context_t *context, void (*func) (void *), void
   __lithe_context_set_entry(context, func, arg);
 }
 
+void lithe_context_reassociate(lithe_context_t *context, lithe_sched_t *sched)
+{
+  context->sched = sched;
+  uthread_set_tls_var(&context->uth, current_sched, sched);
+}
+
 void lithe_context_cleanup(lithe_context_t *context)
 {
   assert(context);
@@ -612,6 +618,8 @@ int lithe_context_block(void (*func) (lithe_context_t *, void *), void *arg)
 
   vcore_set_tls_var(next_func, &real_func);
   current_context->state = CONTEXT_BLOCKED;
+  if(!current_sched->funcs)
+    printf("FAILED: current_sched->funcs: %p\n", current_sched->funcs);
   uthread_yield(true, __lithe_context_yield, NULL);
   safe_get_tls_var(current_context)->state = CONTEXT_READY;
   return 0;
@@ -628,6 +636,7 @@ static void __lithe_context_yield(uthread_t *uthread, void *arg)
 {
   assert(uthread);
   assert(current_sched);
+  assert(current_sched->funcs);
   assert(in_vcore_context());
 
   lithe_context_t *context = (lithe_context_t*)uthread;
