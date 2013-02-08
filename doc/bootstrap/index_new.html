@@ -1,0 +1,320 @@
+<!DOCTYPE html><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Lithe: Enabling Efficient Composition of Parallel Libraries</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <!-- Le styles -->
+    <link href="./assets/css/bootstrap.css" rel="stylesheet">
+    <style type="text/css">
+      body {
+        line-height: 1.2em;
+        padding-top: 60px;
+        padding-bottom: 40px;
+      }
+      .page-header {
+        padding-top: 40px;
+        margin-top: -40px;
+      }
+      #lithe-references li {
+        margin: 0;
+        padding: 0.4em;
+      }
+    </style>
+    <link href="./assets/css/bootstrap-responsive.css" rel="stylesheet">
+
+    <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <!-- Le fav and touch icons -->
+    <link rel="shortcut icon" href="./assets/ico/favicon.ico">
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="./assets/ico/apple-touch-icon-144-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="./assets/ico/apple-touch-icon-114-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" sizes="72x72" href="./assets/ico/apple-touch-icon-72-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" href="./assets/ico/apple-touch-icon-57-precomposed.png">
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-38088937-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+  </head>
+
+  <body>
+
+    <div class="navbar navbar-inverse navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </a>
+          <a class="brand" href="#">Lithe</a>
+          <div class="nav-collapse collapse">
+            <ul class="nav">
+              <li class="active"><a href="#">Home</a></li>
+              <li><a href="#about">About</a></li>
+              <li><a href="#dependencies">Dependencies</a></li>
+              <li><a href="#downloads">Download</a></li>
+              <li><a href="#testing">Testing</a></li>
+              <li><a href="#api-reference">API Reference</a></li>
+              <li><a href="#library-ports">Library Ports</a></li>
+              <li><a href="#contact">Contact</a></li>
+            </ul>
+          </div><!--/.nav-collapse -->
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+
+      <!-- Main hero unit for a primary marketing message or call to action -->
+      <div class="hero-unit">
+        <h1>
+          <img style="margin-bottom:-25px;" src="./assets/img/logo.png" alt="Lithe"/>
+        </h1>
+        <p>Enabling Efficient Composition of Parallel Libraries</p>
+        <a href="https://github.com/klueska/lithe/" class="btn btn-primary btn-large" >View project on GitHub</a>
+      </div>
+
+      <section id="about">
+      <div class="page-header"><h1>About Lithe</h1></div>
+      <p> 
+        Applications built by composing different parallel libraries perform poorly
+        when those libraries interfere with one another by obliviously using the same
+        physical cores, leading to destructive resource oversubscription. Lithe was
+		developed in the UC Berkeley <a
+        href="http://parlab.eecs.berkeley.edu">Parallel Computing Lab</a> as a
+        low-level substrate that provides basic primitives and a standard interface for
+		composing such parallel libraries efficiently. Legacy parallel libraries can
+        be ported into the Lithe framework to provide bolt-on composability without the
+		need to change existing application code. Ports currently exist for
+        both Intel's <a href="http://threadingbuildingblocks.org/">Thread Building
+		blocks (TBB)</a> and <a href="http://openmp.org/wp/">OpenMP</a>. Links
+        to both of these ports are provided <a href="#library-ports">below</a>.
+      </p>
+      <p>
+        Lithe is now part of the <a
+        href="http://crd.lbl.gov/groups-depts/ftg/projects/current-projects/DEGAS/">
+		DEGAS </a> project, a joint effort between UC Berkeley, LBNL, UT Austin,
+        and Rice University to develop the next generation of programming models,
+        runtime systems and tools to meet the challenges of Exascale systems.
+      </p>
+      <p>
+		A reference to the current Lithe API can be found <a
+        href="http://klueska.github.com/lithe/api_reference.html">here</a>.
+      </p>
+      <p>
+		The links below provide information   to help you familiarize yourself
+		with the overall architecture of Lithe. While many of the interfaces
+		discussed in these papers differ from the API provided by Lithe today,
+		the core philosophy and the primary substance of the ideas remain the
+        same.
+        <ul id="lithe-references">
+          <li>
+            <strong>Cooperative Hierarchical Resource Management for Efficient Composition of Parallel Software</strong>.</br>
+            Heidi Pan, Ph.D. Thesis, Massachusetts Institute of Technology, June 2010.<br/>
+            <a href="./pubs/pan-phd-thesis.pdf">PDF</a> | <a href="./pubs/2010-04-09-thesis-defense.ppt">Slides</a>
+          </li>
+          <li>
+            <strong>Composing Parallel Software Efficiently with Lithe</strong>.<br/>
+            Heidi Pan, Benjamin Hindman, and Krste Asanović.<br/> 
+            ACM Conference on Programming Language Design and Implementation (PLDI'10),<br/>
+            Toronto, Ontario, Canada. June 2010.<br/>
+            <a href="./pubs/lithe-pldi2010.pdf">PDF</a> | <a href="./pubs/2010-06-09-pldi.ppt">Slides</a>
+          </li>
+          <li>
+            <strong>Lithe: Enabling Efficient Composition of Parallel Libraries</strong>.<br/>
+            Heidi Pan, Benjamin Hindman, Krste Asanović.<br/>
+            First USENIX Workshop on Hot Topics in Parallelism (HotPar'09),<br/>
+            Berkeley, CA, March 2009.<br/>
+            <a href="./pubs/lithe-hotpar09.pdf">PDF</a> | <a href="./pubs/2009-03-31-hotpar-talk.ppt">Slides</a>
+          </li>
+        </ul>
+      </p>
+
+      <section id="dependencies">
+      <div class="page-header"><h1>Dependencies</h1></div>
+	  <p> 
+		Lithe is designed to run on any system that contains a port of the following library:
+        <div class="well">
+          <a href="http://akaros.cs.berkeley.edu/parlib">Parlib</a>
+        </div>
+	  </p> 
+	  <p> 
+		Parlib has been designed in conjunction with the <a
+        href="http://akaros.cs.berkeley.edu">Akaros OS</a> project in the <a
+		href="http://amplab.cs.berkeley.edu">AMP Lab</a> at UC Berkeley.  It
+		defines a set of low-level interfaces for helping build highly parallel
+		systems across multiple operating systems and varying hardware
+		platforms. Ports currently exist for Linux/i686, Linux/x86_64,
+		Akaros/i686, and Akaros/RISC-V.
+      </p>
+	  <p> 
+		Make sure you have properly installed Parlib on your system before
+        proceeding with the Lithe installation.
+      </p>
+
+      <section id="downloads">
+      <div class="page-header"><h1>Download and Installation</h1></div>
+      <p>
+		Lithe is made available under a <a href="./BSD_licence.html">modified
+        BSD Licence</a>.
+      </p>
+	  <p>
+		The latest release can be downloaded <a
+        href="https://api.github.com/repos/klueska/lithe/tarball/release_1_0">here.</a>
+      </p>
+	  <p>
+		If you prefer to work directly from the development branch, we also
+		provide read-only access to our shared github repository, with a tag
+        for the current release:
+<pre>
+git clone git://github.com/klueska/lithe.git
+git checkout release_1_0</pre>
+      </p>
+	  <p>
+		Once downloaded, follow the standard GNU installation procedure to compile and install it.<br/>
+		If cross compiling, make sure and set the <code>--host</code>
+        configuration option appropriately, (e.g. <code>--host=i686-ros</code>).<br/>
+        Also, if you have Parlib installed in a non-standard location, be sure and set the
+		<code>--with-parlib</code> configure option as well.<br/>
+		Finally, if you install into a non-standard location, don't forget to set your
+        LD_LIBRARY_PATH when running executables that link against Lithe as a shared
+        library.<br/>
+<pre>
+cd lithe
+mkdir build
+cd build
+../configure --prefix=&lt;install_dir&gt; --host=&lt;host_prefix&gt; --with-parlib=&lt;parlib_install_dir&gt;
+make
+&lt;sudo&gt; make install</pre>
+      </p>
+   
+      <section id="testing">
+      <div class="page-header"><h1>Testing</h1></div>
+	  <p> 
+		A number of test applications are included with Lithe and can be
+        compiled from the Lithe build directory as follows:
+<pre>
+cd lithe/build
+make check</pre>
+        The current tests are:
+        <ul>
+          <li>test_cls</li>
+          <li>test_mutex</li>
+          <li>test_recursive_mutex</li>
+          <li>test_condvar</li>
+          <li>test_parent</li>
+          <li>test_scheduler</li>
+          <li>test_mutex_cc</li>
+          <li>test_recursive_mutex_cc</li>
+          <li>test_condvar_cc</li>
+          <li>test_parent_cc</li>
+          <li>test_scheduler_cc</li>
+        </ul>
+		To run them, simply execute them from the current directory.<br/>
+        If they run to completion, they pass.<br/> 
+      </p>
+
+      <section id="api-reference">
+      <div class="page-header"><h1>Lithe API Reference</h1></div>
+	  <p> 
+		An online reference to the current Lithe API can be found <a
+        href="http://klueska.github.com/lithe">here</a>.
+      </p>
+	  <p> 
+		A <a href="Lithe.pdf">pdf version</a> is also available for download.
+      </p>
+	  <p> 
+		On Linux, if you installed Lithe into a standard location, you should
+		also be able to access the API reference via one (or both) of the
+        following two commands:
+<pre>
+man lithe
+info lithe</pre>
+      </p>
+
+      <section id="library-ports">
+      <div class="page-header"><h1>Libraries Ported to the Lithe Framework</h1></div>
+	  <p> 
+        <ul>
+		  <li><a href="http://lithe.eecs.berkeley.edu/tbb">TBB-Lithe: A Port
+              of Intel's Thread Building Blocks to Lithe</a></li>
+		  <li><a href="http://lithe.eecs.berkeley.edu/libgomp">Libgomp-Lithe:
+              A Port of GNU OpenMP to Lithe</a></li>
+        </ul>
+      </p>
+
+      <section id="contact">
+      <div class="page-header"><h1>Contacting the Authors</h1></div>
+	  <p>
+		We have created a <a
+		href="http://groups.google.com/group/lithe-users">lithe-users</a>
+        Google group.<br/>
+        Feel free to join the list and post any questions you have there.
+	  </p>
+	  <p>
+        <strong>Current Contributors:</strong>
+        <ul>
+		  <li>Kevin Klues <a href="mailto:klueska@cs.berkeley.edu">
+            &lt;klueska@cs.berkeley.edu&gt; </a></li>
+		  <li>Andrew Waterman <a href="mailto:waterman@cs.berkeley.edu">
+            &lt;waterman@cs.berkeley.edu&gt; </a></li>
+		  <li>Krste Asanović <a href="mailto:krste@eecs.berkeley.edu">
+            &lt;krste@eecs.berkeley.edu&gt; </a></li>
+        </ul>
+	  </p>
+	  <p>
+        <strong>Past Contributors:</strong>
+        <ul>
+          <li>Heidi Pan <a href="mailto:xoxo@alum.mit.edu"> &lt;xoxo@alum.mit.edu&gt; </a></li>
+          <li>Benjamin Hindman <a href="mailto:benh@cs.berkeley.edu"> &lt;benh@cs.berkeley.edu&gt; </a></li>
+          <li>Rimas Avizienis <a href="mailto:rimas@cs.berkeley.edu"> &lt;rimas@cs.berkeley.edu&gt; </a></li>
+        </ul>
+	  </p>
+
+      <hr>
+
+      <footer>
+      <p>
+        Copyright &copy; 2013 The Regents of the University of California<br/>
+        All Rights Reserved
+      </p>
+      </footer>
+
+    </div> <!-- /container -->
+
+    <!-- Le javascript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="./assets/js/jquery.js"></script>
+    <script src="./assets/js/bootstrap-transition.js"></script>
+    <script src="./assets/js/bootstrap-alert.js"></script>
+    <script src="./assets/js/bootstrap-modal.js"></script>
+    <script src="./assets/js/bootstrap-dropdown.js"></script>
+    <script src="./assets/js/bootstrap-scrollspy.js"></script>
+    <script src="./assets/js/bootstrap-tab.js"></script>
+    <script src="./assets/js/bootstrap-tooltip.js"></script>
+    <script src="./assets/js/bootstrap-popover.js"></script>
+    <script src="./assets/js/bootstrap-button.js"></script>
+    <script src="./assets/js/bootstrap-collapse.js"></script>
+    <script src="./assets/js/bootstrap-carousel.js"></script>
+    <script src="./assets/js/bootstrap-typeahead.js"></script>
+
+  </body>
+</html>

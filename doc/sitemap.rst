@@ -1,11 +1,9 @@
-Lithe Documentation
+Lithe API Reference Sitemap
 ==================================
 
 .. toctree::
   :maxdepth: 2
 
   index
-  about
-  download
-  tutorials
   api_reference
+  about

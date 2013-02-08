@@ -1,10 +1,18 @@
-
 API Reference
 ==================================
-.. toctree::
-  :maxdepth: 0
 
-  runtime
+.. toctree::
+  :maxdepth: 1
+
+  hart
+  c_sched
+  cpp_sched
   context
-  sched
+  runtime
+  defaults
+  mutex
+  semaphore
+  barrier
+  condvar
+  futex
 

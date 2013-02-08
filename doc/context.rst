@@ -1,74 +1,65 @@
 Lithe Contexts
 ==================================
 
-Lithe Context Stacks
+To access the Lithe contexts API, include the following header file:
+::
+
+  #include <lithe/context.h>
+
+Types
 ----------------------------------
 ::
 
-  typedef struct {
-    void *bottom;
-    ssize_t size;
-  } lithe_context_stack_t;
+  struct lithe_context_stack;
+  typedef lithe_context_stack lithe_context_stack_t;
 
-.. c:type:: lithe_context_stack_t
+  struct lithe_context;
+  typedef struct lithe_context lithe_context_t;
 
-  A generic type representing the stack used by a lithe context.
+  DECLARE_TYPED_DEQUE(lithe_context, lithe_context_t *);
 
-.. c:member:: void *lithe_context_stack_t.bottom
+.. c:type:: struct lithe_context_stack
+            lithe_context_stack_t
+
+  Struct to maintain lithe context stacks
+  ::
+
+    struct lithe_context_stack {
+      void *bottom;
+      ssize_t size;
+    };
+
+  .. c:member:: lithe_context_stack_t.bottom
+
+    Stack bottom for a lithe context.
+
+  .. c:member:: lithe_context_stack_t.size
+
+    Stack size for a lithe context.
   
-  Pointer to the bottom of the stack for a lithe context.
-
-.. c:member:: ssize_t lithe_context_stack_t.size
-  
-  Size of the stack pointed to by bottom.
-  
-Lithe Contexts
-----------------------------------
-::
-
-  struct lithe_context {
-    uthread_t uth;
-    struct lithe_sched *sched;
-    void (*start_func) (void *);
-    void *arg;
-    lithe_context_stack_t stack;
-    void *cls;
-    size_t state;
-  };
-  typedef struct lithe_context;
-
 .. c:type:: struct lithe_context
             lithe_context_t
 
   Basic lithe context structure.  All derived scheduler contexts MUST have this
   as their first field so that they can be cast properly within the lithe
   scheduler.
+  ::
 
-.. c:member:: uthread_t lithe_context_t.uth
+    struct lithe_context {
+      lithe_context_stack_t stack;
+      ... // Other "private" fields
+    };
+
+  .. c:member:: lithe_context_t.stack
   
-  Userlevel thread context.
+    The stack associated with this lithe context.  This is the only "public"
+    field exposed through the lithe_context_t_ API. It should be set before calling
+    :c:func:`lithe_context_init` on the context.
 
-.. c:member:: struct lithe_sched *lithe_context_t.sched
+.. c:type:: struct lithe_context_deque
 
-  The scheduler managing this context.
-
-.. c:member:: void (*lithe_context_t.start_func) (void *)
-  
-  Start function for the context.
-
-.. c:member:: void *lithe_context_t.arg
-  
-  Argument for the start function.
-
-.. c:member:: lithe_context_stack_t lithe_context_t.stack
-  
-  The context_stack associated with this context.
-
-.. c:member:: void *lithe_context_t.cls
-  
-  Context local storage.
-
-.. c:member:: size_t lithe_context_t.state
-  
-  State used internally by the lithe runtime to manage contexts.
+  A lithe context "deque" type so that lithe contexts can be enqueued and
+  dequeued into list by components external to the lithe runtime. For example,
+  the supplied lithe mutex, barrier and condvar implementations use this
+  construct to hold blocked contexts and resume them later.
 

@@ -41,7 +41,7 @@ master_doc = 'sitemap'
 
 # General information about the project.
 project = u'Lithe'
-copyright = u'2011, The Regents of the University of California'
+copyright = u'2013, The Regents of the University of California'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -183,8 +183,8 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('sitemap', 'Lithe.tex', u'Lithe Documentation',
-   u'Kevin Klues, Ben Hindman, Heidi Pan,\\\\ Rimas Avizienis, Krste Asanovi\u0107', 'manual'),
+  ('sitemap', 'Lithe.tex', u'Lithe API Reference',
+   u'Kevin Klues, Andrew Waterman, Krste Asanovi\u0107', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -213,8 +213,8 @@ latex_logo = "_static/logo.png"
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('api_reference', 'lithe', u'Lithe Documentation',
-     [u'Kevin Klues, Ben Hindman, Heidi Pan, Rimas Avizienis, Krste Asanovi\u0107'], 1)
+    ('sitemap', 'Lithe', u'Lithe API Reference',
+     [u'Kevin Klues, Andrew Waterman, Krste Asanovi\u0107'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -227,9 +227,10 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('sitemap', 'Lithe', u'Lithe Documentation',
-   u'Kevin Klues, Ben Hindman, Heidi Pan, Rimas Avizienis, Krste Asanovi\u0107', 
-    'Lithe', 'One line description of project.', 'Miscellaneous'),
+  ('sitemap', 'Lithe', u'Lithe API Reference',
+   u'Kevin Klues, Andrew Waterman, Krste Asanovi\u0107', 
+    'Lithe', 'Enabling Efficient Composition of Parallel Libraries.',
+    'Miscellaneous'),
 ]
 
 # Documents to append as an appendix to all manuals.
