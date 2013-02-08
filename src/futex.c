@@ -17,7 +17,6 @@ TAILQ_HEAD(futex_queue, futex_element);
 struct futex_data {
   mcs_lock_t lock;
   struct futex_queue queue;
-  struct kmem_cache *element_cache;
 };
 static struct futex_data __futex;
 
@@ -25,9 +24,6 @@ static inline void futex_init()
 {
   mcs_lock_init(&__futex.lock);
   TAILQ_INIT(&__futex.queue);
-  __futex.element_cache = kmem_cache_create("futex_element_cache", 
-    sizeof(struct futex_element), __alignof__(struct futex_element),
-    0, NULL, NULL);
 }
 
 static void __futex_block(lithe_context_t *context, void *arg) {

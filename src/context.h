@@ -30,7 +30,7 @@ enum {
 };
 
 /* Struct to maintain lithe stacks */
-typedef struct {
+typedef struct lithe_context_stack {
   /* Stack bottom for a lithe context. */
   void *bottom;
 

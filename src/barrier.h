@@ -41,7 +41,7 @@ typedef struct {
 } contextq_t;  
 
 
-typedef struct {
+typedef struct lithe_barrier {
   int N; 
   int arrived;
   bool wait;

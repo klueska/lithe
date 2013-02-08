@@ -367,7 +367,7 @@ static void __lithe_sched_enter(void *arg)
   lithe_vcore_entry();
 }
 
-int lithe_sched_enter(lithe_sched_t *child)
+void lithe_sched_enter(lithe_sched_t *child)
 {
   assert(!in_vcore_context());
   assert(current_sched);
@@ -394,7 +394,6 @@ int lithe_sched_enter(lithe_sched_t *child)
   /* Yield this context to vcore context to run the function we just set up. Once
    * we return from the yield we will be fully inside the child scheduler. */
   uthread_yield(true, __lithe_context_yield, NULL);
-  return 0;
 }
 
 void __lithe_sched_exit(void *arg)
@@ -429,7 +428,7 @@ void __lithe_sched_exit(void *arg)
   lithe_vcore_entry();
 }
 
-int lithe_sched_exit()
+void lithe_sched_exit()
 {
   assert(!in_vcore_context());
   assert(current_sched);
@@ -461,8 +460,6 @@ int lithe_sched_exit()
     assert(child->harts >= 0);
     lithe_context_yield();
   }
-
-  return 0;
 }
 
 int lithe_hart_request(int k)
@@ -603,7 +600,7 @@ void __lithe_context_block(void *arg)
   __lithe_sched_reenter();
 }
 
-int lithe_context_block(void (*func) (lithe_context_t *, void *), void *arg)
+void lithe_context_block(void (*func) (lithe_context_t *, void *), void *arg)
 {
   assert(func);
   assert(!in_vcore_context());
@@ -622,14 +619,12 @@ int lithe_context_block(void (*func) (lithe_context_t *, void *), void *arg)
     printf("FAILED: current_sched->funcs: %p\n", current_sched->funcs);
   uthread_yield(true, __lithe_context_yield, NULL);
   safe_get_tls_var(current_context)->state = CONTEXT_READY;
-  return 0;
 }
 
-int lithe_context_unblock(lithe_context_t *context)
+void lithe_context_unblock(lithe_context_t *context)
 {
   assert(context);
   uthread_runnable(&context->uth);
-  return 0;
 }
 
 static void __lithe_context_yield(uthread_t *uthread, void *arg)
