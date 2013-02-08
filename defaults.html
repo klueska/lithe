@@ -1,0 +1,233 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Lithe Default Scheduler Callbacks &mdash; Lithe 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="top" title="Lithe 1.0 documentation" href="index.html" />
+    <link rel="up" title="API Reference" href="api_reference.html" />
+    <link rel="next" title="Lithe Mutexes" href="mutex.html" />
+    <link rel="prev" title="Lithe Runtime" href="runtime.html" /> 
+  </head>
+  <body>
+<div style="background-color: white; text-align: left; padding: 10px 10px 0px 10px">
+<div style="float:left;">
+<a href="index.html">
+  <img src="_static/logo.png" border="0" alt="Lithe"/>
+</a>
+</div>
+<div style="position:relative; top:115px; float:right; font-size:20px;">
+<i>Enabling Efficient Composition of Parallel Libraries</i>
+</div>
+<div style="clear:both"></div>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="mutex.html" title="Lithe Mutexes"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="runtime.html" title="Lithe Runtime"
+             accesskey="P">previous</a> |</li>
+  <li><a href="index.html">Home</a>|&nbsp;</li>
+  <li><a href="api_reference.html">API Reference</a>|&nbsp;</li>
+  <li><a href="search.html">Search</a>|&nbsp;</li>
+  <li><a href="about.html">About</a>|&nbsp;</li>
+  <li><a href="sitemap.html">Sitemap</a>&raquo;</li>
+
+          <li><a href="api_reference.html" accesskey="U">API Reference</a> &raquo;</li> 
+      </ul>
+    </div>
+
+  
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <a href="http://amplab.cs.berkeley.edu">
+    <img src="_static/amplab.png" width=100% border="0" alt="Amplab"/>
+  </a>
+  <a href="http://parlab.eecs.berkeley.edu">
+    <img src="_static/parlab.png" width=100% border="0" alt="Amplab"/>
+  </a>
+  
+
+  <h3><a href="sitemap.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Lithe Default Scheduler Callbacks</a><ul>
+<li><a class="reference internal" href="#api-calls">API Calls</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="runtime.html"
+                        title="previous chapter">Lithe Runtime</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="mutex.html"
+                        title="next chapter">Lithe Mutexes</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/defaults.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="lithe-default-scheduler-callbacks">
+<h1>Lithe Default Scheduler Callbacks<a class="headerlink" href="#lithe-default-scheduler-callbacks" title="Permalink to this headline">¶</a></h1>
+<p>To access the Lithe default scheduler callbacks API, include the following
+header file:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#include &lt;lithe/defaults.h&gt;</span>
+</pre></div>
+</div>
+<div class="section" id="api-calls">
+<h2>API Calls<a class="headerlink" href="#api-calls" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><pre>lithe_context_t* __lithe_context_create_default(bool stack);
+void __lithe_context_destroy_default(lithe_context_t *context, bool stack);
+
+int __hart_request_default(lithe_sched_t *__this, lithe_sched_t *child, int k);
+void __hart_entry_default(lithe_sched_t *__this);
+void __hart_return_default(lithe_sched_t *__this, lithe_sched_t *child);
+void __child_enter_default(lithe_sched_t *__this, lithe_sched_t *child);
+void __child_exit_default(lithe_sched_t *__this, lithe_sched_t *child);
+void __context_block_default(lithe_sched_t *__this, lithe_context_t *context);
+void __context_unblock_default(lithe_sched_t *__this, lithe_context_t *context);
+void __context_yield_default(lithe_sched_t *__this, lithe_context_t *context);
+void __context_exit_default(lithe_sched_t *__this, lithe_context_t *context);</pre>
+</div>
+<dl class="function">
+<dt id="__lithe_context_create_default">
+<a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a>* <tt class="descname">__lithe_context_create_default</tt><big>(</big>bool<em>&nbsp;stack</em><big>)</big><a class="headerlink" href="#__lithe_context_create_default" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="__lithe_context_destroy_default">
+void <tt class="descname">__lithe_context_destroy_default</tt><big>(</big><a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em>, bool<em>&nbsp;stack</em><big>)</big><a class="headerlink" href="#__lithe_context_destroy_default" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="__hart_request_default">
+int <tt class="descname">__hart_request_default</tt><big>(</big><a class="reference internal" href="c_sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="c_sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*child</em>, int<em>&nbsp;k</em><big>)</big><a class="headerlink" href="#__hart_request_default" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="__hart_entry_default">
+void <tt class="descname">__hart_entry_default</tt><big>(</big><a class="reference internal" href="c_sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em><big>)</big><a class="headerlink" href="#__hart_entry_default" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="__hart_return_default">
+void <tt class="descname">__hart_return_default</tt><big>(</big><a class="reference internal" href="c_sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="c_sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*child</em><big>)</big><a class="headerlink" href="#__hart_return_default" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="__child_enter_default">
+void <tt class="descname">__child_enter_default</tt><big>(</big><a class="reference internal" href="c_sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="c_sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*child</em><big>)</big><a class="headerlink" href="#__child_enter_default" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="__child_exit_default">
+void <tt class="descname">__child_exit_default</tt><big>(</big><a class="reference internal" href="c_sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="c_sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*child</em><big>)</big><a class="headerlink" href="#__child_exit_default" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="__context_block_default">
+void <tt class="descname">__context_block_default</tt><big>(</big><a class="reference internal" href="c_sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em><big>)</big><a class="headerlink" href="#__context_block_default" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="__context_unblock_default">
+void <tt class="descname">__context_unblock_default</tt><big>(</big><a class="reference internal" href="c_sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em><big>)</big><a class="headerlink" href="#__context_unblock_default" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="__context_yield_default">
+void <tt class="descname">__context_yield_default</tt><big>(</big><a class="reference internal" href="c_sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em><big>)</big><a class="headerlink" href="#__context_yield_default" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="__context_exit_default">
+void <tt class="descname">__context_exit_default</tt><big>(</big><a class="reference internal" href="c_sched.html#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em><big>)</big><a class="headerlink" href="#__context_exit_default" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="mutex.html" title="Lithe Mutexes"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="runtime.html" title="Lithe Runtime"
+             >previous</a> |</li>
+  <li><a href="index.html">Home</a>|&nbsp;</li>
+  <li><a href="api_reference.html">API Reference</a>|&nbsp;</li>
+  <li><a href="search.html">Search</a>|&nbsp;</li>
+  <li><a href="about.html">About</a>|&nbsp;</li>
+  <li><a href="sitemap.html">Sitemap</a>&raquo;</li>
+
+          <li><a href="api_reference.html" >API Reference</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, The Regents of the University of California.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

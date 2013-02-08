@@ -1,0 +1,249 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Lithe C++ Schedulers &mdash; Lithe 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="top" title="Lithe 1.0 documentation" href="index.html" />
+    <link rel="up" title="API Reference" href="api_reference.html" />
+    <link rel="next" title="Lithe Contexts" href="context.html" />
+    <link rel="prev" title="Lithe C Schedulers" href="c_sched.html" /> 
+  </head>
+  <body>
+<div style="background-color: white; text-align: left; padding: 10px 10px 0px 10px">
+<div style="float:left;">
+<a href="index.html">
+  <img src="_static/logo.png" border="0" alt="Lithe"/>
+</a>
+</div>
+<div style="position:relative; top:115px; float:right; font-size:20px;">
+<i>Enabling Efficient Composition of Parallel Libraries</i>
+</div>
+<div style="clear:both"></div>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="context.html" title="Lithe Contexts"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="c_sched.html" title="Lithe C Schedulers"
+             accesskey="P">previous</a> |</li>
+  <li><a href="index.html">Home</a>|&nbsp;</li>
+  <li><a href="api_reference.html">API Reference</a>|&nbsp;</li>
+  <li><a href="search.html">Search</a>|&nbsp;</li>
+  <li><a href="about.html">About</a>|&nbsp;</li>
+  <li><a href="sitemap.html">Sitemap</a>&raquo;</li>
+
+          <li><a href="api_reference.html" accesskey="U">API Reference</a> &raquo;</li> 
+      </ul>
+    </div>
+
+  
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <a href="http://amplab.cs.berkeley.edu">
+    <img src="_static/amplab.png" width=100% border="0" alt="Amplab"/>
+  </a>
+  <a href="http://parlab.eecs.berkeley.edu">
+    <img src="_static/parlab.png" width=100% border="0" alt="Amplab"/>
+  </a>
+  
+
+  <h3><a href="sitemap.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Lithe C++ Schedulers</a><ul>
+<li><a class="reference internal" href="#namespaces">Namespaces</a></li>
+<li><a class="reference internal" href="#classes">Classes</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="c_sched.html"
+                        title="previous chapter">Lithe C Schedulers</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="context.html"
+                        title="next chapter">Lithe Contexts</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/cpp_sched.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="lithe-c-schedulers">
+<h1>Lithe C++ Schedulers<a class="headerlink" href="#lithe-c-schedulers" title="Permalink to this headline">¶</a></h1>
+<p>To access the Lithe C++ Scheduelers API, include the following header file:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#include &lt;lithe/sched.hh&gt;</span>
+</pre></div>
+</div>
+<div class="section" id="namespaces">
+<h2>Namespaces<a class="headerlink" href="#namespaces" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><pre>namespace lithe;</pre>
+</div>
+</div>
+<div class="section" id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><pre>class lithe::Scheduler : public lithe_sched_t {
+ protected:
+  virtual void hart_enter() = 0;
+
+  virtual int hart_request(lithe_sched_t *child, int k);
+  virtual void hart_return(lithe_sched_t *child);
+  virtual void child_enter(lithe_sched_t *child);
+  virtual void child_exit(lithe_sched_t *child);
+  virtual void context_block(lithe_context_t *context);
+  virtual void context_unblock(lithe_context_t *context);
+  virtual void context_yield(lithe_context_t *context);
+  virtual void context_exit(lithe_context_t *context);
+
+ public:
+  Scheduler();
+  virtual ~Scheduler();
+};</pre>
+</div>
+<dl class="class">
+<dt id="Scheduler">
+<em class="property">class </em><tt class="descname">Scheduler</tt> : <em class="property">public</em> <em>lithe_sched_t</em><a class="headerlink" href="#Scheduler" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference internal" href="c_sched.html#lithe_sched_t" title="lithe_sched_t"><tt class="xref c c-type docutils literal"><span class="pre">lithe_sched_t</span></tt></a></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="Scheduler::hart_enter">
+void <tt class="descclassname">Scheduler::</tt><tt class="descname">hart_enter</tt><big>(</big><big>)</big><a class="headerlink" href="#Scheduler::hart_enter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="Scheduler::hart_request__lithe_sched_tP.i">
+int <tt class="descclassname">Scheduler::</tt><tt class="descname">hart_request</tt><big>(</big>lithe_sched_t* <em>child</em>, int <em>k</em><big>)</big><a class="headerlink" href="#Scheduler::hart_request__lithe_sched_tP.i" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="Scheduler::hart_return__lithe_sched_tP">
+void <tt class="descclassname">Scheduler::</tt><tt class="descname">hart_return</tt><big>(</big>lithe_sched_t* <em>child</em><big>)</big><a class="headerlink" href="#Scheduler::hart_return__lithe_sched_tP" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="Scheduler::child_enter__lithe_sched_tP">
+void <tt class="descclassname">Scheduler::</tt><tt class="descname">child_enter</tt><big>(</big>lithe_sched_t* <em>child</em><big>)</big><a class="headerlink" href="#Scheduler::child_enter__lithe_sched_tP" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="Scheduler::child_exit__lithe_sched_tP">
+void <tt class="descclassname">Scheduler::</tt><tt class="descname">child_exit</tt><big>(</big>lithe_sched_t* <em>child</em><big>)</big><a class="headerlink" href="#Scheduler::child_exit__lithe_sched_tP" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="Scheduler::context_block__lithe_context_tP">
+void <tt class="descclassname">Scheduler::</tt><tt class="descname">context_block</tt><big>(</big>lithe_context_t* <em>context</em><big>)</big><a class="headerlink" href="#Scheduler::context_block__lithe_context_tP" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="Scheduler::context_unblock__lithe_context_tP">
+void <tt class="descclassname">Scheduler::</tt><tt class="descname">context_unblock</tt><big>(</big>lithe_context_t* <em>context</em><big>)</big><a class="headerlink" href="#Scheduler::context_unblock__lithe_context_tP" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="Scheduler::context_yield__lithe_context_tP">
+void <tt class="descclassname">Scheduler::</tt><tt class="descname">context_yield</tt><big>(</big>lithe_context_t* <em>context</em><big>)</big><a class="headerlink" href="#Scheduler::context_yield__lithe_context_tP" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="Scheduler::context_exit__lithe_context_tP">
+void <tt class="descclassname">Scheduler::</tt><tt class="descname">context_exit</tt><big>(</big>lithe_context_t* <em>context</em><big>)</big><a class="headerlink" href="#Scheduler::context_exit__lithe_context_tP" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="Scheduler::Scheduler">
+ <tt class="descclassname">Scheduler::</tt><tt class="descname">Scheduler</tt><big>(</big><big>)</big><a class="headerlink" href="#Scheduler::Scheduler" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="Scheduler::~Scheduler">
+ <tt class="descclassname">Scheduler::</tt><tt class="descname">~Scheduler</tt><big>(</big><big>)</big><a class="headerlink" href="#Scheduler::~Scheduler" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="context.html" title="Lithe Contexts"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="c_sched.html" title="Lithe C Schedulers"
+             >previous</a> |</li>
+  <li><a href="index.html">Home</a>|&nbsp;</li>
+  <li><a href="api_reference.html">API Reference</a>|&nbsp;</li>
+  <li><a href="search.html">Search</a>|&nbsp;</li>
+  <li><a href="about.html">About</a>|&nbsp;</li>
+  <li><a href="sitemap.html">Sitemap</a>&raquo;</li>
+
+          <li><a href="api_reference.html" >API Reference</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, The Regents of the University of California.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

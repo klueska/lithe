@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Lithe Contexts &mdash; Lithe 1.0 documentation</title>
+    <title>Lithe Semaphores &mdash; Lithe 1.0 documentation</title>
     
     <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -28,8 +28,8 @@
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="top" title="Lithe 1.0 documentation" href="index.html" />
     <link rel="up" title="API Reference" href="api_reference.html" />
-    <link rel="next" title="Lithe Runtime" href="runtime.html" />
-    <link rel="prev" title="Lithe C++ Schedulers" href="cpp_sched.html" /> 
+    <link rel="next" title="Lithe Barriers" href="barrier.html" />
+    <link rel="prev" title="Lithe Mutexes" href="mutex.html" /> 
   </head>
   <body>
 <div style="background-color: white; text-align: left; padding: 10px 10px 0px 10px">
@@ -51,10 +51,10 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="runtime.html" title="Lithe Runtime"
+          <a href="barrier.html" title="Lithe Barriers"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="cpp_sched.html" title="Lithe C++ Schedulers"
+          <a href="mutex.html" title="Lithe Mutexes"
              accesskey="P">previous</a> |</li>
   <li><a href="index.html">Home</a>|&nbsp;</li>
   <li><a href="api_reference.html">API Reference</a>|&nbsp;</li>
@@ -79,21 +79,23 @@
 
   <h3><a href="sitemap.html">Table Of Contents</a></h3>
   <ul>
-<li><a class="reference internal" href="#">Lithe Contexts</a><ul>
+<li><a class="reference internal" href="#">Lithe Semaphores</a><ul>
+<li><a class="reference internal" href="#constants">Constants</a></li>
 <li><a class="reference internal" href="#types">Types</a></li>
+<li><a class="reference internal" href="#api-calls">API Calls</a></li>
 </ul>
 </li>
 </ul>
 
   <h4>Previous topic</h4>
-  <p class="topless"><a href="cpp_sched.html"
-                        title="previous chapter">Lithe C++ Schedulers</a></p>
+  <p class="topless"><a href="mutex.html"
+                        title="previous chapter">Lithe Mutexes</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="runtime.html"
-                        title="next chapter">Lithe Runtime</a></p>
+  <p class="topless"><a href="barrier.html"
+                        title="next chapter">Lithe Barriers</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
-    <li><a href="_sources/context.txt"
+    <li><a href="_sources/semaphore.txt"
            rel="nofollow">Show Source</a></li>
   </ul>
 <div id="searchbox" style="display: none">
@@ -118,77 +120,58 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="lithe-contexts">
-<h1>Lithe Contexts<a class="headerlink" href="#lithe-contexts" title="Permalink to this headline">¶</a></h1>
-<p>To access the Lithe contexts API, include the following header file:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="c">#include &lt;lithe/context.h&gt;</span>
+  <div class="section" id="lithe-semaphores">
+<h1>Lithe Semaphores<a class="headerlink" href="#lithe-semaphores" title="Permalink to this headline">¶</a></h1>
+<p>To access the Lithe semaphores API, include the following header file:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#include &lt;lithe/semaphore.h&gt;</span>
 </pre></div>
+</div>
+<div class="section" id="constants">
+<h2>Constants<a class="headerlink" href="#constants" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#define LITHE_SEM_INITIALIZER</span>
+</pre></div>
+</div>
+<dl class="macro">
+<dt id="LITHE_SEM_INITIALIZER">
+<tt class="descname">LITHE_SEM_INITIALIZER</tt><a class="headerlink" href="#LITHE_SEM_INITIALIZER" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </div>
 <div class="section" id="types">
 <h2>Types<a class="headerlink" href="#types" title="Permalink to this headline">¶</a></h2>
-<div class="highlight-python"><pre>struct lithe_context_stack;
-typedef lithe_context_stack lithe_context_stack_t;
-
-struct lithe_context;
-typedef struct lithe_context lithe_context_t;
-
-DECLARE_TYPED_DEQUE(lithe_context, lithe_context_t *);</pre>
+<div class="highlight-python"><pre>struct lithe_sem;
+typedef struct lithe_sem lithe_sem_t;</pre>
 </div>
 <dl class="type">
-<dt id="lithe_context_stack">
-struct <tt class="descname">lithe_context_stack</tt><a class="headerlink" href="#lithe_context_stack" title="Permalink to this definition">¶</a></dt>
-<dt id="lithe_context_stack_t">
-<tt class="descname">lithe_context_stack_t</tt><a class="headerlink" href="#lithe_context_stack_t" title="Permalink to this definition">¶</a></dt>
-<dd><p>Struct to maintain lithe context stacks</p>
-<div class="highlight-python"><pre>struct lithe_context_stack {
-  void *bottom;
-  ssize_t size;
-};</pre>
+<dt>
+<tt class="descname">struct lithe_sem;</tt></dt>
+<dt>
+<tt class="descname">lithe_sem_t;</tt></dt>
+<dd></dd></dl>
+
 </div>
-<dl class="member">
-<dt id="lithe_context_stack.lithe_context_stack_t.bottom">
-<tt class="descname">lithe_context_stack_t.bottom</tt><a class="headerlink" href="#lithe_context_stack.lithe_context_stack_t.bottom" title="Permalink to this definition">¶</a></dt>
-<dd><p>Stack bottom for a lithe context.</p>
-</dd></dl>
-
-<dl class="member">
-<dt id="lithe_context_stack.lithe_context_stack_t.size">
-<tt class="descname">lithe_context_stack_t.size</tt><a class="headerlink" href="#lithe_context_stack.lithe_context_stack_t.size" title="Permalink to this definition">¶</a></dt>
-<dd><p>Stack size for a lithe context.</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="type">
-<dt id="lithe_context">
-struct <tt class="descname">lithe_context</tt><a class="headerlink" href="#lithe_context" title="Permalink to this definition">¶</a></dt>
-<dt id="lithe_context_t">
-<tt class="descname">lithe_context_t</tt><a class="headerlink" href="#lithe_context_t" title="Permalink to this definition">¶</a></dt>
-<dd><p>Basic lithe context structure.  All derived scheduler contexts MUST have this
-as their first field so that they can be cast properly within the lithe
-scheduler.</p>
-<div class="highlight-python"><pre>struct lithe_context {
-  lithe_context_stack_t stack;
-  ... // Other "private" fields
-};</pre>
+<div class="section" id="api-calls">
+<h2>API Calls<a class="headerlink" href="#api-calls" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><pre>int lithe_sem_init(lithe_sem_t *sem, int count);
+int lithe_sem_wait(lithe_sem_t *sem);
+int lithe_sem_post(lithe_sem_t *sem);</pre>
 </div>
-<dl class="member">
-<dt id="lithe_context.lithe_context_t.stack">
-<tt class="descname">lithe_context_t.stack</tt><a class="headerlink" href="#lithe_context.lithe_context_t.stack" title="Permalink to this definition">¶</a></dt>
-<dd><p>The stack associated with this lithe context.  This is the only &#8220;public&#8221;
-field exposed through the <a class="reference internal" href="#lithe_context_t">lithe_context_t</a> API. It should be set before calling
-<a class="reference internal" href="runtime.html#lithe_context_init" title="lithe_context_init"><tt class="xref c c-func docutils literal"><span class="pre">lithe_context_init()</span></tt></a> on the context.</p>
+<dl class="function">
+<dt id="lithe_sem_init">
+int <tt class="descname">lithe_sem_init</tt><big>(</big>lithe_sem_t<em>&nbsp;*sem</em>, int<em>&nbsp;count</em><big>)</big><a class="headerlink" href="#lithe_sem_init" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize a lithe semaphore.</p>
 </dd></dl>
 
+<dl class="function">
+<dt id="lithe_sem_wait">
+int <tt class="descname">lithe_sem_wait</tt><big>(</big>lithe_sem_t<em>&nbsp;*sem</em><big>)</big><a class="headerlink" href="#lithe_sem_wait" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wait on a lithe semaphore.</p>
 </dd></dl>
 
-<dl class="type">
-<dt id="lithe_context_deque">
-struct <tt class="descname">lithe_context_deque</tt><a class="headerlink" href="#lithe_context_deque" title="Permalink to this definition">¶</a></dt>
-<dd><p>A lithe context &#8220;deque&#8221; type so that lithe contexts can be enqueued and
-dequeued into list by components external to the lithe runtime. For example,
-the supplied lithe mutex, barrier and condvar implementations use this
-construct to hold blocked contexts and resume them later.</p>
+<dl class="function">
+<dt id="lithe_sem_post">
+int <tt class="descname">lithe_sem_post</tt><big>(</big>lithe_sem_t<em>&nbsp;*sem</em><big>)</big><a class="headerlink" href="#lithe_sem_post" title="Permalink to this definition">¶</a></dt>
+<dd><p>Post on a lithe semaphore.</p>
 </dd></dl>
 
 </div>
@@ -207,10 +190,10 @@ construct to hold blocked contexts and resume them later.</p>
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="runtime.html" title="Lithe Runtime"
+          <a href="barrier.html" title="Lithe Barriers"
              >next</a> |</li>
         <li class="right" >
-          <a href="cpp_sched.html" title="Lithe C++ Schedulers"
+          <a href="mutex.html" title="Lithe Mutexes"
              >previous</a> |</li>
   <li><a href="index.html">Home</a>|&nbsp;</li>
   <li><a href="api_reference.html">API Reference</a>|&nbsp;</li>

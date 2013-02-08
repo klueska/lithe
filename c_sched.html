@@ -1,0 +1,275 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Lithe C Schedulers &mdash; Lithe 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="top" title="Lithe 1.0 documentation" href="index.html" />
+    <link rel="up" title="API Reference" href="api_reference.html" />
+    <link rel="next" title="Lithe C++ Schedulers" href="cpp_sched.html" />
+    <link rel="prev" title="Harts" href="hart.html" /> 
+  </head>
+  <body>
+<div style="background-color: white; text-align: left; padding: 10px 10px 0px 10px">
+<div style="float:left;">
+<a href="index.html">
+  <img src="_static/logo.png" border="0" alt="Lithe"/>
+</a>
+</div>
+<div style="position:relative; top:115px; float:right; font-size:20px;">
+<i>Enabling Efficient Composition of Parallel Libraries</i>
+</div>
+<div style="clear:both"></div>
+</div>
+
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cpp_sched.html" title="Lithe C++ Schedulers"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="hart.html" title="Harts"
+             accesskey="P">previous</a> |</li>
+  <li><a href="index.html">Home</a>|&nbsp;</li>
+  <li><a href="api_reference.html">API Reference</a>|&nbsp;</li>
+  <li><a href="search.html">Search</a>|&nbsp;</li>
+  <li><a href="about.html">About</a>|&nbsp;</li>
+  <li><a href="sitemap.html">Sitemap</a>&raquo;</li>
+
+          <li><a href="api_reference.html" accesskey="U">API Reference</a> &raquo;</li> 
+      </ul>
+    </div>
+
+  
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <a href="http://amplab.cs.berkeley.edu">
+    <img src="_static/amplab.png" width=100% border="0" alt="Amplab"/>
+  </a>
+  <a href="http://parlab.eecs.berkeley.edu">
+    <img src="_static/parlab.png" width=100% border="0" alt="Amplab"/>
+  </a>
+  
+
+  <h3><a href="sitemap.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Lithe C Schedulers</a><ul>
+<li><a class="reference internal" href="#types">Types</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="hart.html"
+                        title="previous chapter">Harts</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="cpp_sched.html"
+                        title="next chapter">Lithe C++ Schedulers</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/c_sched.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="lithe-c-schedulers">
+<h1>Lithe C Schedulers<a class="headerlink" href="#lithe-c-schedulers" title="Permalink to this headline">¶</a></h1>
+<p>To access the Lithe C Scheduelers API, include the following header file:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#include &lt;lithe/sched.h&gt;</span>
+</pre></div>
+</div>
+<div class="section" id="types">
+<h2>Types<a class="headerlink" href="#types" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><pre>struct lithe_sched;
+typedef struct lithe_sched lithe_sched_t;
+
+struct lithe_sched_funcs;
+typedef struct struct lithe_sched_funcs lithe_sched_funcs_t;</pre>
+</div>
+<dl class="type">
+<dt id="lithe_sched">
+struct <tt class="descname">lithe_sched</tt><a class="headerlink" href="#lithe_sched" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="type">
+<dt id="lithe_sched_t">
+<tt class="descname">lithe_sched_t</tt><a class="headerlink" href="#lithe_sched_t" title="Permalink to this definition">¶</a></dt>
+<dd><p>Opaque scheduler type passed around between the lithe runtime and any
+user-level schedulers built on top of lithe.</p>
+</dd></dl>
+
+<dl class="type">
+<dt id="lithe_sched_funcs">
+struct <tt class="descname">lithe_sched_funcs</tt><a class="headerlink" href="#lithe_sched_funcs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="type">
+<dt id="lithe_sched_funcs_t">
+<tt class="descname">lithe_sched_funcs_t</tt><a class="headerlink" href="#lithe_sched_funcs_t" title="Permalink to this definition">¶</a></dt>
+<dd><p>A struct containing all of the callback functions that any user-level
+scheduler built on top of lithe must implement.</p>
+<div class="highlight-python"><pre>struct lithe_sched_funcs {
+  int (*hart_request) (lithe_sched_t *__this, lithe_sched_t *child, int k);
+  void (*hart_enter) (lithe_sched_t *__this);
+  void (*hart_return) (lithe_sched_t *__this, lithe_sched_t *child);
+  void (*child_enter) (lithe_sched_t *__this, lithe_sched_t *child);
+  void (*child_exit) (lithe_sched_t *__this, lithe_sched_t *child);
+  void (*context_block) (lithe_sched_t *__this, lithe_context_t *context);
+  void (*context_unblock) (lithe_sched_t *__this, lithe_context_t *context);
+  void (*context_yield) (lithe_sched_t *__this, lithe_context_t *context);
+  void (*context_exit) (lithe_sched_t *__this, lithe_context_t *context);
+};</pre>
+</div>
+<dl class="function">
+<dt id="lithe_sched_funcs_t.hart_request">
+int <tt class="descname">lithe_sched_funcs_t.hart_request</tt><big>(</big><a class="reference internal" href="#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*child</em>, int<em>&nbsp;k</em><big>)</big><a class="headerlink" href="#lithe_sched_funcs_t.hart_request" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function ultimately responsible for granting hart requests from a child
+scheduler. This function is automatically called when a child invokes
+lithe_hart_request() from within it&#8217;s current scheduler. Returns 0 on
+success, -1 on failure.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_sched_funcs_t.hart_enter">
+void <tt class="descname">lithe_sched_funcs_t.hart_enter</tt><big>(</big><a class="reference internal" href="#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em><big>)</big><a class="headerlink" href="#lithe_sched_funcs_t.hart_enter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Entry point for hart granted to this scheduler by a call to
+lithe_hart_request().</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_sched_funcs_t.hart_return">
+void <tt class="descname">lithe_sched_funcs_t.hart_return</tt><big>(</big><a class="reference internal" href="#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*child</em><big>)</big><a class="headerlink" href="#lithe_sched_funcs_t.hart_return" title="Permalink to this definition">¶</a></dt>
+<dd><p>Entry point for harts given back to this scheduler by a call to
+lithe_hart_yield().</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_sched_funcs_t.child_enter">
+void <tt class="descname">lithe_sched_funcs_t.child_enter</tt><big>(</big><a class="reference internal" href="#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*child</em><big>)</big><a class="headerlink" href="#lithe_sched_funcs_t.child_enter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback to inform that a child scheduler has entered on one of the
+current scheduler&#8217;s harts.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_sched_funcs_t.child_exit">
+void <tt class="descname">lithe_sched_funcs_t.child_exit</tt><big>(</big><a class="reference internal" href="#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*child</em><big>)</big><a class="headerlink" href="#lithe_sched_funcs_t.child_exit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback to inform that a child scheduler has exited on one of the
+current scheduler&#8217;s harts.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_sched_funcs_t.context_block">
+void <tt class="descname">lithe_sched_funcs_t.context_block</tt><big>(</big><a class="reference internal" href="#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em><big>)</big><a class="headerlink" href="#lithe_sched_funcs_t.context_block" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback letting this scheduler know that the provided context has been
+blocked by some external component.  It will inform the scheduler when it
+unblocks it via a call to lithe_context_unblock() which ultimately
+triggers the context_unblock() callback.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_sched_funcs_t.context_unblock">
+void <tt class="descname">lithe_sched_funcs_t.context_unblock</tt><big>(</big><a class="reference internal" href="#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em><big>)</big><a class="headerlink" href="#lithe_sched_funcs_t.context_unblock" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback letting this scheduler know that the provided context has been
+unblocked by some external component and is now resumable.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_sched_funcs_t.context_yield">
+void <tt class="descname">lithe_sched_funcs_t.context_yield</tt><big>(</big><a class="reference internal" href="#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em><big>)</big><a class="headerlink" href="#lithe_sched_funcs_t.context_yield" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback notifying a scheduler that a context has cooperatively yielded
+itself back to the scheduler.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="lithe_sched_funcs_t.context_exit">
+void <tt class="descname">lithe_sched_funcs_t.context_exit</tt><big>(</big><a class="reference internal" href="#lithe_sched_t" title="lithe_sched_t">lithe_sched_t</a><em>&nbsp;*__this</em>, <a class="reference internal" href="context.html#lithe_context_t" title="lithe_context_t">lithe_context_t</a><em>&nbsp;*context</em><big>)</big><a class="headerlink" href="#lithe_sched_funcs_t.context_exit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Callback notifying a scheduler that a context has run past the end of it&#8217;s
+start function and completed it&#8217;s work.  At this point it should either be
+reinitialized via a call to lithe_context_reinit() (and friends) or cleaned
+up via lithe_context_cleanup().</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cpp_sched.html" title="Lithe C++ Schedulers"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="hart.html" title="Harts"
+             >previous</a> |</li>
+  <li><a href="index.html">Home</a>|&nbsp;</li>
+  <li><a href="api_reference.html">API Reference</a>|&nbsp;</li>
+  <li><a href="search.html">Search</a>|&nbsp;</li>
+  <li><a href="about.html">About</a>|&nbsp;</li>
+  <li><a href="sitemap.html">Sitemap</a>&raquo;</li>
+
+          <li><a href="api_reference.html" >API Reference</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2013, The Regents of the University of California.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.2.
+    </div>
+  </body>
+</html>

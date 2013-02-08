@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Lithe Contexts &mdash; Lithe 1.0 documentation</title>
+    <title>Lithe Barriers &mdash; Lithe 1.0 documentation</title>
     
     <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -28,8 +28,8 @@
     <link rel="author" title="About these documents" href="about.html" />
     <link rel="top" title="Lithe 1.0 documentation" href="index.html" />
     <link rel="up" title="API Reference" href="api_reference.html" />
-    <link rel="next" title="Lithe Runtime" href="runtime.html" />
-    <link rel="prev" title="Lithe C++ Schedulers" href="cpp_sched.html" /> 
+    <link rel="next" title="Lithe Condition Variables" href="condvar.html" />
+    <link rel="prev" title="Lithe Semaphores" href="semaphore.html" /> 
   </head>
   <body>
 <div style="background-color: white; text-align: left; padding: 10px 10px 0px 10px">
@@ -51,10 +51,10 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="runtime.html" title="Lithe Runtime"
+          <a href="condvar.html" title="Lithe Condition Variables"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="cpp_sched.html" title="Lithe C++ Schedulers"
+          <a href="semaphore.html" title="Lithe Semaphores"
              accesskey="P">previous</a> |</li>
   <li><a href="index.html">Home</a>|&nbsp;</li>
   <li><a href="api_reference.html">API Reference</a>|&nbsp;</li>
@@ -79,21 +79,22 @@
 
   <h3><a href="sitemap.html">Table Of Contents</a></h3>
   <ul>
-<li><a class="reference internal" href="#">Lithe Contexts</a><ul>
+<li><a class="reference internal" href="#">Lithe Barriers</a><ul>
 <li><a class="reference internal" href="#types">Types</a></li>
+<li><a class="reference internal" href="#api-calls">API Calls</a></li>
 </ul>
 </li>
 </ul>
 
   <h4>Previous topic</h4>
-  <p class="topless"><a href="cpp_sched.html"
-                        title="previous chapter">Lithe C++ Schedulers</a></p>
+  <p class="topless"><a href="semaphore.html"
+                        title="previous chapter">Lithe Semaphores</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="runtime.html"
-                        title="next chapter">Lithe Runtime</a></p>
+  <p class="topless"><a href="condvar.html"
+                        title="next chapter">Lithe Condition Variables</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
-    <li><a href="_sources/context.txt"
+    <li><a href="_sources/barrier.txt"
            rel="nofollow">Show Source</a></li>
   </ul>
 <div id="searchbox" style="display: none">
@@ -118,78 +119,45 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="lithe-contexts">
-<h1>Lithe Contexts<a class="headerlink" href="#lithe-contexts" title="Permalink to this headline">¶</a></h1>
-<p>To access the Lithe contexts API, include the following header file:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="c">#include &lt;lithe/context.h&gt;</span>
+  <div class="section" id="lithe-barriers">
+<h1>Lithe Barriers<a class="headerlink" href="#lithe-barriers" title="Permalink to this headline">¶</a></h1>
+<p>To access the Lithe barrier API, include the following header file:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#include &lt;lithe/barrier.h&gt;</span>
 </pre></div>
 </div>
 <div class="section" id="types">
 <h2>Types<a class="headerlink" href="#types" title="Permalink to this headline">¶</a></h2>
-<div class="highlight-python"><pre>struct lithe_context_stack;
-typedef lithe_context_stack lithe_context_stack_t;
-
-struct lithe_context;
-typedef struct lithe_context lithe_context_t;
-
-DECLARE_TYPED_DEQUE(lithe_context, lithe_context_t *);</pre>
+<div class="highlight-python"><pre>struct lithe_barrier;
+typedef struct lithe_barrier lithe_barrier_t;</pre>
 </div>
 <dl class="type">
-<dt id="lithe_context_stack">
-struct <tt class="descname">lithe_context_stack</tt><a class="headerlink" href="#lithe_context_stack" title="Permalink to this definition">¶</a></dt>
-<dt id="lithe_context_stack_t">
-<tt class="descname">lithe_context_stack_t</tt><a class="headerlink" href="#lithe_context_stack_t" title="Permalink to this definition">¶</a></dt>
-<dd><p>Struct to maintain lithe context stacks</p>
-<div class="highlight-python"><pre>struct lithe_context_stack {
-  void *bottom;
-  ssize_t size;
-};</pre>
+<dt id="lithe_barrier">
+struct <tt class="descname">lithe_barrier</tt><a class="headerlink" href="#lithe_barrier" title="Permalink to this definition">¶</a></dt>
+<dt id="lithe_barrier_t">
+<tt class="descname">lithe_barrier_t</tt><a class="headerlink" href="#lithe_barrier_t" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
 </div>
-<dl class="member">
-<dt id="lithe_context_stack.lithe_context_stack_t.bottom">
-<tt class="descname">lithe_context_stack_t.bottom</tt><a class="headerlink" href="#lithe_context_stack.lithe_context_stack_t.bottom" title="Permalink to this definition">¶</a></dt>
-<dd><p>Stack bottom for a lithe context.</p>
-</dd></dl>
-
-<dl class="member">
-<dt id="lithe_context_stack.lithe_context_stack_t.size">
-<tt class="descname">lithe_context_stack_t.size</tt><a class="headerlink" href="#lithe_context_stack.lithe_context_stack_t.size" title="Permalink to this definition">¶</a></dt>
-<dd><p>Stack size for a lithe context.</p>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="type">
-<dt id="lithe_context">
-struct <tt class="descname">lithe_context</tt><a class="headerlink" href="#lithe_context" title="Permalink to this definition">¶</a></dt>
-<dt id="lithe_context_t">
-<tt class="descname">lithe_context_t</tt><a class="headerlink" href="#lithe_context_t" title="Permalink to this definition">¶</a></dt>
-<dd><p>Basic lithe context structure.  All derived scheduler contexts MUST have this
-as their first field so that they can be cast properly within the lithe
-scheduler.</p>
-<div class="highlight-python"><pre>struct lithe_context {
-  lithe_context_stack_t stack;
-  ... // Other "private" fields
-};</pre>
+<div class="section" id="api-calls">
+<h2>API Calls<a class="headerlink" href="#api-calls" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><pre>void lithe_barrier_init(lithe_barrier_t *barrier, int nthreads);
+void lithe_barrier_destroy(lithe_barrier_t *barrier);
+void lithe_barrier_wait(lithe_barrier_t *barrier);</pre>
 </div>
-<dl class="member">
-<dt id="lithe_context.lithe_context_t.stack">
-<tt class="descname">lithe_context_t.stack</tt><a class="headerlink" href="#lithe_context.lithe_context_t.stack" title="Permalink to this definition">¶</a></dt>
-<dd><p>The stack associated with this lithe context.  This is the only &#8220;public&#8221;
-field exposed through the <a class="reference internal" href="#lithe_context_t">lithe_context_t</a> API. It should be set before calling
-<a class="reference internal" href="runtime.html#lithe_context_init" title="lithe_context_init"><tt class="xref c c-func docutils literal"><span class="pre">lithe_context_init()</span></tt></a> on the context.</p>
-</dd></dl>
+<dl class="function">
+<dt id="lithe_barrier_init">
+void <tt class="descname">lithe_barrier_init</tt><big>(</big><a class="reference internal" href="#lithe_barrier_t" title="lithe_barrier_t">lithe_barrier_t</a><em>&nbsp;*barrier</em>, int<em>&nbsp;nthreads</em><big>)</big><a class="headerlink" href="#lithe_barrier_init" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
-</dd></dl>
+<dl class="function">
+<dt id="lithe_barrier_destroy">
+void <tt class="descname">lithe_barrier_destroy</tt><big>(</big><a class="reference internal" href="#lithe_barrier_t" title="lithe_barrier_t">lithe_barrier_t</a><em>&nbsp;*barrier</em><big>)</big><a class="headerlink" href="#lithe_barrier_destroy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
-<dl class="type">
-<dt id="lithe_context_deque">
-struct <tt class="descname">lithe_context_deque</tt><a class="headerlink" href="#lithe_context_deque" title="Permalink to this definition">¶</a></dt>
-<dd><p>A lithe context &#8220;deque&#8221; type so that lithe contexts can be enqueued and
-dequeued into list by components external to the lithe runtime. For example,
-the supplied lithe mutex, barrier and condvar implementations use this
-construct to hold blocked contexts and resume them later.</p>
-</dd></dl>
+<dl class="function">
+<dt id="lithe_barrier_wait">
+void <tt class="descname">lithe_barrier_wait</tt><big>(</big><a class="reference internal" href="#lithe_barrier_t" title="lithe_barrier_t">lithe_barrier_t</a><em>&nbsp;*barrier</em><big>)</big><a class="headerlink" href="#lithe_barrier_wait" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 </div>
 </div>
@@ -207,10 +175,10 @@ construct to hold blocked contexts and resume them later.</p>
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="runtime.html" title="Lithe Runtime"
+          <a href="condvar.html" title="Lithe Condition Variables"
              >next</a> |</li>
         <li class="right" >
-          <a href="cpp_sched.html" title="Lithe C++ Schedulers"
+          <a href="semaphore.html" title="Lithe Semaphores"
              >previous</a> |</li>
   <li><a href="index.html">Home</a>|&nbsp;</li>
   <li><a href="api_reference.html">API Reference</a>|&nbsp;</li>

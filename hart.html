@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Welcome to Lithe’s API Reference &mdash; Lithe 1.0 documentation</title>
+    <title>Harts &mdash; Lithe 1.0 documentation</title>
     
     <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -26,14 +26,15 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="author" title="About these documents" href="about.html" />
-    <link rel="top" title="Lithe 1.0 documentation" href="#" />
-    <link rel="next" title="API Reference" href="api_reference.html" />
-    <link rel="prev" title="Lithe API Reference Sitemap" href="sitemap.html" /> 
+    <link rel="top" title="Lithe 1.0 documentation" href="index.html" />
+    <link rel="up" title="API Reference" href="api_reference.html" />
+    <link rel="next" title="Lithe C Schedulers" href="c_sched.html" />
+    <link rel="prev" title="API Reference" href="api_reference.html" /> 
   </head>
   <body>
 <div style="background-color: white; text-align: left; padding: 10px 10px 0px 10px">
 <div style="float:left;">
-<a href="#">
+<a href="index.html">
   <img src="_static/logo.png" border="0" alt="Lithe"/>
 </a>
 </div>
@@ -50,17 +51,18 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="api_reference.html" title="API Reference"
+          <a href="c_sched.html" title="Lithe C Schedulers"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="sitemap.html" title="Lithe API Reference Sitemap"
+          <a href="api_reference.html" title="API Reference"
              accesskey="P">previous</a> |</li>
-  <li><a href="#">Home</a>|&nbsp;</li>
+  <li><a href="index.html">Home</a>|&nbsp;</li>
   <li><a href="api_reference.html">API Reference</a>|&nbsp;</li>
   <li><a href="search.html">Search</a>|&nbsp;</li>
   <li><a href="about.html">About</a>|&nbsp;</li>
   <li><a href="sitemap.html">Sitemap</a>&raquo;</li>
- 
+
+          <li><a href="api_reference.html" accesskey="U">API Reference</a> &raquo;</li> 
       </ul>
     </div>
 
@@ -75,15 +77,23 @@
   </a>
   
 
+  <h3><a href="sitemap.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Harts</a><ul>
+<li><a class="reference internal" href="#api-calls">API Calls</a></li>
+</ul>
+</li>
+</ul>
+
   <h4>Previous topic</h4>
-  <p class="topless"><a href="sitemap.html"
-                        title="previous chapter">Lithe API Reference Sitemap</a></p>
-  <h4>Next topic</h4>
   <p class="topless"><a href="api_reference.html"
-                        title="next chapter">API Reference</a></p>
+                        title="previous chapter">API Reference</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="c_sched.html"
+                        title="next chapter">Lithe C Schedulers</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
-    <li><a href="_sources/index.txt"
+    <li><a href="_sources/hart.txt"
            rel="nofollow">Show Source</a></li>
   </ul>
 <div id="searchbox" style="display: none">
@@ -108,17 +118,52 @@
         <div class="bodywrapper">
           <div class="body">
             
-  <div class="section" id="welcome-to-lithe-s-api-reference">
-<h1>Welcome to Lithe&#8217;s API Reference<a class="headerlink" href="#welcome-to-lithe-s-api-reference" title="Permalink to this headline">¶</a></h1>
-<p>For the software industry to take advantage of multicore processors, we must
-allow programmers to arbitrarily compose parallel libraries without sacrificing
-performance.  We believe that high-level task or thread abstractions built
-around a common global scheduler cannot provide this composition effectively.
-Instead, the operating system should expose unvirtualized processing resources
-that can be shared cooperatively between parallel libraries within an
-application.</p>
-<p>Lithe is a system that standardizes and facilitates the exchange
-of these unvirtualized processing resources between libraries.</p>
+  <div class="section" id="harts">
+<h1>Harts<a class="headerlink" href="#harts" title="Permalink to this headline">¶</a></h1>
+<p>To access the harts API, include the following header file:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#include &lt;lithe/hart.h&gt;</span>
+</pre></div>
+</div>
+<div class="section" id="api-calls">
+<h2>API Calls<a class="headerlink" href="#api-calls" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-python"><pre>bool in_hart_context();
+int hart_id();
+size_t num_harts();
+size_t max_harts();
+#define hart_set_tls_var(name, val)
+#define hart_get_tls_var(name)</pre>
+</div>
+<dl class="function">
+<dt id="in_hart_context">
+bool <tt class="descname">in_hart_context</tt><big>(</big><big>)</big><a class="headerlink" href="#in_hart_context" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="hart_id">
+int <tt class="descname">hart_id</tt><big>(</big><big>)</big><a class="headerlink" href="#hart_id" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="num_harts">
+size_t <tt class="descname">num_harts</tt><big>(</big><big>)</big><a class="headerlink" href="#num_harts" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="max_harts">
+size_t <tt class="descname">max_harts</tt><big>(</big><big>)</big><a class="headerlink" href="#max_harts" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="hart_set_tls_var">
+#define <tt class="descname">hart_set_tls_var</tt><big>(</big>name, val<big>)</big><a class="headerlink" href="#hart_set_tls_var" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="hart_get_tls_var">
+#define <tt class="descname">hart_get_tls_var</tt><big>(</big>name<big>)</big><a class="headerlink" href="#hart_get_tls_var" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
 </div>
 
 
@@ -134,17 +179,18 @@ of these unvirtualized processing resources between libraries.</p>
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="api_reference.html" title="API Reference"
+          <a href="c_sched.html" title="Lithe C Schedulers"
              >next</a> |</li>
         <li class="right" >
-          <a href="sitemap.html" title="Lithe API Reference Sitemap"
+          <a href="api_reference.html" title="API Reference"
              >previous</a> |</li>
-  <li><a href="#">Home</a>|&nbsp;</li>
+  <li><a href="index.html">Home</a>|&nbsp;</li>
   <li><a href="api_reference.html">API Reference</a>|&nbsp;</li>
   <li><a href="search.html">Search</a>|&nbsp;</li>
   <li><a href="about.html">About</a>|&nbsp;</li>
   <li><a href="sitemap.html">Sitemap</a>&raquo;</li>
- 
+
+          <li><a href="api_reference.html" >API Reference</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">

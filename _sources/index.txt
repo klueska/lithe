@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Overview
+Welcome to Lithe's API Reference
 ==================================
 For the software industry to take advantage of multicore processors, we must
 allow programmers to arbitrarily compose parallel libraries without sacrificing
