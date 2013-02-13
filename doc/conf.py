@@ -213,7 +213,7 @@ latex_logo = "_static/logo.png"
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('sitemap', 'Lithe', u'Lithe API Reference',
+    ('sitemap', 'lithe', u'Lithe API Reference',
      [u'Kevin Klues, Andrew Waterman, Krste Asanovi\u0107'], 1)
 ]
 
