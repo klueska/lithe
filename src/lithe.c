@@ -24,9 +24,6 @@
 #endif
 #endif
 
-/* Define the functions for maintaining a queue of lithe contexts */
-DEFINE_TYPED_DEQUE(lithe_context, lithe_context_t *);
-
 /* Struct to hold the function pointer and argument of a function to be called
  * in vcore_entry after one of the lithe functions yields from a context */
 typedef struct lithe_vcore_func {

@@ -9,6 +9,7 @@
  * mutexes.
  */
 
+#include <errno.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -52,10 +53,10 @@ int lithe_mutex_init(lithe_mutex_t *mutex, lithe_mutexattr_t *attr)
     mutex->attr = *attr;
 
   /* Do initialization. */
+  TAILQ_INIT(&mutex->queue);
   mcs_lock_init(&mutex->lock);
   mutex->qnode = NULL;
   mutex->locked = 0;
-  lithe_context_deque_init(&mutex->deque);
   mutex->owner = NULL;
   return 0;
 }
@@ -64,7 +65,7 @@ static void block(lithe_context_t *context, void *arg)
 {
   lithe_mutex_t *mutex = (lithe_mutex_t *) arg;
   assert(mutex);
-  lithe_context_deque_enqueue(&mutex->deque, context);
+  TAILQ_INSERT_TAIL(&mutex->queue, context, next);
   mcs_lock_unlock(&mutex->lock, mutex->qnode);
 }
 
@@ -126,10 +127,9 @@ int lithe_mutex_unlock(lithe_mutex_t *mutex)
   mcs_lock_lock(&mutex->lock, &qnode);
   mutex->locked--;
   if(mutex->locked == 0) {
-    lithe_context_t *context = NULL;
-    if(lithe_context_deque_length(&mutex->deque) > 0) {
-      lithe_context_deque_dequeue(&mutex->deque, &context);
-    }
+    lithe_context_t *context = TAILQ_FIRST(&mutex->queue);
+    if(context)
+      TAILQ_REMOVE(&mutex->queue, context, next);
     mutex->locked = false;
     mutex->owner = NULL;
     mcs_lock_unlock(&mutex->lock, &qnode);

@@ -22,7 +22,6 @@ LIB_CXXFILES = \
 LIB_HFILES = \
   @SRCDIR@/context.h       \
   @SRCDIR@/defaults.h      \
-  @SRCDIR@/deque.h         \
   @SRCDIR@/fatal.h         \
   @SRCDIR@/hart.h          \
   @SRCDIR@/barrier.h \

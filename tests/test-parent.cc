@@ -7,7 +7,6 @@
 #include <parlib/mcs.h>
 #include <sys/queue.h>
 #include <src/lithe.hh>
-#include <src/deque.h>
 #include <src/defaults.h>
 
 using namespace lithe;

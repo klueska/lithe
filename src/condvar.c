@@ -8,6 +8,7 @@
  * variables.
  */
 
+#include <errno.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -19,10 +20,10 @@
 /* Initialize a condition variable. */
 int lithe_condvar_init(lithe_condvar_t* c) {
   if(c == NULL)
-    return NULL;
+    return EINVAL;
 
   mcs_lock_init(&c->lock);
-  lithe_context_deque_init(&c->queue);
+  TAILQ_INIT(&c->queue);
   return 0;
 }
 
@@ -30,7 +31,7 @@ static void block(lithe_context_t *context, void *arg)
 {
   lithe_condvar_t *condvar = (lithe_condvar_t *) arg;
   assert(condvar);
-  lithe_context_deque_enqueue(&condvar->queue, context);
+  TAILQ_INSERT_TAIL(&condvar->queue, context, next);
   lithe_mutex_unlock(condvar->waiting_mutex);
   mcs_lock_unlock(&condvar->lock, condvar->waiting_qnode);
 }
@@ -55,12 +56,11 @@ int lithe_condvar_signal(lithe_condvar_t* c) {
   if(c == NULL)
     return EINVAL;
 
-  lithe_context_t *context = NULL;
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&c->lock, &qnode);
-  if (lithe_context_deque_length(&c->queue) > 0) {
-    lithe_context_deque_dequeue(&c->queue, &context);
-  }
+  lithe_context_t *context = TAILQ_FIRST(&c->queue);
+  if(context)
+    TAILQ_REMOVE(&c->queue, context, next);
   mcs_lock_unlock(&c->lock, &qnode);
 
   if (context != NULL) {
@@ -78,9 +78,9 @@ int lithe_condvar_broadcast(lithe_condvar_t* c) {
   mcs_lock_qnode_t qnode = {0};
   while(1) {
     mcs_lock_lock(&c->lock, &qnode);
-    if (lithe_context_deque_length(&c->queue) > 0) {
-      lithe_context_deque_dequeue(&c->queue, &context);
-    }
+    lithe_context_t *context = TAILQ_FIRST(&c->queue);
+    if(context)
+      TAILQ_REMOVE(&c->queue, context, next);
     else break;
     mcs_lock_unlock(&c->lock, &qnode);
     lithe_context_unblock(context);

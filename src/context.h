@@ -10,8 +10,8 @@
 #endif
 
 #include <stdarg.h>
+#include <sys/queue.h>
 #include <parlib/uthread.h>
-#include "deque.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,7 +20,7 @@ extern "C" {
 /* Declare types and functions for maintaining a queue of lithe contexts */
 struct lithe_context;
 typedef struct lithe_context lithe_context_t;
-DECLARE_TYPED_DEQUE(lithe_context, lithe_context_t *);
+TAILQ_HEAD(lithe_context_queue, lithe_context);
 
 enum {
   CONTEXT_READY,
@@ -46,6 +46,9 @@ struct lithe_sched;
 struct lithe_context {
   /* Userlevel thread context. */
   uthread_t uth;
+
+  /* A tailq pointer so taht this context can be inserted on a linked list */
+  TAILQ_ENTRY(lithe_context) next;
 
   /* A unique ID for this lithe context */
   int id;

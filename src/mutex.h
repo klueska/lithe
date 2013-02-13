@@ -40,14 +40,14 @@ int lithe_mutexattr_gettype(lithe_mutexattr_t *attr, int *type);
 
 /* A lithe mutex struct */
 typedef struct lithe_mutex {
+  lithe_mutexattr_t attr;
+  struct lithe_context_queue queue;
   mcs_lock_t lock;
   mcs_lock_qnode_t *qnode;
   int locked;
-  struct lithe_context_deque deque;
-  lithe_mutexattr_t attr;
   lithe_context_t *owner;
 } lithe_mutex_t;
-#define LITHE_MUTEX_INITIALIZER {{0}, 0, 0, {0}, {0}, 0}
+#define LITHE_MUTEX_INITIALIZER {{0}, 0, NULL, 0, {0}, NULL}
 
 /* Initialize a mutex. */
 int lithe_mutex_init(lithe_mutex_t *mutex, lithe_mutexattr_t *attr);

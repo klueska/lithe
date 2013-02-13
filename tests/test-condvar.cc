@@ -22,7 +22,7 @@ class RootScheduler : public Scheduler {
   lithe_mutex_t mutex;
   lithe_condvar_t condvar;
   mcs_lock_t qlock;
-  struct lithe_context_deque contextq;
+  struct lithe_context_queue contextq;
 
   RootScheduler();
   ~RootScheduler() {}
@@ -34,7 +34,7 @@ RootScheduler::RootScheduler()
   lithe_mutex_init(&this->mutex, NULL);
   lithe_condvar_init(&this->condvar);
   mcs_lock_init(&this->qlock);
-  lithe_context_deque_init(&this->contextq);
+  TAILQ_INIT(&this->contextq);
 }
 
 void RootScheduler::hart_enter()
@@ -43,7 +43,9 @@ void RootScheduler::hart_enter()
 
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&this->qlock, &qnode);
-    lithe_context_deque_dequeue(&this->contextq, &context);
+    context = TAILQ_FIRST(&this->contextq);
+    if(context)
+      TAILQ_REMOVE(&this->contextq, context, next);
   mcs_lock_unlock(&this->qlock, &qnode);
 
   if(context == NULL)
@@ -56,7 +58,7 @@ void enqueue_task(RootScheduler *sched, lithe_context_t *context)
 {
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->qlock, &qnode);
-    lithe_context_deque_enqueue(&sched->contextq, context);
+    TAILQ_INSERT_TAIL(&sched->contextq, context, next);
     lithe_hart_request(max_harts()-num_harts());
   mcs_lock_unlock(&sched->qlock, &qnode);
 }
@@ -102,7 +104,7 @@ void root_run(unsigned int context_count)
   for(unsigned int i=0; i < context_count; i++) {
     lithe_context_t *context = __lithe_context_create_default(true);
     lithe_context_init(context, work, (void*)sched);
-    lithe_context_deque_enqueue(&sched->contextq, context);
+    TAILQ_INSERT_TAIL(&sched->contextq, context, next);
   }
 
   /* Start up some more harts to do our work for us */
