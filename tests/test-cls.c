@@ -6,6 +6,7 @@
 #include <src/lithe.h>
 #include <src/mutex.h>
 #include <src/defaults.h>
+#include <assert.h>
 
 #define NUM_dtls_keyS 10
 typedef struct root_sched {

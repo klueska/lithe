@@ -9,7 +9,7 @@
  */
 
 #include <errno.h>
-#include <assert.h>
+#include "internal/assert.h"
 #include <stdbool.h>
 #include <stdlib.h>
 

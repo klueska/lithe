@@ -6,7 +6,7 @@
 
 #include <parlib/parlib.h>
 #include <stdlib.h>
-#include <assert.h>
+#include "internal/assert.h"
 #include "barrier.h"
 
 void lithe_barrier_init(lithe_barrier_t *barrier, int N) 

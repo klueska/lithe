@@ -7,6 +7,7 @@
 #include <src/mutex.h>
 #include <src/condvar.h>
 #include <src/fatal.h>
+#include <assert.h>
 
 /* The root scheduler itself */
 typedef struct root_sched {

@@ -4,9 +4,7 @@
  * See COPYING for details.
  */
 
-#ifndef LITHE_DEFAULTS_H
-#define LITHE_DEFAULTS_H
-
+#include "internal/assert.h"
 #include "lithe.h"
 #include "defaults.h"
 
@@ -83,6 +81,4 @@ void __context_exit_default(lithe_sched_t *__this, lithe_context_t *context)
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

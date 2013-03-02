@@ -1,6 +1,6 @@
 #include <sys/queue.h>
 #include <parlib/mcs.h>
-#include <assert.h>
+#include "internal/assert.h"
 #include <stdio.h>
 #include <errno.h>
 #include "lithe.h"
@@ -79,7 +79,6 @@ int futex(int *uaddr, int op, int val, const struct timespec *timeout,
   assert(uaddr2 == NULL);
   assert(val3 == 0);
 
-  run_once(futex_init());
   switch(op) {
     case FUTEX_WAIT:
       return futex_wait(uaddr, val);

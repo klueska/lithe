@@ -6,6 +6,7 @@
 #include <src/defaults.h>
 #include <src/mutex.h>
 #include <src/fatal.h>
+#include <assert.h>
 
 using namespace lithe;
 
