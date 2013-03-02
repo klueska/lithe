@@ -31,7 +31,7 @@ static void block(lithe_context_t *context, void *arg)
 {
   lithe_condvar_t *condvar = (lithe_condvar_t *) arg;
   assert(condvar);
-  TAILQ_INSERT_TAIL(&condvar->queue, context, next);
+  TAILQ_INSERT_TAIL(&condvar->queue, context, link);
   lithe_mutex_unlock(condvar->waiting_mutex);
   mcs_lock_unlock(&condvar->lock, condvar->waiting_qnode);
 }
@@ -60,7 +60,7 @@ int lithe_condvar_signal(lithe_condvar_t* c) {
   mcs_lock_lock(&c->lock, &qnode);
   lithe_context_t *context = TAILQ_FIRST(&c->queue);
   if(context)
-    TAILQ_REMOVE(&c->queue, context, next);
+    TAILQ_REMOVE(&c->queue, context, link);
   mcs_lock_unlock(&c->lock, &qnode);
 
   if (context != NULL) {
@@ -80,7 +80,7 @@ int lithe_condvar_broadcast(lithe_condvar_t* c) {
     mcs_lock_lock(&c->lock, &qnode);
     lithe_context_t *context = TAILQ_FIRST(&c->queue);
     if(context)
-      TAILQ_REMOVE(&c->queue, context, next);
+      TAILQ_REMOVE(&c->queue, context, link);
     else break;
     mcs_lock_unlock(&c->lock, &qnode);
     lithe_context_unblock(context);

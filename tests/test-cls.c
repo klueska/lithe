@@ -65,7 +65,7 @@ static void root_hart_enter(lithe_sched_t *__this)
   mcs_lock_lock(&sched->qlock, &qnode);
     context = TAILQ_FIRST(&sched->contextq);
     if(context)
-      TAILQ_REMOVE(&sched->contextq, context, next);
+      TAILQ_REMOVE(&sched->contextq, context, link);
   mcs_lock_unlock(&sched->qlock, &qnode);
 
   if(context == NULL)
@@ -79,7 +79,7 @@ static void root_enqueue_task(lithe_sched_t *__this, lithe_context_t *context)
   root_sched_t *sched = (root_sched_t *)__this;
   mcs_lock_qnode_t qnode = {0};
   mcs_lock_lock(&sched->qlock, &qnode);
-    TAILQ_INSERT_TAIL(&sched->contextq, context, next);
+    TAILQ_INSERT_TAIL(&sched->contextq, context, link);
     lithe_hart_request(max_harts()-num_harts());
   mcs_lock_unlock(&sched->qlock, &qnode);
 }
@@ -130,7 +130,7 @@ static void root_run(int context_count)
   for(unsigned int i=0; i < context_count; i++) {
     lithe_context_t *context = __lithe_context_create_default(true);
     lithe_context_init(context, work, (void*)sched);
-    TAILQ_INSERT_TAIL(&sched->contextq, context, next);
+    TAILQ_INSERT_TAIL(&sched->contextq, context, link);
   }
 
   /* Start up some more harts to do our work for us */

@@ -21,6 +21,7 @@ extern "C" {
 struct lithe_context;
 typedef struct lithe_context lithe_context_t;
 TAILQ_HEAD(lithe_context_queue, lithe_context);
+typedef struct lithe_context_queue lithe_context_queue_t;
 
 enum {
   CONTEXT_READY,
@@ -48,7 +49,7 @@ struct lithe_context {
   uthread_t uth;
 
   /* A tailq pointer so taht this context can be inserted on a linked list */
-  TAILQ_ENTRY(lithe_context) next;
+  TAILQ_ENTRY(lithe_context) link;
 
   /* A unique ID for this lithe context */
   int id;

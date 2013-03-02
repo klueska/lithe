@@ -65,7 +65,7 @@ static void block(lithe_context_t *context, void *arg)
 {
   lithe_mutex_t *mutex = (lithe_mutex_t *) arg;
   assert(mutex);
-  TAILQ_INSERT_TAIL(&mutex->queue, context, next);
+  TAILQ_INSERT_TAIL(&mutex->queue, context, link);
   mcs_lock_unlock(&mutex->lock, mutex->qnode);
 }
 
@@ -129,7 +129,7 @@ int lithe_mutex_unlock(lithe_mutex_t *mutex)
   if(mutex->locked == 0) {
     lithe_context_t *context = TAILQ_FIRST(&mutex->queue);
     if(context)
-      TAILQ_REMOVE(&mutex->queue, context, next);
+      TAILQ_REMOVE(&mutex->queue, context, link);
     mutex->locked = false;
     mutex->owner = NULL;
     mcs_lock_unlock(&mutex->lock, &qnode);
