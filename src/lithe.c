@@ -8,7 +8,6 @@
  * Lithe implementation.
  */
 
-#include "internal/assert.h"
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -17,6 +16,8 @@
 #include <parlib/parlib.h>
 #include "lithe.h"
 #include "fatal.h"
+#include "internal/assert.h"
+#include "internal/vcore.h"
 
 #ifndef __linux__
 #ifndef __ros__
@@ -213,8 +214,8 @@ static void lithe_thread_runnable(uthread_t *uthread)
 
 static void base_hart_enter(lithe_sched_t *__this)
 {
-  if(root_sched == NULL)
-    vcore_yield(false);
+  while(root_sched == NULL)
+    maybe_vcore_yield();
   lithe_hart_grant(root_sched, NULL, NULL);
   assert(0);
 }
@@ -224,8 +225,9 @@ static void base_hart_return(lithe_sched_t *__this, lithe_sched_t *sched)
   /* Cleanup tls and yield the vcore back to the system. */
   __sync_fetch_and_add(&base_sched.harts, -1);
   memset(&lithe_tls, 0, sizeof(lithe_tls));
-  vcore_yield(false);
-  /* I should ONLY get here if vcore_yield() decided to return for some reason */
+  maybe_vcore_yield();
+  /* I should only get here if a vcore_request occurred during the call to
+   * maybe_vcore_yield; or if vcore_yield decided to return for some reason */
   __sync_fetch_and_add(&base_sched.harts, 1);
   lithe_vcore_entry();
 }
@@ -245,7 +247,7 @@ static void base_child_exited(lithe_sched_t *__this, lithe_sched_t *sched)
 static int base_hart_request(lithe_sched_t *__this, lithe_sched_t *sched, int k)
 {
   assert(root_sched == sched);
-  return vcore_request(k);
+  return maybe_vcore_request(k);
 }
 
 static void base_context_block(lithe_sched_t *__this, lithe_context_t *context)
