@@ -18,13 +18,10 @@ struct futex_data {
   mcs_lock_t lock;
   struct futex_queue queue;
 };
-static struct futex_data __futex;
-
-static inline void futex_init()
-{
-  mcs_lock_init(&__futex.lock);
-  TAILQ_INIT(&__futex.queue);
-}
+static struct futex_data __futex = {
+  .lock = MCS_LOCK_INIT,
+  .queue = TAILQ_HEAD_INITIALIZER(__futex.queue)
+};
 
 static void __futex_block(lithe_context_t *context, void *arg) {
   struct futex_element *e = (struct futex_element*)arg;
