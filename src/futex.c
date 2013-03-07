@@ -9,7 +9,6 @@
 struct futex_element {
   TAILQ_ENTRY(futex_element) link;
   lithe_context_t *context;
-  mcs_lock_qnode_t *qnode;
   int *uaddr;
 };
 TAILQ_HEAD(futex_queue, futex_element);
@@ -38,8 +37,6 @@ static void print_futex_queue()
 static void __futex_block(lithe_context_t *context, void *arg) {
   struct futex_element *e = (struct futex_element*)arg;
   e->context = context;
-  TAILQ_INSERT_TAIL(&__futex.queue, e, link);
-  mcs_lock_unlock(&__futex.lock, e->qnode);
 }
 
 static inline int futex_wait(int *uaddr, int val)
@@ -47,10 +44,12 @@ static inline int futex_wait(int *uaddr, int val)
   mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
   mcs_lock_lock(&__futex.lock, &qnode);
   if(*uaddr == val) {
-    // We unlock in the body of __futex_block
     struct futex_element e;
     e.uaddr = uaddr;
-    e.qnode = &qnode;
+    e.context = NULL;
+    TAILQ_INSERT_TAIL(&__futex.queue, &e, link);
+    mcs_lock_unlock(&__futex.lock, &qnode);
+
     lithe_context_block(__futex_block, &e);
   }
   else {
@@ -62,6 +61,10 @@ static inline int futex_wait(int *uaddr, int val)
 static inline int futex_wake(int *uaddr, int count)
 {
   struct futex_element *e,*n = NULL;
+  struct futex_queue q = TAILQ_HEAD_INITIALIZER(q);
+
+  // Atomically grab all relevant futex blockers
+  // from the global futex queue
   mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
   mcs_lock_lock(&__futex.lock, &qnode);
   e = TAILQ_FIRST(&__futex.queue);
@@ -70,7 +73,7 @@ static inline int futex_wake(int *uaddr, int count)
       n = TAILQ_NEXT(e, link);
       if(e->uaddr == uaddr) {
         TAILQ_REMOVE(&__futex.queue, e, link);
-        lithe_context_unblock(e->context);
+        TAILQ_INSERT_TAIL(&q, e, link);
         count--;
       }
       e = n;
@@ -78,6 +81,17 @@ static inline int futex_wake(int *uaddr, int count)
     else break;
   }
   mcs_lock_unlock(&__futex.lock, &qnode);
+
+  // Unblock them outside the lock
+  e = TAILQ_FIRST(&q);
+  while(e != NULL) {
+    n = TAILQ_NEXT(e, link);
+    TAILQ_REMOVE(&q, e, link);
+    while(e->context == NULL)
+      cpu_relax();
+    lithe_context_unblock(e->context);
+    e = n;
+  }
   return 0;
 }
 
