@@ -23,6 +23,18 @@ static struct futex_data __futex = {
   .queue = TAILQ_HEAD_INITIALIZER(__futex.queue)
 };
 
+static void print_futex_queue()
+{
+  struct futex_element *e;
+  mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
+  mcs_lock_lock(&__futex.lock, &qnode);
+  printf("FUTEX_QUEUE:\n");
+  TAILQ_FOREACH(e, &__futex.queue, link) {
+    printf("  %p: (%p, %p)\n", e, e->uaddr, e->context);
+  }
+  mcs_lock_unlock(&__futex.lock, &qnode);
+}
+
 static void __futex_block(lithe_context_t *context, void *arg) {
   struct futex_element *e = (struct futex_element*)arg;
   e->context = context;
