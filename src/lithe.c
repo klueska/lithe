@@ -90,10 +90,6 @@ static __thread struct {
    * after a yield from another lithe context */
   lithe_context_t *next_context;
 
-  /* The next function to run on this vcore when lithe_vcore_entry is called
-   * after a yield from a lithe context */
-  lithe_vcore_func_t *next_func;
-
   /* The current scheduler to run any contexts / functions with */
   lithe_sched_t *current_sched;
 
@@ -101,15 +97,11 @@ static __thread struct {
    * functions without using arguments */
   void *vcore_data;
 
-} lithe_tls = {NULL, NULL, NULL, NULL};
+} lithe_tls = {NULL, NULL, NULL};
 #define next_context     (lithe_tls.next_context)
-#define next_func        (lithe_tls.next_func)
 #define current_sched    (lithe_tls.current_sched)
 #define vcore_data       (lithe_tls.vcore_data)
 #define current_context  ((lithe_context_t*)current_uthread)
-
-/* Helper function for determining which state to resume from after yielding */
-static void __lithe_context_yield(uthread_t *uthread, void *arg);
 
 int __attribute__((constructor)) lithe_lib_init()
 {
@@ -202,14 +194,6 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
     next_context = NULL;
     run_uthread(&context->uth);
     assert(0); // Should never return from running context
-  }
-
-  /* Otherwise, if next_function is set, call it */
-  if(next_func) {
-    lithe_vcore_func_t *func = next_func;
-    next_func = NULL;
-    func->func(func->arg);
-    assert(0); // Should never return from called function 
   }
 
   /* Otherwise, just reenter hart_enter of whatever the current scheduler is */
@@ -328,23 +312,22 @@ void lithe_hart_yield()
   fatal("lithe: returned from hart yield");
 }
 
-static void __lithe_sched_enter(void *arg)
+static void __lithe_sched_enter(uthread_t *uthread, void *__arg)
 {
   assert(in_vcore_context());
 
-  /* Unpack the real arguments to this function */
+  /* Unpack the arguments to this function */
+  lithe_context_t *context = (lithe_context_t*)uthread;
   struct { 
     lithe_sched_t *parent;
     lithe_sched_t *child;
-    lithe_context_t *context;
-  } *real_arg = arg;
-  lithe_sched_t *parent = real_arg->parent;
-  lithe_sched_t *child = real_arg->child;
-  lithe_context_t *context = real_arg->context;
+  } *arg = __arg;
+  lithe_sched_t *parent = arg->parent;
+  lithe_sched_t *child = arg->child;
 
+  assert(context);
   assert(parent);
   assert(child);
-  assert(context);
 
   /* Officially grant the hart to the child */
   __sync_fetch_and_add(&parent->harts, -1);
@@ -358,10 +341,10 @@ static void __lithe_sched_enter(void *arg)
   assert(parent->funcs->child_enter);
   parent->funcs->child_enter(parent, child);
 
-  /* Return to to the vcore_entry point to continue running the child context now
-   * that it has been properly setup */
+  /* Returning from this function wil bring us back to the vcore_entry point.
+   * We set next_context to continue running the child context now that it has
+   * been properly set up. */
   next_context = context;
-  lithe_vcore_entry();
 }
 
 void lithe_sched_enter(lithe_sched_t *child)
@@ -383,30 +366,29 @@ void lithe_sched_enter(lithe_sched_t *child)
   struct { 
     lithe_sched_t *parent;
     lithe_sched_t *child;
-    lithe_context_t *context;
-  } real_arg = {parent, child, current_context};
-  lithe_vcore_func_t real_func = {__lithe_sched_enter, &real_arg};
-  vcore_set_tls_var(next_func, &real_func);
+  } arg = {parent, child};
 
   /* Yield this context to vcore context to run the function we just set up. Once
    * we return from the yield we will be fully inside the child scheduler. */
-  uthread_yield(true, __lithe_context_yield, NULL);
+  uthread_yield(true, __lithe_sched_enter, &arg);
 }
 
-void __lithe_sched_exit(void *arg)
+void __lithe_sched_exit(uthread_t *uthread, void *arg)
 {
+  assert(in_vcore_context());
+
+  /* Unpack the arguments to this function */
+  lithe_context_t *context = (lithe_context_t*)uthread;
   struct { 
     lithe_sched_t *parent;
     lithe_sched_t *child;
-    lithe_context_t *context;
   } *real_arg = arg;
   lithe_sched_t *parent = real_arg->parent;
   lithe_sched_t *child = real_arg->child;
-  lithe_context_t *context = real_arg->context;
 
+  assert(context);
   assert(parent);
   assert(child);
-  assert(context);
 
   /* Inform the parent that the child scheduler is about to exit */
   assert(parent->funcs->child_exit);
@@ -422,7 +404,6 @@ void __lithe_sched_exit(void *arg)
 
   /* Return to the original parent context */
   next_context = context;
-  lithe_vcore_entry();
 }
 
 void lithe_sched_exit()
@@ -437,15 +418,12 @@ void lithe_sched_exit()
   struct { 
     lithe_sched_t *parent;
     lithe_sched_t *child;
-    lithe_context_t *context;
-  } real_arg = {parent, child, current_context};
-  lithe_vcore_func_t real_func = {__lithe_sched_exit, &real_arg};
-  vcore_set_tls_var(next_func, &real_func);
+  } arg = {parent, child};
 
   /* Yield this context to vcore context to run the function we just set up. Once
    * we return from the yield we will be fully back in the parent scheduler
    * running the original parent context. */
-  uthread_yield(true, __lithe_context_yield, NULL);
+  uthread_yield(true, __lithe_sched_exit, &arg);
 
   /* Don't actually allow this context to continue until all of the child's
    * harts have been yielded. This field is synchronized with an update to its
@@ -472,14 +450,37 @@ int lithe_hart_request(int k)
   return ret;
 }
 
+static void __lithe_context_yield(uthread_t *uthread, void *arg)
+{
+  assert(uthread);
+  assert(current_sched);
+  assert(current_sched->funcs);
+  assert(in_vcore_context());
+
+  lithe_context_t *context = (lithe_context_t*)uthread;
+  assert(current_sched->funcs->context_yield);
+  current_sched->funcs->context_yield(current_sched, context);
+}
+
+static void __lithe_context_finished(uthread_t *uthread, void *__arg)
+{
+  assert(uthread);
+  assert(current_sched);
+  assert(current_sched->funcs);
+  assert(in_vcore_context());
+
+  lithe_context_t *context = (lithe_context_t*)uthread;
+  assert(current_sched->funcs->context_exit);
+  current_sched->funcs->context_exit(current_sched, context);
+}
+
 static void __lithe_context_start()
 {
   assert(current_context);
   assert(current_context->start_func);
   current_context->start_func(current_context->arg);
 
-  safe_get_tls_var(current_context)->state = CONTEXT_FINISHED;
-  uthread_yield(false, __lithe_context_yield, NULL);
+  uthread_yield(false, __lithe_context_finished, NULL);
 }
 
 static inline void __lithe_context_fields_init(lithe_context_t *context, lithe_sched_t *sched)
@@ -582,22 +583,24 @@ int lithe_context_run(lithe_context_t *context)
   return -1;
 }
 
-void __lithe_context_block(void *arg)
+void __lithe_context_block(uthread_t *uthread, void *__arg)
 {
-  assert(arg);
+  assert(__arg);
   assert(in_vcore_context());
 
   struct { 
     void (*func) (lithe_context_t *, void *); 
-    lithe_context_t *context;
     void *arg;
-  } *real_arg = arg;
+  } *arg = __arg;
+  arg->func((lithe_context_t*)uthread, arg->arg);
 
-  real_arg->func(real_arg->context, real_arg->arg);
-  __lithe_sched_reenter();
+  assert(current_sched);
+  assert(current_sched->funcs);
+  assert(current_sched->funcs->context_block);
+  current_sched->funcs->context_block(current_sched, (lithe_context_t*)uthread);
 }
-
-void lithe_context_block(void (*func) (lithe_context_t *, void *), void *arg)
+ 
+void lithe_context_block(void (*func)(lithe_context_t *, void *), void *arg)
 {
   assert(func);
   assert(!in_vcore_context());
@@ -605,17 +608,9 @@ void lithe_context_block(void (*func) (lithe_context_t *, void *), void *arg)
 
   struct { 
     void (*func) (lithe_context_t *, void *); 
-    lithe_context_t *context;
     void *arg;
-  } real_arg = {func, current_context, arg};
-  lithe_vcore_func_t real_func = {__lithe_context_block, &real_arg};
-
-  vcore_set_tls_var(next_func, &real_func);
-  current_context->state = CONTEXT_BLOCKED;
-  if(!current_sched->funcs)
-    printf("FAILED: current_sched->funcs: %p\n", current_sched->funcs);
-  uthread_yield(true, __lithe_context_yield, NULL);
-  safe_get_tls_var(current_context)->state = CONTEXT_READY;
+  } __arg = {func, arg};
+  uthread_yield(true, __lithe_context_block, &__arg);
 }
 
 void lithe_context_unblock(lithe_context_t *context)
@@ -624,38 +619,13 @@ void lithe_context_unblock(lithe_context_t *context)
   uthread_runnable(&context->uth);
 }
 
-static void __lithe_context_yield(uthread_t *uthread, void *arg)
-{
-  assert(uthread);
-  assert(current_sched);
-  assert(current_sched->funcs);
-  assert(in_vcore_context());
-
-  lithe_context_t *context = (lithe_context_t*)uthread;
-  if(context->state == CONTEXT_BLOCKED) {
-    assert(current_sched->funcs->context_block);
-    current_sched->funcs->context_block(current_sched, context);
-  }
-  else if(context->state == CONTEXT_FINISHED) {
-    assert(current_sched->funcs->context_exit);
-    current_sched->funcs->context_exit(current_sched, context);
-  }
-  else if(context->state == CONTEXT_YIELDED) {
-    assert(current_sched->funcs->context_yield);
-    current_sched->funcs->context_yield(current_sched, context);
-  }
-  /* Otherwise, just fall through, we have yielded internally for some reason
-   * and don't want to notify the scheduler */
-}
-
 void lithe_context_yield()
 {
   assert(!in_vcore_context());
   assert(current_sched);
   assert(current_context);
-  current_context->state = CONTEXT_YIELDED;
+
   uthread_yield(true, __lithe_context_yield, NULL);
-  safe_get_tls_var(current_context)->state = CONTEXT_READY;
 }
 
 void lithe_context_exit()
@@ -663,7 +633,7 @@ void lithe_context_exit()
   assert(!in_vcore_context());
   assert(current_sched);
   assert(current_context);
-  current_context->state = CONTEXT_FINISHED;
-  uthread_yield(false, __lithe_context_yield, NULL);
+
+  uthread_yield(false, __lithe_context_finished, NULL);
 }
 
