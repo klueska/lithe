@@ -26,16 +26,22 @@ class RootScheduler : public Scheduler {
   struct lithe_context_queue contextq;
 
   RootScheduler();
-  ~RootScheduler() {}
+  ~RootScheduler();
 };
 
 RootScheduler::RootScheduler()
 {  
+  this->main_context =  new lithe_context_t();
   this->context_count = 0;
   lithe_mutex_init(&this->mutex, NULL);
   lithe_condvar_init(&this->condvar);
   mcs_lock_init(&this->qlock);
   TAILQ_INIT(&this->contextq);
+}
+
+RootScheduler::~RootScheduler()
+{
+  delete this->main_context;
 }
 
 void RootScheduler::hart_enter()
@@ -122,7 +128,7 @@ void root_run(unsigned int context_count)
   lithe_mutex_unlock(&sched->mutex);
 
   /* Signal half the contexts waiting on the condition variable one-by-one */
-  for (int i=0; i<context_count/2; i++)
+  for (unsigned int i=0; i<context_count/2; i++)
     lithe_condvar_signal(&sched->condvar);
 
   /* Signal the rest of the contexts waiting on the condition variable */

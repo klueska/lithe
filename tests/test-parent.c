@@ -32,11 +32,13 @@ static const lithe_sched_funcs_t child_funcs = {
 static void child_sched_ctor(child_sched_t *sched)
 {
   sched->sched.funcs = &child_funcs;
+  sched->sched.main_context = malloc(sizeof(lithe_context_t));
   sched->start_context = NULL;
 }
 
 static void child_sched_dtor(child_sched_t *sched)
 {
+  free(sched->sched.main_context);
 }
 
 static void child_context_unblock(lithe_sched_t *__this, lithe_context_t *context) 
@@ -124,6 +126,7 @@ static const lithe_sched_funcs_t root_funcs = {
 static void root_sched_ctor(root_sched_t *sched)
 {
   sched->sched.funcs = &root_funcs;
+  sched->sched.main_context = malloc(sizeof(lithe_context_t));
   mcs_lock_init(&sched->lock);
   sched->children_expected = 0;
   sched->children_started = 0;
@@ -135,6 +138,7 @@ static void root_sched_ctor(root_sched_t *sched)
 
 static void root_sched_dtor(root_sched_t *sched)
 {
+  free(sched->sched.main_context);
 }
 
 int root_hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k)

@@ -38,6 +38,7 @@ static const lithe_sched_funcs_t root_sched_funcs = {
 static void root_sched_ctor(root_sched_t* sched)
 {
   sched->sched.funcs = &root_sched_funcs;
+  sched->sched.main_context = malloc(sizeof(lithe_context_t));
   sched->context_count = 0;
   lithe_mutex_init(&sched->mutex, NULL);
   mcs_lock_init(&sched->qlock);
@@ -46,6 +47,7 @@ static void root_sched_ctor(root_sched_t* sched)
 
 static void root_sched_dtor(root_sched_t* sched)
 {
+  free(sched->sched.main_context);
 }
 
 static void root_hart_enter(lithe_sched_t *__this)

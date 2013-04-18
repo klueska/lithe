@@ -12,9 +12,20 @@ class TestScheduler : public Scheduler {
 
  public:
   unsigned int counter;
-  TestScheduler() { counter = 0; }
-  ~TestScheduler() {}
+  TestScheduler();
+  ~TestScheduler();
 };
+
+TestScheduler::TestScheduler()
+{
+  this->main_context = new lithe_context_t();
+  counter = 0;
+}
+
+TestScheduler::~TestScheduler()
+{
+  delete this->main_context;
+}
 
 void TestScheduler::hart_enter()
 {

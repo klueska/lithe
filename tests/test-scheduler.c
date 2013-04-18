@@ -27,11 +27,13 @@ static const lithe_sched_funcs_t funcs = {
 static void test_sched_ctor(test_sched_t *sched)
 {
   sched->sched.funcs = &funcs;
+  sched->sched.main_context = malloc(sizeof(lithe_context_t));
   sched->counter = 0;
 }
 
 static void test_sched_dtor(test_sched_t *sched)
 {
+  free(sched->sched.main_context);
 }
 
 static void hart_enter(lithe_sched_t *__this)

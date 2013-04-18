@@ -24,15 +24,21 @@ class RootScheduler : public Scheduler {
   struct lithe_context_queue contextq;
 
   RootScheduler();
-  ~RootScheduler() {}
+  ~RootScheduler();
 };
 
 RootScheduler::RootScheduler()
-{  
+{
   this->context_count = 0;
+  this->main_context = new lithe_context_t();
   lithe_mutex_init(&this->mutex, NULL);
   mcs_lock_init(&this->qlock);
   TAILQ_INIT(&this->contextq);
+}
+
+RootScheduler::~RootScheduler()
+{
+  delete this->main_context;
 }
 
 void RootScheduler::hart_enter()

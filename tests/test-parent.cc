@@ -20,12 +20,18 @@ class ChildScheduler : public Scheduler {
   lithe_context_t *start_context;
 
   ChildScheduler();
-  ~ChildScheduler() {}
+  ~ChildScheduler();
 };
 
 ChildScheduler::ChildScheduler()
 {
+  this->main_context = new lithe_context_t();
   this->start_context = NULL;
+}
+
+ChildScheduler::~ChildScheduler()
+{
+  delete this->main_context;
 }
 
 void ChildScheduler::context_unblock(lithe_context_t *context) 
@@ -96,11 +102,12 @@ class RootScheduler : public Scheduler {
   bool complete;
 
   RootScheduler();
-  ~RootScheduler() {}
+  ~RootScheduler();
 };
 
 RootScheduler::RootScheduler()
 {
+  this->main_context = new lithe_context_t();
   mcs_lock_init(&this->lock);
   this->children_expected = 0;
   this->children_started = 0;
@@ -108,6 +115,11 @@ RootScheduler::RootScheduler()
   LIST_INIT(&this->needy_children);
   this->start_context = NULL;
   this->complete = FALSE;
+}
+
+RootScheduler::~RootScheduler()
+{
+  delete this->main_context;
 }
 
 int RootScheduler::hart_request(lithe_sched_t *child, int k)

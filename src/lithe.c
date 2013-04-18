@@ -353,11 +353,12 @@ void lithe_sched_enter(lithe_sched_t *child)
 {
   assert(!in_vcore_context());
   assert(current_sched);
-
-  /* Make sure that the childs 'funcs' have already been set up properly */
-  assert(child->funcs);
- 
   lithe_sched_t *parent = current_sched;
+
+  /* Make sure that the childs 'funcs' and 'main_context' have already been set
+   * up properly */
+  assert(child->funcs);
+  assert(child->main_context);
 
   /* Set-up child scheduler */
   child->harts = 0;
@@ -369,6 +370,13 @@ void lithe_sched_enter(lithe_sched_t *child)
     lithe_sched_t *parent;
     lithe_sched_t *child;
   } arg = {parent, child};
+
+  /* Hijack the current context and replace it with the child->main_context.
+   * Store the original context in child->main_context so we can restore it on
+   * exi. Store the original context in child->main_context so we can restore it
+   * on exit. */
+  child->parent_context = current_context;
+  hijack_current_uthread(&child->main_context->uth);
 
   /* Yield this context to vcore context to run the function we just set up. Once
    * we return from the yield we will be fully inside the child scheduler. */
@@ -421,6 +429,9 @@ void lithe_sched_exit()
     lithe_sched_t *parent;
     lithe_sched_t *child;
   } arg = {parent, child};
+
+  /* Hijack the current context and replace it with the original parent context */
+  hijack_current_uthread(&child->parent_context->uth);
 
   /* Yield this context to vcore context to run the function we just set up. Once
    * we return from the yield we will be fully back in the parent scheduler

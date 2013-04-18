@@ -26,11 +26,12 @@ extern "C" {
 #endif
 
 /**
- * Passes control to a new child scheduler. The 'funcs' field of the scheduler
- * must already be set up properly or the call will fail. It hands the current
- * hart over to this scheduler and then returns. To exit the child, a
- * subsequent call to lithe_sched_exit() is needed. Only at this point will
- * control be passed back to the parent scheduler.
+ * Passes control to a new child scheduler. The 'funcs' field and
+ * 'main_context' field of the child scheduler must already be set up properly
+ * or the call will fail. It hands the current hart over to this scheduler and
+ * then returns. To exit the child, a subsequent call to lithe_sched_exit() is
+ * needed. Only at this point will control be passed back to the parent
+ * scheduler.
  */
 void lithe_sched_enter(lithe_sched_t *child);
 

@@ -76,17 +76,26 @@ typedef struct lithe_sched_funcs {
  * their first field so that they can be cast properly within lithe */
 struct lithe_sched {
   /* Scheduler functions. Must be set by the implementor of the second level
-   * scheduler before calling lithe_sched_entry() */
+   * scheduler before calling lithe_sched_enter() */
   const lithe_sched_funcs_t *funcs;
+
+  /* Main context. An UNITIALIZED lithe context sized for the scheduler specific
+   * lithe context associated with the new scheduler. Must be set by the
+   * implementor of the second level scheduler before calling lithe_sched_enter()
+   * */
+  lithe_context_t *main_context;
 
   /* All fields below are internal state managed internally by lithe. Put here
    * so that schedulers can statically create these objects if they wish to,
    * for performance reasons.  Alternate solution (previously used in older
    * versions of lithe) is to malloc space for this internal data when a new
    * scheduler is passed in, but mallocing and freeing on every
-   * sched_entry/exit() proves costly.  Another solution would be to keep a
+   * sched_enter/exit() proves costly.  Another solution would be to keep a
    * pool of scheduler data structures internal to lithe, but this adds
    * (arguably) unnecessary complexity. */
+
+  /* Parent context when lithe_sched_enter() called */
+  lithe_context_t *parent_context;
 
   /* Number of harts currently owned by this scheduler. */
   int harts;
