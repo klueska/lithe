@@ -66,9 +66,6 @@ struct lithe_context {
   /* The context_stack associated with this context */
   lithe_context_stack_t stack;
 
-  /* State used internally by the lithe runtime to manage contexts */
-  size_t state;
-
 };
 
 #ifdef __cplusplus

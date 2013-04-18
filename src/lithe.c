@@ -489,7 +489,6 @@ static inline void __lithe_context_fields_init(lithe_context_t *context, lithe_s
 {
   context->start_func = NULL;
   context->arg = NULL;
-  context->state  = CONTEXT_READY;
   context->sched = sched;
   uthread_set_tls_var(&context->uth, current_sched, sched);
 }
