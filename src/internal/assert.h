@@ -3,7 +3,8 @@
 
 #include <assert.h>
 
-#ifndef DEBUG
+//#define LITHE_DEBUG
+#ifndef LITHE_DEBUG
 # undef assert
 # define assert(x) (x)
 #endif
