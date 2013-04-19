@@ -16,7 +16,7 @@ int lithe_sem_init(lithe_sem_t *sem, int count)
 {
   if(sem == NULL)
     return EINVAL;
-  if(count <= 0)
+  if(count < 0)
     return EINVAL;
 
   sem->count = count;
