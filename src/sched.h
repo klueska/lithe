@@ -32,7 +32,7 @@ typedef struct lithe_sched_funcs {
    * scheduler. This function is automatically called when a child invokes
    * lithe_hart_request() from within it's current scheduler. Returns 0 on
    * success, -1 on failure. */
-  int (*hart_request) (lithe_sched_t *__this, lithe_sched_t *child, int k);
+  int (*hart_request) (lithe_sched_t *__this, lithe_sched_t *child, size_t k);
 
   /* Entry point for hart granted to this scheduler by a call to
    * lithe_hart_request(). */
@@ -98,7 +98,7 @@ struct lithe_sched {
   lithe_context_t *parent_context;
 
   /* Number of harts currently owned by this scheduler. */
-  int harts;
+  size_t harts;
 
   /* Scheduler's parent scheduler */
   lithe_sched_t *parent;

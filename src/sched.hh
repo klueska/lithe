@@ -19,7 +19,7 @@ class Scheduler : public lithe_sched_t {
   static const lithe_sched_funcs_t static_funcs;
 
  private:
-  friend int __hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
+  friend int __hart_request(lithe_sched_t *__this, lithe_sched_t *child, size_t k);
   friend void __hart_enter(lithe_sched_t *__this);
   friend void __hart_return(lithe_sched_t *__this, lithe_sched_t *child);
   friend void __child_enter(lithe_sched_t *__this, lithe_sched_t *child);
@@ -32,7 +32,7 @@ class Scheduler : public lithe_sched_t {
  protected:
   virtual void hart_enter() = 0;
 
-  virtual int hart_request(lithe_sched_t *child, int k) 
+  virtual int hart_request(lithe_sched_t *child, size_t k) 
     { return __hart_request_default(this, child, k); }
   virtual void hart_return(lithe_sched_t *child)
     { return __hart_return_default(this, child); }

@@ -51,10 +51,10 @@ static lithe_context_t lithe_main_context;
 
 /* A statically defined global used to assign the next id to a newly
  * initialized context */
-static int next_context_id = 0;
+static size_t next_context_id = 0;
 
 /* Lithe's base scheduler functions */
-static int base_hart_request(lithe_sched_t *this, lithe_sched_t *child, int k);
+static int base_hart_request(lithe_sched_t *this, lithe_sched_t *child, size_t k);
 static void base_hart_enter(lithe_sched_t *this);
 static void base_hart_return(lithe_sched_t *this, lithe_sched_t *child);
 static void base_child_entered(lithe_sched_t *this, lithe_sched_t *child);
@@ -244,7 +244,7 @@ static void base_child_exited(lithe_sched_t *__this, lithe_sched_t *sched)
   root_sched = NULL;
 }
 
-static int base_hart_request(lithe_sched_t *__this, lithe_sched_t *sched, int k)
+static int base_hart_request(lithe_sched_t *__this, lithe_sched_t *sched, size_t k)
 {
   assert(root_sched == sched);
   return maybe_vcore_request(k);
@@ -450,7 +450,7 @@ void lithe_sched_exit()
   }
 }
 
-int lithe_hart_request(int k)
+int lithe_hart_request(size_t k)
 {
   assert(current_sched);
   lithe_sched_t *parent = current_sched->parent;
@@ -491,7 +491,7 @@ static void __lithe_context_start()
 {
   assert(current_context);
   assert(current_context->start_func);
-  current_context->start_func(current_context->arg);
+  current_context->start_func(current_context->start_func_arg);
 
   uthread_yield(false, __lithe_context_finished, NULL);
 }
@@ -499,7 +499,7 @@ static void __lithe_context_start()
 static inline void __lithe_context_fields_init(lithe_context_t *context, lithe_sched_t *sched)
 {
   context->start_func = NULL;
-  context->arg = NULL;
+  context->start_func_arg = NULL;
   context->sched = sched;
   uthread_set_tls_var(&context->uth, current_sched, sched);
 }
@@ -523,7 +523,7 @@ static inline void __lithe_context_set_entry(lithe_context_t *context,
   assert(context->stack.size);
 
   context->start_func = func;
-  context->arg = arg;
+  context->start_func_arg = arg;
   init_uthread_tf(&context->uth, __lithe_context_start, 
                   context->stack.bottom, context->stack.size);
 }

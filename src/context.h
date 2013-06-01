@@ -61,7 +61,7 @@ struct lithe_context {
   void (*start_func) (void *);
 
   /* Argument for the start function */
-  void *arg;
+  void *start_func_arg;
 
   /* The context_stack associated with this context */
   lithe_context_stack_t stack;

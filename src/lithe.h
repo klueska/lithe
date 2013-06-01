@@ -53,7 +53,7 @@ lithe_sched_t *lithe_sched_current();
  * necessary. These harts will trickle in over time as they are granted to the
  * requesting scheduler. Returns 0 on success and -1 on error. 
  */
-int lithe_hart_request(int k);
+int lithe_hart_request(size_t k);
  
 /**
  * Grant the current hart to another scheduler.  Triggered by a previous call

@@ -9,7 +9,7 @@
 
 namespace lithe {
 
-int __hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
+int __hart_request(lithe_sched_t *__this, lithe_sched_t *child, size_t k)
 {
   return ((Scheduler*)__this)->hart_request(child, k);
 }

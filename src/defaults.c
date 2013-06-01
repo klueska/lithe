@@ -34,7 +34,7 @@ void __lithe_context_destroy_default(lithe_context_t *context, bool stack)
 }
 
 /* Helpful defaults for the lithe callback functions */
-int __hart_request_default(lithe_sched_t *__this, lithe_sched_t *child, int k)
+int __hart_request_default(lithe_sched_t *__this, lithe_sched_t *child, size_t k)
 {
   return lithe_hart_request(k);
 }
