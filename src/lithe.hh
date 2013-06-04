@@ -9,5 +9,6 @@
 
 #include "lithe.h"
 #include "sched.hh"
+#include "context.hh"
 
 #endif  // LITHE_HH

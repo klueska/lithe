@@ -17,7 +17,8 @@ LIB_CFILES = \
   @SRCDIR@/mutex.c
 
 LIB_CXXFILES = \
-  @SRCDIR@/sched.cc
+  @SRCDIR@/sched.cc \
+  @SRCDIR@/context.cc
 
 LIB_HFILES = \
   @SRCDIR@/context.h       \
@@ -34,7 +35,8 @@ LIB_HFILES = \
 
 LIB_HHFILES = \
   @SRCDIR@/lithe.hh \
-  @SRCDIR@/sched.hh
+  @SRCDIR@/sched.hh \
+  @SRCDIR@/context.hh
 
 TEST_EXECS = \
   test_cls        \
