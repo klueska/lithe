@@ -130,7 +130,6 @@ int lithe_mutex_unlock(lithe_mutex_t *mutex)
     lithe_context_t *context = TAILQ_FIRST(&mutex->queue);
     if(context)
       TAILQ_REMOVE(&mutex->queue, context, link);
-    mutex->locked = false;
     mutex->owner = NULL;
     mcs_lock_unlock(&mutex->lock, &qnode);
 

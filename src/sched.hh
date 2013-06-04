@@ -12,8 +12,6 @@
 
 namespace lithe {
 
-class Scheduler;
-
 class Scheduler : public lithe_sched_t {
  protected:
   static const lithe_sched_funcs_t static_funcs;
