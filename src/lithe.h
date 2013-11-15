@@ -11,10 +11,6 @@
 #ifndef LITHE_H
 #define LITHE_H
 
-#ifndef __GNUC__
-#error "expecting __GNUC__ to be defined (are you using gcc?)"
-#endif
-
 #include <stdarg.h>
 #include <parlib/parlib.h>
 #include "sched.h"

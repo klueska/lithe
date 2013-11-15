@@ -5,10 +5,6 @@
 #ifndef LITHE_CONTEXT_H
 #define LITHE_CONTEXT_H
 
-#ifndef __GNUC__
-#error "expecting __GNUC__ to be defined (are you using gcc?)"
-#endif
-
 #include <stdarg.h>
 #include <sys/queue.h>
 #include <parlib/uthread.h>

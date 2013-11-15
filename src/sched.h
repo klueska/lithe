@@ -11,10 +11,6 @@
 #ifndef LITHE_SCHED_H
 #define LITHE_SCHED_H
 
-#ifndef __GNUC__
-#error "expecting __GNUC__ to be defined (are you using gcc?)"
-#endif
-
 #include "context.h"
 
 #ifdef __cplusplus

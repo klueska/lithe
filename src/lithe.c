@@ -8,6 +8,10 @@
  * Lithe implementation.
  */
 
+#ifndef __GNUC__
+#error "expecting __GNUC__ to be defined (are you using gcc?)"
+#endif
+
 #include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
