@@ -37,8 +37,8 @@ typedef struct lithe_vcore_func {
 } lithe_vcore_func_t;
 
 /* Hooks from uthread code into lithe */
-static void         lithe_vcore_entry(void);
-static void         lithe_thread_runnable(uthread_t *uthread);
+static void lithe_vcore_entry(void);
+static void lithe_thread_runnable(uthread_t *uthread);
 
 /* Unique function pointer table required by uthread code */
 struct schedule_ops lithe_sched_ops = {
@@ -108,13 +108,9 @@ static __thread struct {
 #define vcore_data       (lithe_tls.vcore_data)
 #define current_context  ((lithe_context_t*)current_uthread)
 
-int __attribute__((constructor)) lithe_lib_init()
+void __attribute__((constructor)) lithe_lib_init()
 {
-  /* Make sure this only runs once */
-  static bool initialized = false;
-  if (initialized)
-      return -1;
-  initialized = true;
+  init_once_racy(return);
 
   /* Create a lithe context for the main thread to run in */
   lithe_context_t *context = &lithe_main_context;
@@ -136,8 +132,6 @@ int __attribute__((constructor)) lithe_lib_init()
   /* Now that the library is initialized, a TLS should be set up for this
    * context, so set some of it */
   uthread_set_tls_var(&context->uth, current_sched, &base_sched);
-
-  return 0;
 }
 
 static void __attribute__((noreturn)) __lithe_sched_reenter()
@@ -376,8 +370,7 @@ void lithe_sched_enter(lithe_sched_t *child)
   } arg = {parent, child};
 
   /* Hijack the current context and replace it with the child->main_context.
-   * Store the original context in child->main_context so we can restore it on
-   * exi. Store the original context in child->main_context so we can restore it
+   * Store the original context in child->main_context so we can restore it
    * on exit. */
   child->parent_context = current_context;
   hijack_current_uthread(&child->main_context->uth);
