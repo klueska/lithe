@@ -19,11 +19,10 @@ extern "C" {
 
 /* A lithe semaphore struct */
 typedef struct lithe_sem {
-  int count;
-  mcs_lock_t lock;
-  lithe_mutex_t mutex;
+  int value;
+  int nwaiters;
 } lithe_sem_t;
-#define LITHE_SEM_INITIALIZER {0, {0}, {0}}
+#define LITHE_SEM_INITIALIZER {0, 0}
 
 /* Initialize a semaphore. */
 int lithe_sem_init(lithe_sem_t *sem, int count);

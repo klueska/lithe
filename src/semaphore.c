@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include "futex.h"
 #include "semaphore.h"
 
 int lithe_sem_init(lithe_sem_t *sem, int count)
@@ -19,10 +20,19 @@ int lithe_sem_init(lithe_sem_t *sem, int count)
   if(count < 0)
     return EINVAL;
 
-  sem->count = count;
-  mcs_lock_init(&sem->lock);
-  lithe_mutex_init(&sem->mutex, NULL);
+  sem->value = count;
+  sem->nwaiters = 0;
   return 0;
+}
+
+static int atomic_decrement_if_positive(int *pvalue)
+{
+  while (true) {
+    int value = *pvalue;
+    if (value > 0 && !__sync_bool_compare_and_swap(pvalue, value, value-1))
+      continue;
+    return value;
+  }
 }
 
 int lithe_sem_wait(lithe_sem_t *sem)
@@ -30,17 +40,16 @@ int lithe_sem_wait(lithe_sem_t *sem)
   if(sem == NULL)
     return EINVAL;
 
-  mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
-  mcs_lock_lock(&sem->lock, &qnode);
-  if(sem->count <= 0) {
-    sem->count--;
-    mcs_lock_unlock(&sem->lock, &qnode);
-    lithe_mutex_lock(&sem->mutex);
-  }
-  else {
-    sem->count--;
-    mcs_lock_unlock(&sem->lock, &qnode);
-  }  
+  if (atomic_decrement_if_positive(&sem->value) > 0)
+    return 0;
+
+  __sync_fetch_and_add(&sem->nwaiters, 1);
+
+  do {
+    if (futex(&sem->value, FUTEX_WAIT, 0, NULL, NULL, 0))
+      return -1;
+  } while (atomic_decrement_if_positive(&sem->value) <= 0);
+
   return 0;
 }
 
@@ -49,12 +58,12 @@ int lithe_sem_post(lithe_sem_t *sem)
   if(sem == NULL)
     return EINVAL;
 
-  mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
-  mcs_lock_lock(&sem->lock, &qnode);
-  if(sem->count < 0)
-    lithe_mutex_unlock(&sem->mutex);
-  sem->count++;
-  mcs_lock_unlock(&sem->lock, &qnode);
+  __sync_fetch_and_add(&sem->value, 1);
+  __sync_synchronize();
+
+  if (sem->nwaiters > 0)
+    return futex(&sem->value, FUTEX_WAKE, 1, NULL, NULL, 0);
+
   return 0;
 }
 
