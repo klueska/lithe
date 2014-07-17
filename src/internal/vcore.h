@@ -1,52 +1,42 @@
 #ifndef LITHE_INTERNAL_VCORE_H
 #define LITHE_INTERNAL_VCORE_H
 
+#include <stdlib.h>
 #include <sys/queue.h>
+#include <parlib/vcore.h>
+#include "assert.h"
 
-static const int LITHE_YIELD_SPIN_COUNT = 10000;
+static int *wake_me_up;
+static int max_spin_count = 300000;
 
-typedef struct yield_queue_entry {
-  bool wake;
-  TAILQ_ENTRY(yield_queue_entry) link;
-} yield_queue_entry_t;
-TAILQ_HEAD(yield_queue, yield_queue_entry);
-static struct yield_queue yield_queue = TAILQ_HEAD_INITIALIZER(yield_queue);
-static spinlock_t yield_queue_lock = SPINLOCK_INITIALIZER;
+static inline void lithe_vcore_init()
+{
+  wake_me_up = calloc(max_vcores(), sizeof(wake_me_up[0]));
+  assert(wake_me_up);
+
+  const char *spin_count_string = getenv("LITHE_SPIN_COUNT");
+  if (spin_count_string != NULL)
+    max_spin_count = atoi(spin_count_string);
+}
 
 static inline void maybe_vcore_yield()
 {
-  yield_queue_entry_t e = {false, NULL};
+  int *flag = &wake_me_up[vcore_id()];
 
-  spinlock_lock(&yield_queue_lock);
-  TAILQ_INSERT_HEAD(&yield_queue, &e, link);
-  spinlock_unlock(&yield_queue_lock);
-
-  for (int spins = 0; spins < LITHE_YIELD_SPIN_COUNT && !e.wake; spins++)
+  *flag = 1;
+  // make a local copy of max_spin_count to avoid reloading it due to cpu_relax
+  for (int spins = 0, max = max_spin_count; spins < max && *flag; spins++)
     cpu_relax();
 
-  bool do_yield = true;
-  spinlock_lock(&yield_queue_lock);
-  if (e.wake)
-    do_yield = false;
-  TAILQ_REMOVE(&yield_queue, &e, link);
-  spinlock_unlock(&yield_queue_lock);
-
-  if (do_yield)
+  if (*flag && __sync_lock_test_and_set(flag, 0))
     vcore_yield(false);
 }
 
 static inline int maybe_vcore_request(int k)
 {
-  spinlock_lock(&yield_queue_lock);
-  yield_queue_entry_t* e;
-  TAILQ_FOREACH(e, &yield_queue, link)
-  {
-    if (k == 0)
-      break;
-    k--;
-    e->wake = true;
-  }
-  spinlock_unlock(&yield_queue_lock);
+  for (int i = 0; i < max_vcores() && k > 0; i++)
+    if (wake_me_up[i] && __sync_lock_test_and_set(&wake_me_up[i], 0))
+      k--;
 
   return vcore_request(k);
 }

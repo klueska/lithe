@@ -129,6 +129,9 @@ void __attribute__((constructor)) lithe_lib_init()
    * library with that main context */
   uthread_lib_init((uthread_t*)context);
 
+  /* Initialize vcore request/yield data structures */
+  lithe_vcore_init();
+
   /* Now that the library is initialized, a TLS should be set up for this
    * context, so set some of it */
   uthread_set_tls_var(&context->uth, current_sched, &base_sched);
