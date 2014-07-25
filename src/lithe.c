@@ -89,6 +89,7 @@ static lithe_sched_t base_sched = {
 
 /* Root scheduler, i.e. the child scheduler of base. */
 static lithe_sched_t *root_sched = NULL;
+static atomic_t root_sched_ref_count = ATOMIC_INITIALIZER(0);
 
 static __thread struct {
   /* The next context to run on this vcore when lithe_vcore_entry is called again
@@ -213,12 +214,36 @@ static void lithe_thread_runnable(uthread_t *uthread)
   current_sched->funcs->context_unblock(current_sched, context);
 }
 
+static void __lithe_hart_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *lock);
 static void base_hart_enter(lithe_sched_t *__this)
 {
-  while(root_sched == NULL)
+  // This function will never return.  Either we eventually yield the vcore
+  // back to the system, or we grant it to a child scheduler.  When one of
+  // these two things happens, we will break out of this infinite loop...
+  while (1) {
+    // We need to do a bunch of refcounting here to make sure that we are able
+    // to access the root_sched before passing a hart to it.  Only if we can
+    // access it and are able to up its hart count, do we transfer control to it.
+    if (atomic_add_not_zero(&root_sched_ref_count, 1)) {
+      // Force load of local copy of root_sched.
+      // This is necessary because, while the atomic_add_not_zero() below
+      // guarantees that we won't free the root scheduler, we may still NULL
+      // it out in base_child_exited.
+      rmb(); // needed to order with the atomic_add() above
+      lithe_sched_t *child = root_sched;
+
+      bool ret = atomic_add_not_zero(&child->harts, 1);
+      rwmb(); // needed to order with the atomic_add() above
+      atomic_add(&root_sched_ref_count, -1);
+      if (ret) {
+        atomic_add(&__this->harts, -1);
+        __lithe_hart_grant(child, NULL, NULL);
+      }
+    }
+    // If this returns, we go back to the top of the loop and attempt to grant
+    // to the root scheduler again
     maybe_vcore_yield();
-  lithe_hart_grant(root_sched, NULL, NULL);
-  assert(0);
+  }
 }
 
 static void base_hart_return(lithe_sched_t *__this, lithe_sched_t *sched)
@@ -236,12 +261,16 @@ static void base_hart_return(lithe_sched_t *__this, lithe_sched_t *sched)
 static void base_child_entered(lithe_sched_t *__this, lithe_sched_t *sched)
 {
   assert(root_sched == NULL);
+  root_sched_ref_count = ATOMIC_INITIALIZER(1);
   root_sched = sched;
 }
 
 static void base_child_exited(lithe_sched_t *__this, lithe_sched_t *sched)
 {
   assert(root_sched == sched);
+  atomic_add(&root_sched_ref_count, -1);
+  while (root_sched_ref_count)
+    cpu_relax();
   root_sched = NULL;
 }
 
