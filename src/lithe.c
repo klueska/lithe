@@ -82,9 +82,9 @@ static const lithe_sched_funcs_t base_funcs = {
 
 /* Base scheduler itself */
 static lithe_sched_t base_sched = { 
-  .funcs           = &base_funcs,
-  .harts          = 0,
-  .parent          = NULL,
+  .funcs  = &base_funcs,
+  .harts  = ATOMIC_INITIALIZER(0),
+  .parent = NULL,
 };
 
 /* Root scheduler, i.e. the child scheduler of base. */
@@ -176,7 +176,7 @@ static void __attribute__((noreturn)) lithe_vcore_entry()
   if(current_sched == NULL) {
     /* Set the current scheduler as the base scheduler */
     current_sched = &base_sched;
-    __sync_fetch_and_add(&base_sched.harts, 1);
+    atomic_add(&base_sched.harts, 1);
   }
 
   /* If current_context is set, then just resume it. This will happen in one of 2
@@ -224,12 +224,12 @@ static void base_hart_enter(lithe_sched_t *__this)
 static void base_hart_return(lithe_sched_t *__this, lithe_sched_t *sched)
 {
   /* Cleanup tls and yield the vcore back to the system. */
-  __sync_fetch_and_add(&base_sched.harts, -1);
+  atomic_add(&base_sched.harts, -1);
   memset(&lithe_tls, 0, sizeof(lithe_tls));
   maybe_vcore_yield();
   /* I should only get here if a vcore_request occurred during the call to
    * maybe_vcore_yield; or if vcore_yield decided to return for some reason */
-  __sync_fetch_and_add(&base_sched.harts, 1);
+  atomic_add(&base_sched.harts, 1);
   lithe_vcore_entry();
 }
 
@@ -285,8 +285,8 @@ void lithe_hart_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *
   lithe_sched_t *parent = current_sched;
 
   /* Leave parent, join child. */
-  __sync_fetch_and_add(&parent->harts, -1);
-  __sync_fetch_and_add(&child->harts, 1);
+  atomic_add(&parent->harts, -1);
+  atomic_add(&child->harts, 1);
 
   /* Enter the child scheduler */
   current_sched = child;
@@ -305,8 +305,8 @@ void lithe_hart_yield()
   lithe_sched_t *child = current_sched;
 
   /* Leave child, join parent. */
-  __sync_fetch_and_add(&child->harts, -1);
-  __sync_fetch_and_add(&parent->harts, 1);
+  atomic_add(&child->harts, -1);
+  atomic_add(&parent->harts, 1);
 
   /* Enter the parent scheduler */
   current_sched = parent;
@@ -333,8 +333,8 @@ static void __lithe_sched_enter(uthread_t *uthread, void *__arg)
   assert(child);
 
   /* Officially grant the hart to the child */
-  __sync_fetch_and_add(&parent->harts, -1);
-  __sync_fetch_and_add(&child->harts, 1);
+  atomic_add(&parent->harts, -1);
+  atomic_add(&child->harts, 1);
 
   /* Set the scheduler to the child in the context that was blocked */
   context->sched = child;
@@ -362,7 +362,7 @@ void lithe_sched_enter(lithe_sched_t *child)
   assert(child->main_context);
 
   /* Set-up child scheduler */
-  child->harts = 0;
+  child->harts = ATOMIC_INITIALIZER(0);
   child->parent = parent;
 
   /* Set up a function to run in vcore context to inform the parent that the
@@ -405,8 +405,8 @@ void __lithe_sched_exit(uthread_t *uthread, void *arg)
   parent->funcs->child_exit(parent, child);
 
   /* Update child's hart count to 0 */
-  __sync_fetch_and_add(&child->harts, -1);
-  __sync_fetch_and_add(&parent->harts, 1);
+  atomic_add(&child->harts, -1);
+  atomic_add(&parent->harts, 1);
 
   /* Set the scheduler to the parent in the context that was blocked */
   context->sched = parent;
@@ -444,8 +444,9 @@ void lithe_sched_exit()
    * locking function. 
    * Also, do a full blown lithe context yield so that this hart can do useful
    * work while waiting */
-  while (child->harts != 0) {
-    assert(child->harts >= 0);
+  long n;
+  while ((n = atomic_read(&child->harts)) != 0) {
+    assert(n >= 0);
     lithe_context_yield();
   }
 }

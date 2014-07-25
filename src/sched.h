@@ -94,7 +94,7 @@ struct lithe_sched {
   lithe_context_t *parent_context;
 
   /* Number of harts currently owned by this scheduler. */
-  size_t harts;
+  atomic_t harts;
 
   /* Scheduler's parent scheduler */
   lithe_sched_t *parent;
