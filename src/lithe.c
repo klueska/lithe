@@ -276,6 +276,15 @@ lithe_sched_t *lithe_sched_current()
   return current_sched;
 }
 
+static void __lithe_hart_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *lock)
+{
+  current_sched = child;
+  if(unlock_func != NULL)
+    unlock_func(lock);
+  vcore_reenter(__lithe_sched_reenter);
+  fatal("lithe: returned from enter");
+}
+
 void lithe_hart_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *lock)
 {
   assert(child);
@@ -289,11 +298,7 @@ void lithe_hart_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *
   atomic_add(&child->harts, 1);
 
   /* Enter the child scheduler */
-  current_sched = child;
-  if(unlock_func != NULL)
-    unlock_func(lock);
-  vcore_reenter(__lithe_sched_reenter);
-  fatal("lithe: returned from enter");
+  __lithe_hart_grant(child, unlock_func, lock);
 }
 
 void lithe_hart_yield()
