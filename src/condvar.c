@@ -74,7 +74,6 @@ int lithe_condvar_broadcast(lithe_condvar_t* c) {
   if(c == NULL)
     return EINVAL;
 
-  lithe_context_t *context = NULL;
   mcs_lock_qnode_t qnode = {0};
   while(1) {
     mcs_lock_lock(&c->lock, &qnode);
