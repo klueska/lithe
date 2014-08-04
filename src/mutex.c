@@ -23,6 +23,7 @@ int lithe_mutexattr_init(lithe_mutexattr_t *attr)
   if(attr == NULL)
     return EINVAL;
   attr->type = LITHE_MUTEX_DEFAULT;
+  return 0;
 }
 
 int lithe_mutexattr_settype(lithe_mutexattr_t *attr, int type)
