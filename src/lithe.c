@@ -117,18 +117,15 @@ void __attribute__((constructor)) lithe_lib_init()
   lithe_context_t *context = &lithe_main_context;
   assert(context);
 
-  /* Fill in the main context stack info with some data. This data is garbage,
-   * and only necessary so as to keep lithe_sched_entry from allocating a new
-   * stack when creating a context to run the first scheduler it enters. */
-  context->stack.bottom = (void*)0xdeadbeef;
-  context->stack.size = (ssize_t)-1;
-
   /* Set the scheduler associated with the context to be the base scheduler */
   context->sched = &base_sched;
 
   /* Once we have set things up for the main context, initialize the uthread
    * library with that main context */
-  uthread_lib_init((uthread_t*)context);
+  uthread_lib_init(&context->uth);
+
+  /* Fill in the main context stack info. */
+  parlib_get_main_stack(&context->stack.bottom, &context->stack.size);
 
   /* Initialize vcore request/yield data structures */
   lithe_vcore_init();

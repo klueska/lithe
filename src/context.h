@@ -32,7 +32,7 @@ typedef struct lithe_context_stack {
   void *bottom;
 
   /* Stack size for a lithe context. */
-  ssize_t size;
+  size_t size;
 
 } lithe_context_stack_t;
   
