@@ -1,98 +1,144 @@
 #include <sys/queue.h>
-#include <parlib/mcs.h>
+#include <parlib/waitfreelist.h>
 #include "internal/assert.h"
 #include <stdio.h>
 #include <errno.h>
 #include "lithe.h"
 #include "futex.h"
 
+struct futex_list;
+
 struct futex_element {
-  TAILQ_ENTRY(futex_element) link;
+  STAILQ_ENTRY(futex_element) next;
   lithe_context_t *context;
+  struct futex_list *list;
+  int val;
+};
+
+STAILQ_HEAD(futex_tailq, futex_element);
+
+struct futex_list {
+  struct futex_tailq tailq;
   int *uaddr;
-};
-TAILQ_HEAD(futex_queue, futex_element);
-
-struct futex_data {
-  mcs_lock_t lock;
-  struct futex_queue queue;
-};
-static struct futex_data __futex = {
-  .lock = MCS_LOCK_INIT,
-  .queue = TAILQ_HEAD_INITIALIZER(__futex.queue)
+  spinlock_t lock;
 };
 
-static void print_futex_queue()
+/* A list of futex blocking queues, one per uaddr. */
+struct wfl futex_lists = WFL_INITIALIZER(futex_lists);
+spinlock_t futex_lists_lock = SPINLOCK_INITIALIZER;
+
+/* Find or create the blocking queue that corresponds to the uaddr. */
+static struct futex_list *get_futex_list(int *uaddr)
 {
-  struct futex_element *e;
-  mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
-  mcs_lock_lock(&__futex.lock, &qnode);
-  printf("FUTEX_QUEUE:\n");
-  TAILQ_FOREACH(e, &__futex.queue, link) {
-    printf("  %p: (%p, %p)\n", e, e->uaddr, e->context);
+  struct futex_list *list;
+  wfl_foreach_unsafe(list, &futex_lists) {
+    if (list->uaddr == uaddr)
+      return list;
   }
-  mcs_lock_unlock(&__futex.lock, &qnode);
+
+  spinlock_lock(&futex_lists_lock);
+    wfl_foreach_unsafe(list, &futex_lists) {
+      if (list->uaddr == uaddr)
+        break;
+    }
+    if (list == NULL) {
+      list = malloc(sizeof(struct futex_list));
+      if (list == NULL)
+        abort();
+      STAILQ_INIT(&list->tailq);
+      list->uaddr = uaddr;
+      spinlock_init(&list->lock);
+      wfl_insert(&futex_lists, list);
+    }
+  spinlock_unlock(&futex_lists_lock);
+
+  return list;
 }
 
+/* lithe_context_block callback.  Atomically checks uaddr == val and blocks. */
 static void __futex_block(lithe_context_t *context, void *arg) {
-  struct futex_element *e = (struct futex_element*)arg;
-  e->context = context;
+  struct futex_element *e = arg;
+  bool block = true;
+
+  spinlock_lock(&e->list->lock);
+    if (*e->list->uaddr == e->val) {
+      e->context = context;
+      STAILQ_INSERT_TAIL(&e->list->tailq, e, next);
+    } else {
+      block = false;
+    }
+  spinlock_unlock(&e->list->lock);
+
+  if (!block)
+    lithe_context_unblock(context);
 }
 
-static inline int futex_wait(int *uaddr, int val)
+int futex_wait(int *uaddr, int val)
 {
-  mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
-  mcs_lock_lock(&__futex.lock, &qnode);
-  if(*uaddr == val) {
+  if (*uaddr == val) {
     struct futex_element e;
-    e.uaddr = uaddr;
-    e.context = NULL;
-    TAILQ_INSERT_TAIL(&__futex.queue, &e, link);
-    mcs_lock_unlock(&__futex.lock, &qnode);
-
+    e.list = get_futex_list(uaddr);
+    e.val = val;
     lithe_context_block(__futex_block, &e);
   }
-  else {
-    mcs_lock_unlock(&__futex.lock, &qnode);
+  return 0;
+}
+
+int futex_wake_one(int *uaddr)
+{
+  struct futex_list *list = get_futex_list(uaddr);
+  spinlock_lock(&list->lock);
+    struct futex_element *e = STAILQ_FIRST(&list->tailq);
+    if (e != NULL)
+      STAILQ_REMOVE_HEAD(&list->tailq, next);
+  spinlock_unlock(&list->lock);
+
+  if (e != NULL) {
+    lithe_context_unblock(e->context);
+    return 1;
   }
   return 0;
 }
 
-static inline int futex_wake(int *uaddr, int count)
+static inline int unblock_futex_queue(struct futex_tailq *q)
 {
-  struct futex_element *e,*n = NULL;
-  struct futex_queue q = TAILQ_HEAD_INITIALIZER(q);
-
-  // Atomically grab all relevant futex blockers
-  // from the global futex queue
-  mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
-  mcs_lock_lock(&__futex.lock, &qnode);
-  e = TAILQ_FIRST(&__futex.queue);
-  while(e != NULL) {
-    if(count > 0) {
-      n = TAILQ_NEXT(e, link);
-      if(e->uaddr == uaddr) {
-        TAILQ_REMOVE(&__futex.queue, e, link);
-        TAILQ_INSERT_TAIL(&q, e, link);
-        count--;
-      }
-      e = n;
-    }
-    else break;
-  }
-  mcs_lock_unlock(&__futex.lock, &qnode);
-
-  // Unblock them outside the lock
-  e = TAILQ_FIRST(&q);
-  while(e != NULL) {
-    n = TAILQ_NEXT(e, link);
-    TAILQ_REMOVE(&q, e, link);
-    while(e->context == NULL)
-      cpu_relax();
+  int num = 0;
+  struct futex_element *e,*n;
+  for (e = STAILQ_FIRST(q), num = 0; e != NULL; e = n, num++) {
+    n = STAILQ_NEXT(e, next);
     lithe_context_unblock(e->context);
-    e = n;
   }
-  return 0;
+
+  return num;
+}
+
+int futex_wake_all(int *uaddr)
+{
+  struct futex_list *list = get_futex_list(uaddr);
+
+  spinlock_lock(&list->lock);
+    struct futex_tailq q = list->tailq;
+    STAILQ_INIT(&list->tailq);
+  spinlock_unlock(&list->lock);
+
+  return unblock_futex_queue(&q);
+}
+
+int futex_wake_some(int *uaddr, int count)
+{
+  struct futex_tailq q = STAILQ_HEAD_INITIALIZER(q);
+  struct futex_list *list = get_futex_list(uaddr);
+  struct futex_element *e;
+
+  spinlock_lock(&list->lock);
+    /* Remove up to count entries from the queue, and remeber them locally. */
+    while (count-- > 0 && (e = STAILQ_FIRST(&list->tailq)) != NULL) {
+      STAILQ_REMOVE_HEAD(&list->tailq, next);
+      STAILQ_INSERT_TAIL(&q, e, next);
+    }
+  spinlock_unlock(&list->lock);
+
+  return unblock_futex_queue(&q);
 }
 
 int futex(int *uaddr, int op, int val, const struct timespec *timeout,
@@ -106,7 +152,7 @@ int futex(int *uaddr, int op, int val, const struct timespec *timeout,
     case FUTEX_WAIT:
       return futex_wait(uaddr, val);
     case FUTEX_WAKE:
-      return futex_wake(uaddr, val);
+      return futex_wake_some(uaddr, val);
     default:
       errno = ENOSYS;
       return -1;
