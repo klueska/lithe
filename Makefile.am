@@ -14,7 +14,8 @@ LIB_CFILES = \
   @SRCDIR@/condvar.c         \
   @SRCDIR@/semaphore.c         \
   @SRCDIR@/futex.c         \
-  @SRCDIR@/mutex.c
+  @SRCDIR@/mutex.c \
+  @SRCDIR@/fork_join_sched.c
 
 LIB_CXXFILES = \
   @SRCDIR@/sched.cc \
@@ -31,7 +32,8 @@ LIB_HFILES = \
   @SRCDIR@/futex.h   \
   @SRCDIR@/mutex.h   \
   @SRCDIR@/lithe.h         \
-  @SRCDIR@/sched.h
+  @SRCDIR@/sched.h \
+  @SRCDIR@/fork_join_sched.h
 
 LIB_HHFILES = \
   @SRCDIR@/lithe.hh \
