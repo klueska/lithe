@@ -413,7 +413,7 @@ void lithe_sched_enter(lithe_sched_t *child)
   } arg = {parent, child};
 
   /* Hijack the current context and replace it with the child->main_context.
-   * Store the original context in child->main_context so we can restore it
+   * Store the original context in child->parent_context so we can restore it
    * on exit. */
   child->parent_context = current_context;
   hijack_current_uthread(&child->main_context->uth);
