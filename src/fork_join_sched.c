@@ -29,12 +29,15 @@ static void schedule_context(lithe_fork_join_sched_t *sched,
 
 lithe_fork_join_sched_t *lithe_fork_join_sched_create()
 {
-  lithe_fork_join_sched_t *sched = malloc(sizeof(lithe_fork_join_sched_t));
-  if (sched == NULL)
+  struct {
+    lithe_fork_join_sched_t sched;
+    lithe_fork_join_context_t main_context;
+  } *s = malloc(sizeof(*s));
+  if (s == NULL)
     abort();
-  sched->sched.funcs = &lithe_fork_join_sched_funcs;
-  lithe_fork_join_sched_init(sched);
-  return sched;
+  s->sched.sched.funcs = &lithe_fork_join_sched_funcs;
+  lithe_fork_join_sched_init(&s->sched, &s->main_context);
+  return &s->sched;
 }
 
 void lithe_fork_join_sched_destroy(lithe_fork_join_sched_t *sched)
@@ -43,10 +46,11 @@ void lithe_fork_join_sched_destroy(lithe_fork_join_sched_t *sched)
   free(sched);
 }
 
-void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched)
+void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched,
+                                lithe_fork_join_context_t *main_context)
 {
-  memset(&sched->main_context_storage, 0, sizeof(sched->main_context_storage));
-  sched->sched.main_context = &sched->main_context_storage;
+  memset(main_context, 0, sizeof(*main_context));
+  sched->sched.main_context = &main_context->context;
 
   sched->num_contexts = 1;
   sched->num_blocked_contexts = 0;
@@ -63,48 +67,54 @@ void lithe_fork_join_sched_cleanup(lithe_fork_join_sched_t *sched)
   wfl_destroy(&sched->child_hart_requests);
 }
 
-lithe_context_t *lithe_fork_join_context_create(lithe_fork_join_sched_t *sched,
-                                                size_t stack_size,
-                                                void (*start_routine)(void*),
-                                                void *arg)
+lithe_fork_join_context_t*
+  lithe_fork_join_context_create(lithe_fork_join_sched_t *sched,
+                                 size_t stack_size,
+                                 void (*start_routine)(void*),
+                                 void *arg)
 {
-  typedef struct {
-    lithe_context_t context;
-    void (*start_routine)(void*);
-    void *arg;
-  } fj_context_t;
+  void *storage = malloc(sizeof(lithe_fork_join_context_t) + stack_size);
+  if (storage == NULL)
+    abort();
+  lithe_fork_join_context_t *ctx = storage;
+  ctx->context.stack.bottom = storage + sizeof(lithe_fork_join_context_t);
+  ctx->context.stack.size = stack_size;
+  lithe_fork_join_context_init(sched, ctx, start_routine, arg);
+  return ctx;
+}
 
-  fj_context_t *context = malloc(sizeof(fj_context_t));
-  if (context == NULL)
-    abort();
-  context->context.stack.bottom = malloc(stack_size);
-  if (context->context.stack.bottom == NULL)
-    abort();
-  context->context.stack.size = stack_size;
-  context->start_routine = start_routine;
-  context->arg = arg;
+void lithe_fork_join_context_init(lithe_fork_join_sched_t *sched,
+                                  lithe_fork_join_context_t *ctx,
+                                  void (*start_routine)(void*),
+                                  void *arg)
+{
+  ctx->start_routine = start_routine;
+  ctx->arg = arg;
 
   void start_routine_wrapper(void *arg)
   {
-    fj_context_t *self = arg;
+    lithe_fork_join_context_t *self = arg;
     self->start_routine(self->arg);
     destroy_dtls();
   }
 
-  lithe_context_init(&context->context, start_routine_wrapper, context);
+  lithe_context_init(&ctx->context, start_routine_wrapper, ctx);
   __sync_fetch_and_add(&sched->num_contexts, 1);
-  schedule_context(sched, &context->context);
-  return &context->context;
+  schedule_context(sched, &ctx->context);
 }
 
-void lithe_fork_join_context_destroy(lithe_context_t *context)
+void lithe_fork_join_context_cleanup(lithe_fork_join_context_t *context)
 {
-  lithe_context_cleanup(context);
-  free(context->stack.bottom);
+  lithe_context_cleanup(&context->context);
+}
+
+void lithe_fork_join_context_destroy(lithe_fork_join_context_t *context)
+{
+  lithe_fork_join_context_cleanup(context);
   free(context);
 }
 
-static void maybe_unblock_main_context(lithe_fork_join_sched_t *sched)
+void lithe_fork_join_sched_join_one(lithe_fork_join_sched_t *sched)
 {
   if(__sync_add_and_fetch(&sched->num_contexts, -1) == 0)
     lithe_context_unblock(sched->sched.main_context);
@@ -112,10 +122,10 @@ static void maybe_unblock_main_context(lithe_fork_join_sched_t *sched)
 
 static void block_main_context(lithe_context_t *c, void *arg)
 {
-  maybe_unblock_main_context(arg);
+  lithe_fork_join_sched_join_one(arg);
 }
 
-void lithe_fork_join_sched_joinAll(lithe_fork_join_sched_t *sched)
+void lithe_fork_join_sched_join_all(lithe_fork_join_sched_t *sched)
 {
   lithe_context_block(block_main_context, sched);
 }
@@ -213,7 +223,7 @@ void lithe_fork_join_sched_context_exit(lithe_sched_t *__this,
 {
   lithe_fork_join_sched_t *sched = (void *)__this;
   if (c != sched->sched.main_context) {
-    lithe_fork_join_context_destroy(c);
-    maybe_unblock_main_context(sched);
+    lithe_fork_join_context_destroy((lithe_fork_join_context_t *)c);
+    lithe_fork_join_sched_join_one(sched);
   }
 }
