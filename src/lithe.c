@@ -644,26 +644,30 @@ void __lithe_context_block(uthread_t *uthread, void *__arg)
   struct { 
     void (*func) (lithe_context_t *, void *); 
     void *arg;
+    atomic_t safe_to_unblock;
   } *arg = __arg;
-  arg->func((lithe_context_t*)uthread, arg->arg);
+  if (arg->func)
+    arg->func((lithe_context_t*)uthread, arg->arg);
 
   assert(current_sched);
   assert(current_sched->funcs);
   assert(current_sched->funcs->context_block);
   current_sched->funcs->context_block(current_sched, (lithe_context_t*)uthread);
+  atomic_set(&arg->safe_to_unblock, 1);
 }
  
 void lithe_context_block(void (*func)(lithe_context_t *, void *), void *arg)
 {
-  assert(func);
   assert(!in_vcore_context());
   assert(current_context);
 
   struct { 
     void (*func) (lithe_context_t *, void *); 
     void *arg;
-  } __arg = {func, arg};
+    atomic_t safe_to_unblock;
+  } __arg = {func, arg, 0};
   uthread_yield(true, __lithe_context_block, &__arg);
+  while(atomic_read(&__arg.safe_to_unblock) == 0);
 }
 
 void lithe_context_unblock(lithe_context_t *context)
