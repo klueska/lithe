@@ -88,9 +88,15 @@ static lithe_sched_t base_sched = {
 };
 
 /* Root scheduler, i.e. the child scheduler of base. */
-static lithe_sched_t *root_sched = NULL;
-static atomic_t root_sched_ref_count = ATOMIC_INITIALIZER(0);
-static atomic_t root_sched_requests = ATOMIC_INITIALIZER(0);
+static struct {
+  lithe_sched_t CACHE_LINE_ALIGNED *sched;
+  atomic_t CACHE_LINE_ALIGNED ref_count;
+  atomic_t requests;
+} __root_sched = {NULL, ATOMIC_INITIALIZER(0), ATOMIC_INITIALIZER(0)};
+
+#define root_sched (__root_sched.sched)
+#define root_sched_ref_count (__root_sched.ref_count)
+#define root_sched_requests (__root_sched.requests)
 
 static __thread struct {
   /* The next context to run on this vcore when lithe_vcore_entry is called again
