@@ -23,7 +23,10 @@ static void schedule_context(lithe_fork_join_sched_t *sched,
                              lithe_context_t *context)
 {
   wfl_insert(&sched->context_list, context);
-  if (lithe_hart_request(1) == 0)
+  size_t harts_needed = wfl_size(&sched->context_list);
+  harts_needed += wfl_size(&sched->child_hart_requests);
+  //lithe_hart_request(1) == 0;
+  while (sched->allocated_harts < harts_needed && lithe_hart_request(1) == 0)
     __sync_fetch_and_add(&sched->allocated_harts, 1);
 }
 
@@ -63,8 +66,8 @@ void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched,
 
 void lithe_fork_join_sched_cleanup(lithe_fork_join_sched_t *sched)
 {
-  wfl_destroy(&sched->context_list);
-  wfl_destroy(&sched->child_hart_requests);
+  wfl_cleanup(&sched->context_list);
+  wfl_cleanup(&sched->child_hart_requests);
 }
 
 lithe_fork_join_context_t*
@@ -138,6 +141,7 @@ int lithe_fork_join_sched_hart_request(lithe_sched_t *__this,
   __sync_fetch_and_add(&sched->putative_child_hart_requests, k);
     int ret = lithe_hart_request(k);
     if (ret == 0) {
+      __sync_fetch_and_add(&sched->allocated_harts, k);
       for (size_t i = 0; i < k; i++)
         wfl_insert(&sched->child_hart_requests, child);
     }
@@ -162,6 +166,8 @@ void lithe_fork_join_sched_child_exit(lithe_sched_t *__this,
 void lithe_fork_join_sched_hart_return(lithe_sched_t *__this,
                                        lithe_sched_t *child)
 {
+  lithe_fork_join_sched_t *sched = (void *)__this;
+  __sync_fetch_and_add(&sched->allocated_harts, 1);
 }
 
 static void decrement(void *gh)
@@ -176,12 +182,14 @@ void lithe_fork_join_sched_hart_enter(lithe_sched_t *__this)
   while (1) {
     __sync_fetch_and_add(&sched->granting_harts, 1);
     lithe_sched_t *s = (lithe_sched_t*)wfl_remove(&sched->child_hart_requests);
-    if (s != NULL)
+    if (s != NULL) {
+      __sync_fetch_and_add(&sched->allocated_harts, -1);
       lithe_hart_grant(s, decrement, &sched->granting_harts);
+    }
     decrement(&sched->granting_harts);
     if (sched->putative_child_hart_requests == 0)
       break;
-    cpu_relax();
+    //cpu_relax();
   }
 
   lithe_context_t *c = (lithe_context_t*)wfl_remove(&sched->context_list);
