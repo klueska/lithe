@@ -180,27 +180,24 @@ void lithe_fork_join_sched_hart_enter(lithe_sched_t *__this)
 {
   lithe_fork_join_sched_t *sched = (void *)__this;
 
-  while (1) {
+  /* If I have any outstanding requests from my children, preferentially pass
+   * this hart down to them. */
+  do {
     __sync_fetch_and_add(&sched->granting_harts, 1);
     lithe_sched_t *s = (lithe_sched_t*)wfl_remove(&sched->child_hart_requests);
     if (s != NULL) {
       lithe_hart_grant(s, decrement, &sched->granting_harts);
     }
     decrement(&sched->granting_harts);
-    if (sched->putative_child_hart_requests == 0)
-      break;
-    //cpu_relax();
-  }
+  } while (sched->putative_child_hart_requests) ;
 
+  /* Otherwise, if I have any contexts to run, grab one and run it. */
   lithe_context_t *c = (lithe_context_t*)wfl_remove(&sched->context_list);
-
-  /* If there are no contexts to run, we can safely yield this hart */
-  if(c == NULL) {
-    lithe_hart_yield();
-  /* Otherwise, run the context that we found */
-  } else {
+  if (c != NULL)
     lithe_context_run(c);
-  }
+
+  /* Otherwise, yield. */
+  lithe_hart_yield();
 }
 
 void lithe_fork_join_sched_context_block(lithe_sched_t *__this,
