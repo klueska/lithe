@@ -1,3 +1,4 @@
+*.swp
 ChangeLog
 Makefile.in
 aclocal.m4
