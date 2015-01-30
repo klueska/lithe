@@ -91,12 +91,15 @@ static lithe_sched_t base_sched = {
 static struct {
   lithe_sched_t CACHE_LINE_ALIGNED *sched;
   atomic_t CACHE_LINE_ALIGNED ref_count;
-  atomic_t requests;
-} __root_sched = {NULL, ATOMIC_INITIALIZER(0), ATOMIC_INITIALIZER(0)};
+  atomic_t CACHE_LINE_ALIGNED requests;
+  atomic_t CACHE_LINE_ALIGNED putative_requests;
+} __root_sched = {NULL, ATOMIC_INITIALIZER(0), ATOMIC_INITIALIZER(0),
+                  ATOMIC_INITIALIZER(0)};
 
 #define root_sched (__root_sched.sched)
 #define root_sched_ref_count (__root_sched.ref_count)
 #define root_sched_requests (__root_sched.requests)
+#define root_sched_putative_requests (__root_sched.putative_requests)
 
 static __thread struct {
   /* The next context to run on this vcore when lithe_vcore_entry is called again
@@ -207,6 +210,7 @@ static void base_hart_enter(lithe_sched_t *__this)
   // This function will never return.  Either we eventually yield the vcore
   // back to the system, or we grant it to a child scheduler.  When one of
   // these two things happens, we will break out of this infinite loop...
+  bool grant = false;
   while (1) {
     // We need to do a bunch of refcounting here to make sure that we are able
     // to access the root_sched before passing a hart to it.  Only if we can
@@ -217,9 +221,20 @@ static void base_hart_enter(lithe_sched_t *__this)
 
       // Only if there are outstanding requests by the root scheduler, do we
       // event attempt and grant this hart to him.
-      if (atomic_add_not_zero(&root_sched_requests, -1)) {
-        rmb(); // order operations with the atomic_add() above
+      // If there aren't currently any outstanding requests, but we are in
+      // the process of requesting more vcores from the system, then spin,
+      // waiting for a request to become available.
+      grant = false;
+      do {
+        if (atomic_add_not_zero(&root_sched_requests, -1)) {
+          grant = true;
+          break;
+        }
+        cmb();
+      } while (root_sched_putative_requests);
 
+      // If we've decided to grant it, then go for it
+      if (grant) {
         // Force load of local copy of root_sched.
         // This is necessary because, while the atomic_add_not_zero() to the
         // child->harts below guarantees that we won't free the root scheduler
@@ -273,17 +288,26 @@ static void base_child_exited(lithe_sched_t *__this, lithe_sched_t *sched)
   atomic_add(&root_sched_ref_count, -1);
   while (root_sched_ref_count)
     cpu_relax();
-  root_sched_requests = ATOMIC_INITIALIZER(0);
+  atomic_set(&root_sched_requests, 0);
   root_sched = NULL;
 }
 
 static int base_hart_request(lithe_sched_t *__this, lithe_sched_t *sched, size_t k)
 {
   assert(root_sched == sched);
-  atomic_add(&root_sched_requests, k);
+
+  /* Don't even bother with the request if we already have a bunch of
+   * outstanding requests for this child. */
+  if (atomic_read(&root_sched_requests) + k > max_vcores())
+    return -1;
+
+  /* Otherwise, submit the request. */
+  atomic_add(&root_sched_putative_requests, k);
   int ret = maybe_vcore_request(k);
-  if (ret)
-    atomic_add(&root_sched_requests, -k);
+  if (!ret) {
+    atomic_add(&root_sched_requests, k);
+  }
+  atomic_add(&root_sched_putative_requests, -k);
   return ret;
 }
 
