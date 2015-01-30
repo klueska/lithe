@@ -138,6 +138,13 @@ int lithe_fork_join_sched_hart_request(lithe_sched_t *__this,
                                        size_t k)
 {
   lithe_fork_join_sched_t *sched = (void *)__this;
+
+  /* Don't even bother with the request if we already have a bunch of
+   * outstanding requests for this child. */
+  if (wfl_size(&sched->child_hart_requests) + k > max_vcores())
+    return -1;
+
+  /* Otherwise, submit the request. */
   __sync_fetch_and_add(&sched->putative_child_hart_requests, k);
     int ret = lithe_hart_request(k);
     if (ret == 0) {
