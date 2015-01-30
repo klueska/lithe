@@ -25,7 +25,6 @@ typedef struct {
   lithe_sched_t sched;
   size_t num_contexts;
   size_t num_blocked_contexts;
-  size_t allocated_harts;
   size_t putative_child_hart_requests;
   size_t granting_harts;
   struct wfl context_list;
