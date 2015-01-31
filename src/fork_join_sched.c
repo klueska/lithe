@@ -4,8 +4,10 @@
  * See COPYING for details.
  */
 
+#include <sys/mman.h>
 #include "fork_join_sched.h"
 #include "lithe.h"
+#include "assert.h"
 
 const lithe_sched_funcs_t lithe_fork_join_sched_funcs = {
   .hart_request    = lithe_fork_join_sched_hart_request,
@@ -19,13 +21,114 @@ const lithe_sched_funcs_t lithe_fork_join_sched_funcs = {
   .context_exit    = lithe_fork_join_sched_context_exit
 };
 
-static void schedule_context(lithe_fork_join_sched_t *sched,
-                             lithe_context_t *context)
+static lithe_fork_join_context_t *__ctx_alloc(size_t stacksize)
 {
-  wfl_insert(&sched->context_list, context);
-  size_t harts_needed = wfl_size(&sched->context_list);
-  harts_needed += wfl_size(&sched->child_hart_requests);
-  lithe_hart_request(1);
+	int offset = rand_r(&rseed(0)) % max_vcores() * ARCH_CL_SIZE;
+	stacksize += sizeof(lithe_fork_join_context_t) + offset;
+	stacksize = ROUNDUP(stacksize, PGSIZE);
+	void *stackbot = mmap(
+		0, stacksize, PROT_READ|PROT_WRITE|PROT_EXEC,
+		MAP_PRIVATE|MAP_ANONYMOUS, -1, 0
+	);
+	if (stackbot == MAP_FAILED)
+		abort();
+	lithe_fork_join_context_t *ctx = stackbot + stacksize
+	         - sizeof(lithe_fork_join_context_t) - offset;
+	ctx->context.stack.bottom = stackbot;
+	ctx->context.stack.size = stacksize - sizeof(*ctx) - offset;
+	return ctx;
+}
+
+static void __ctx_free(lithe_fork_join_context_t *pt)
+{
+	assert(!munmap(pt->context.stack.bottom, pt->context.stack.size));
+}
+
+static int __thread_enqueue(lithe_fork_join_context_t *ctx, bool athead)
+{
+	ctx->state = FJS_CTX_RUNNABLE;
+
+	int vcoreid = ctx->preferred_vcq;
+	spin_pdr_lock(&tqlock(vcoreid));
+	if (athead)
+		TAILQ_INSERT_HEAD(&tqueue(vcoreid), &ctx->context, link);
+	else
+		TAILQ_INSERT_TAIL(&tqueue(vcoreid), &ctx->context, link);
+	tqsize(vcoreid)++;
+	spin_pdr_unlock(&tqlock(vcoreid));
+
+	return vcoreid;
+}
+
+static lithe_fork_join_context_t *__thread_dequeue()
+{
+	inline lithe_fork_join_context_t *tdequeue(int vcoreid)
+	{
+		lithe_fork_join_context_t *ctx = NULL;
+		if (tqsize(vcoreid)) {
+			spin_pdr_lock(&tqlock(vcoreid));
+			ctx = (lithe_fork_join_context_t*) TAILQ_FIRST(&tqueue(vcoreid));
+			if (ctx) {
+				TAILQ_REMOVE(&tqueue(vcoreid), &ctx->context, link);
+				tqsize(vcoreid)--;
+			}
+			spin_pdr_unlock(&tqlock(vcoreid));
+		}
+		if (ctx)
+			ctx->preferred_vcq = vcore_id();
+		return ctx;
+	}
+
+	int vcoreid = vcore_id();
+	lithe_fork_join_context_t *ctx = NULL;
+
+	/* Try and grab a thread from our queue */
+	ctx = tdequeue(vcoreid);
+
+	/* If there isn't one, try and steal one from someone else's queue. */
+	if (!ctx) {
+
+		/* Steal up to half of the threads in the queue and return the first */
+		lithe_fork_join_context_t *steal_threads(int vcoreid)
+		{
+			lithe_fork_join_context_t *ctx = NULL;
+			int num_to_steal = (tqsize(vcoreid) + 1) / 2;
+			if (num_to_steal) {
+				ctx = tdequeue(vcoreid);
+				if (ctx) {
+					for (int i=1; i<num_to_steal; i++) {
+						lithe_fork_join_context_t *u = tdequeue(vcoreid);
+						if (u) __thread_enqueue(u, false);
+						else break;
+					}
+				}
+			}
+			return ctx;
+		}
+
+		/* First try doing power of two choices. */
+		int choice[2] = { rand_r(&rseed(vcoreid)) % num_vcores(),
+		                  rand_r(&rseed(vcoreid)) % num_vcores()};
+		int size[2] = { tqsize(choice[0]),
+		                tqsize(choice[1])};
+		int id = (size[0] > size[1]) ? 0 : 1;
+		if (vcoreid != choice[id])
+			ctx = steal_threads(choice[id]);
+		else
+			ctx = steal_threads(choice[!id]);
+
+		/* Fall back to looping through all vcores. This time I go through
+		 * max_vcores() just to make sure I don't miss anything. */
+		if (!ctx) {
+			int i = (vcoreid + 1) % max_vcores();
+			while(i != vcoreid) {
+				ctx = steal_threads(i);
+				if (ctx) break;
+				i = (i + 1) % max_vcores();
+			}
+		}
+	}
+	return ctx;
 }
 
 lithe_fork_join_sched_t *lithe_fork_join_sched_create()
@@ -33,9 +136,11 @@ lithe_fork_join_sched_t *lithe_fork_join_sched_create()
   struct {
     lithe_fork_join_sched_t sched;
     lithe_fork_join_context_t main_context;
-  } *s = malloc(sizeof(*s));
-  if (s == NULL)
-    abort();
+    struct lithe_fork_join_vc_mgmt vc_mgmt[];
+  } *s = parlib_aligned_alloc(PGSIZE,
+            sizeof(*s) + sizeof(struct lithe_fork_join_vc_mgmt) * max_vcores());
+
+  s->sched.vc_mgmt = &s->vc_mgmt[0];
   s->sched.sched.funcs = &lithe_fork_join_sched_funcs;
   lithe_fork_join_sched_init(&s->sched, &s->main_context);
   return &s->sched;
@@ -50,20 +155,26 @@ void lithe_fork_join_sched_destroy(lithe_fork_join_sched_t *sched)
 void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched,
                                 lithe_fork_join_context_t *main_context)
 {
+  for (int i=0; i < max_vcores(); i++) {
+    TAILQ_INIT(&tqueue_s(sched, i));
+    spin_pdr_init(&tqlock_s(sched, i));
+    tqsize_s(sched, i) = 0;
+    rseed_s(sched, i) = i;
+  }
+
   memset(main_context, 0, sizeof(*main_context));
+  main_context->state = FJS_CTX_RUNNING;
   sched->sched.main_context = &main_context->context;
 
   sched->num_contexts = 1;
   sched->num_blocked_contexts = 0;
   sched->putative_child_hart_requests = 0;
   sched->granting_harts = 0;
-  wfl_init(&sched->context_list);
   wfl_init(&sched->child_hart_requests);
 }
 
 void lithe_fork_join_sched_cleanup(lithe_fork_join_sched_t *sched)
 {
-  wfl_cleanup(&sched->context_list);
   wfl_cleanup(&sched->child_hart_requests);
 }
 
@@ -73,12 +184,7 @@ lithe_fork_join_context_t*
                                  void (*start_routine)(void*),
                                  void *arg)
 {
-  void *storage = malloc(sizeof(lithe_fork_join_context_t) + stack_size);
-  if (storage == NULL)
-    abort();
-  lithe_fork_join_context_t *ctx = storage;
-  ctx->context.stack.bottom = storage + sizeof(lithe_fork_join_context_t);
-  ctx->context.stack.size = stack_size;
+  lithe_fork_join_context_t *ctx = __ctx_alloc(stack_size);
   lithe_fork_join_context_init(sched, ctx, start_routine, arg);
   return ctx;
 }
@@ -88,6 +194,8 @@ void lithe_fork_join_context_init(lithe_fork_join_sched_t *sched,
                                   void (*start_routine)(void*),
                                   void *arg)
 {
+  ctx->state = FJS_CTX_CREATED;
+  ctx->preferred_vcq = vcore_id();
   ctx->start_routine = start_routine;
   ctx->arg = arg;
 
@@ -100,7 +208,8 @@ void lithe_fork_join_context_init(lithe_fork_join_sched_t *sched,
 
   lithe_context_init(&ctx->context, start_routine_wrapper, ctx);
   __sync_fetch_and_add(&sched->num_contexts, 1);
-  schedule_context(sched, &ctx->context);
+  __thread_enqueue(ctx, false);
+  lithe_hart_request(1);
 }
 
 void lithe_fork_join_context_cleanup(lithe_fork_join_context_t *context)
@@ -111,7 +220,7 @@ void lithe_fork_join_context_cleanup(lithe_fork_join_context_t *context)
 void lithe_fork_join_context_destroy(lithe_fork_join_context_t *context)
 {
   lithe_fork_join_context_cleanup(context);
-  free(context);
+  __ctx_free(context);
 }
 
 void lithe_fork_join_sched_join_one(lithe_fork_join_sched_t *sched)
@@ -192,9 +301,12 @@ void lithe_fork_join_sched_hart_enter(lithe_sched_t *__this)
   } while (sched->putative_child_hart_requests) ;
 
   /* Otherwise, if I have any contexts to run, grab one and run it. */
-  lithe_context_t *c = (lithe_context_t*)wfl_remove(&sched->context_list);
-  if (c != NULL)
-    lithe_context_run(c);
+  lithe_fork_join_context_t *ctx = __thread_dequeue();
+  if (ctx != NULL) {
+    assert(ctx->state == FJS_CTX_RUNNABLE);
+    ctx->state = FJS_CTX_RUNNING;
+    lithe_context_run(&ctx->context);
+  }
 
   /* Otherwise, yield. */
   lithe_hart_yield();
@@ -212,14 +324,15 @@ void lithe_fork_join_sched_context_unblock(lithe_sched_t *__this,
 {
   lithe_fork_join_sched_t *sched = (void *)__this;
   __sync_fetch_and_add(&sched->num_blocked_contexts, -1);
-  schedule_context(sched, c);
+  __thread_enqueue((lithe_fork_join_context_t*)c, true);
+  lithe_hart_request(1);
 }
 
 void lithe_fork_join_sched_context_yield(lithe_sched_t *__this,
                                          lithe_context_t *c)
 {
-  lithe_fork_join_sched_t *sched = (void *)__this;
-  schedule_context(sched, c);
+  __thread_enqueue((lithe_fork_join_context_t*)c, false);
+  lithe_hart_request(1);
 }
 
 void lithe_fork_join_sched_context_exit(lithe_sched_t *__this,
