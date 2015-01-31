@@ -167,7 +167,6 @@ void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched,
   sched->sched.main_context = &main_context->context;
 
   sched->num_contexts = 1;
-  sched->num_blocked_contexts = 0;
   sched->putative_child_hart_requests = 0;
   sched->granting_harts = 0;
   wfl_init(&sched->child_hart_requests);
@@ -315,15 +314,11 @@ void lithe_fork_join_sched_hart_enter(lithe_sched_t *__this)
 void lithe_fork_join_sched_context_block(lithe_sched_t *__this,
                                          lithe_context_t *c)
 {
-  lithe_fork_join_sched_t *sched = (void *)__this;
-  __sync_fetch_and_add(&sched->num_blocked_contexts, 1);
 }
 
 void lithe_fork_join_sched_context_unblock(lithe_sched_t *__this,
                                            lithe_context_t *c)
 {
-  lithe_fork_join_sched_t *sched = (void *)__this;
-  __sync_fetch_and_add(&sched->num_blocked_contexts, -1);
   __thread_enqueue((lithe_fork_join_context_t*)c, true);
   lithe_hart_request(1);
 }
