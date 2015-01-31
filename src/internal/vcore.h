@@ -6,13 +6,17 @@
 #include <parlib/vcore.h>
 #include "assert.h"
 
-static int *wake_me_up;
+static struct {
+  int vcid;
+} __attribute__((aligned(ARCH_CL_SIZE))) *wake_me_up;
 static int max_spin_count = 300000;
 
 static inline void lithe_vcore_init()
 {
-  wake_me_up = calloc(max_vcores(), sizeof(wake_me_up[0]));
+  wake_me_up = parlib_aligned_alloc(PGSIZE,
+            sizeof(wake_me_up[0]) * max_vcores());
   assert(wake_me_up);
+  memset(wake_me_up, 0, sizeof(wake_me_up[0]) * max_vcores());
 
   const char *spin_count_string = getenv("LITHE_SPIN_COUNT");
   if (spin_count_string != NULL)
@@ -21,7 +25,7 @@ static inline void lithe_vcore_init()
 
 static inline void maybe_vcore_yield()
 {
-  int *flag = &wake_me_up[vcore_id()];
+  int *flag = &wake_me_up[vcore_id()].vcid;
 
   *flag = 1;
   // make a local copy of max_spin_count to avoid reloading it due to cpu_relax
@@ -35,7 +39,7 @@ static inline void maybe_vcore_yield()
 static inline int maybe_vcore_request(int k)
 {
   for (int i = 0; i < max_vcores() && k > 0; i++)
-    if (wake_me_up[i] && __sync_lock_test_and_set(&wake_me_up[i], 0))
+    if (wake_me_up[i].vcid && __sync_lock_test_and_set(&wake_me_up[i].vcid, 0))
       k--;
 
   return vcore_request(k);
