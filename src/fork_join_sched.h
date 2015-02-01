@@ -86,6 +86,8 @@ void lithe_fork_join_sched_join_all(lithe_fork_join_sched_t *sched);
 int lithe_fork_join_sched_hart_request(lithe_sched_t *__this,
                                        lithe_sched_t *child,
                                        size_t k);
+void lithe_fork_join_sched_sched_enter(lithe_sched_t *__this);
+void lithe_fork_join_sched_sched_exit(lithe_sched_t *__this);
 void lithe_fork_join_sched_child_enter(lithe_sched_t *__this,
                                        lithe_sched_t *child);
 void lithe_fork_join_sched_child_exit(lithe_sched_t *__this,

@@ -26,8 +26,9 @@ typedef struct lithe_sched lithe_sched_t;
 typedef struct lithe_sched_funcs {
   /* Function ultimately responsible for granting hart requests from a child
    * scheduler. This function is automatically called when a child invokes
-   * lithe_hart_request() from within it's current scheduler. Returns 0 on
-   * success, -1 on failure. */
+   * lithe_hart_request() from within it's current scheduler. It has the same
+   * semantics as the lithe_hart_request() library call.  It returns the number
+   * of harts successfully requested. */
   int (*hart_request) (lithe_sched_t *__this, lithe_sched_t *child, size_t k);
 
   /* Entry point for hart granted to this scheduler by a call to
@@ -37,6 +38,14 @@ typedef struct lithe_sched_funcs {
   /* Entry point for harts given back to this scheduler by a call to
    * lithe_hart_yield(). */
   void (*hart_return) (lithe_sched_t *__this, lithe_sched_t *child);
+
+  /* Callback to inform the scheduler that someone has called enter on it.
+   * You can think of this like main for the scheduler. */
+  void (*sched_enter) (lithe_sched_t *__this);
+
+  /* Callback to inform the scheduler that someone has called exit on it, and
+   * it is preparing to be shutdown. */
+  void (*sched_exit) (lithe_sched_t *__this);
 
   /* Callback to inform that a child scheduler has entered on one of the
    * current scheduler's harts */

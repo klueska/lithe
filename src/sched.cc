@@ -24,6 +24,16 @@ void __hart_return(lithe_sched_t *__this, lithe_sched_t *child)
   ((Scheduler*)__this)->hart_return(child);
 }
 
+void __sched_enter(lithe_sched_t *__this)
+{
+  ((Scheduler*)__this)->sched_enter();
+}
+
+void __sched_exit(lithe_sched_t *__this)
+{
+  ((Scheduler*)__this)->sched_exit();
+}
+
 void __child_enter(lithe_sched_t *__this, lithe_sched_t *child)
 {
   ((Scheduler*)__this)->child_enter(child);
@@ -58,6 +68,8 @@ const lithe_sched_funcs_t Scheduler::static_funcs = {
   /*.hart_request          = */ __hart_request,
   /*.hart_enter            = */ __hart_enter,
   /*.hart_return           = */ __hart_return,
+  /*.sched_enter           = */ __sched_enter,
+  /*.sched_exit            = */ __sched_exit,
   /*.child_enter           = */ __child_enter,
   /*.child_exit            = */ __child_exit,
   /*.context_block         = */ __context_block,

@@ -49,6 +49,16 @@ void __hart_return_default(lithe_sched_t *__this, lithe_sched_t *child)
   lithe_hart_yield();
 }
 
+void __sched_enter_default(lithe_sched_t *__this)
+{
+  // Do nothing special by default when a sched is entered
+}
+
+void __sched_exit_default(lithe_sched_t *__this)
+{
+  // Do nothing special by default when a sched is exited
+}
+
 void __child_enter_default(lithe_sched_t *__this, lithe_sched_t *child)
 {
   // Do nothing special by default when a child is entered

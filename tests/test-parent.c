@@ -21,6 +21,8 @@ static const lithe_sched_funcs_t child_funcs = {
   .hart_request         = __hart_request_default,
   .hart_enter           = child_hart_enter,
   .hart_return          = __hart_return_default,
+  .sched_enter          = __sched_enter_default,
+  .sched_exit           = __sched_exit_default,
   .child_enter          = __child_enter_default,
   .child_exit           = __child_exit_default,
   .context_block         = __context_block_default,
@@ -104,7 +106,7 @@ typedef struct root_sched {
   bool complete;
 } root_sched_t;
 
-int root_hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
+int root_hart_request(lithe_sched_t *__this, lithe_sched_t *child, size_t k);
 static void root_hart_enter(lithe_sched_t *this);
 void root_child_enter(lithe_sched_t *__this, lithe_sched_t *child);
 void root_child_exit(lithe_sched_t *__this, lithe_sched_t *child);
@@ -115,6 +117,8 @@ static const lithe_sched_funcs_t root_funcs = {
   .hart_request         = root_hart_request,
   .hart_enter           = root_hart_enter,
   .hart_return          = __hart_return_default,
+  .sched_enter          = __sched_enter_default,
+  .sched_exit           = __sched_exit_default,
   .child_enter          = root_child_enter,
   .child_exit           = root_child_exit,
   .context_block         = __context_block_default,
@@ -141,7 +145,7 @@ static void root_sched_dtor(root_sched_t *sched)
   free(sched->sched.main_context);
 }
 
-int root_hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
+int root_hart_request(lithe_sched_t *__this, lithe_sched_t *child, size_t k)
 {
   printf("root_hart_request\n");
   root_sched_t *sched = (root_sched_t *)__this;

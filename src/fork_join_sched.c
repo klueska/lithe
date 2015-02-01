@@ -17,6 +17,8 @@ const lithe_sched_funcs_t lithe_fork_join_sched_funcs = {
   .hart_request    = lithe_fork_join_sched_hart_request,
   .hart_enter      = lithe_fork_join_sched_hart_enter,
   .hart_return     = lithe_fork_join_sched_hart_return,
+  .sched_enter     = lithe_fork_join_sched_sched_enter,
+  .sched_exit      = lithe_fork_join_sched_sched_exit,
   .child_enter     = lithe_fork_join_sched_child_enter,
   .child_exit      = lithe_fork_join_sched_child_exit,
   .context_block   = lithe_fork_join_sched_context_block,
@@ -280,6 +282,14 @@ int lithe_fork_join_sched_hart_request(lithe_sched_t *__this,
     }
   __sync_fetch_and_add(&sched->putative_child_hart_requests, -k);
   return ret;
+}
+
+void lithe_fork_join_sched_sched_enter(lithe_sched_t *__this)
+{
+}
+
+void lithe_fork_join_sched_sched_exit(lithe_sched_t *__this)
+{
 }
 
 void lithe_fork_join_sched_child_enter(lithe_sched_t *__this,

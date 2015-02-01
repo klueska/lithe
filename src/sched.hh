@@ -20,6 +20,8 @@ class Scheduler : public lithe_sched_t {
   friend int __hart_request(lithe_sched_t *__this, lithe_sched_t *child, size_t k);
   friend void __hart_enter(lithe_sched_t *__this);
   friend void __hart_return(lithe_sched_t *__this, lithe_sched_t *child);
+  friend void __sched_enter(lithe_sched_t *__this);
+  friend void __sched_exit(lithe_sched_t *__this);
   friend void __child_enter(lithe_sched_t *__this, lithe_sched_t *child);
   friend void __child_exit(lithe_sched_t *__this, lithe_sched_t *child);
   friend void __context_block(lithe_sched_t *__this, lithe_context_t *context);
@@ -34,6 +36,10 @@ class Scheduler : public lithe_sched_t {
     { return __hart_request_default(this, child, k); }
   virtual void hart_return(lithe_sched_t *child)
     { return __hart_return_default(this, child); }
+  virtual void sched_enter()
+    { return __sched_enter_default(this); }
+  virtual void sched_exit()
+    { return __sched_exit_default(this); }
   virtual void child_enter(lithe_sched_t *child)
     { return __child_enter_default(this, child); }
   virtual void child_exit(lithe_sched_t *child)

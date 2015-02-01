@@ -61,6 +61,8 @@ static size_t next_context_id = 0;
 static int base_hart_request(lithe_sched_t *this, lithe_sched_t *child, size_t k);
 static void base_hart_enter(lithe_sched_t *this);
 static void base_hart_return(lithe_sched_t *this, lithe_sched_t *child);
+static void base_sched_entered(lithe_sched_t *this);
+static void base_sched_exited(lithe_sched_t *this);
 static void base_child_entered(lithe_sched_t *this, lithe_sched_t *child);
 static void base_child_exited(lithe_sched_t *this, lithe_sched_t *child);
 static void base_context_block(lithe_sched_t *__this, lithe_context_t *context);
@@ -72,6 +74,8 @@ static const lithe_sched_funcs_t base_funcs = {
   .hart_request       = base_hart_request,
   .hart_enter         = base_hart_enter,
   .hart_return        = base_hart_return,
+  .sched_enter        = base_sched_entered,
+  .sched_exit         = base_sched_exited,
   .child_enter        = base_child_entered,
   .child_exit         = base_child_exited,
   .context_block      = base_context_block,
@@ -274,6 +278,16 @@ static void base_hart_return(lithe_sched_t *__this, lithe_sched_t *sched)
   /* Do nothing, we don't need any bookkeeping in the base scheduler */
 }
 
+static void base_sched_entered(lithe_sched_t *__this)
+{
+  /* Do nothing, we don't need any bookkeeping in the base scheduler */
+}
+
+static void base_sched_exited(lithe_sched_t *__this)
+{
+  /* Do nothing, we don't need any bookkeeping in the base scheduler */
+}
+
 static void base_child_entered(lithe_sched_t *__this, lithe_sched_t *sched)
 {
   assert(root_sched == NULL);
@@ -414,7 +428,14 @@ static void __lithe_sched_enter(uthread_t *uthread, void *__arg)
   assert(parent->funcs->child_enter);
   parent->funcs->child_enter(parent, child);
 
-  /* Returning from this function wil bring us back to the vcore_entry point.
+  /* Update the value of current_sched on this core. */
+  current_sched = child;
+
+  /* Inform child. */
+  assert(child->funcs->sched_enter);
+  child->funcs->sched_enter(child);
+
+  /* Returning from this function will bring us back to the vcore_entry point.
    * We set next_context to continue running the child context now that it has
    * been properly set up. */
   next_context = context;
@@ -470,10 +491,6 @@ void __lithe_sched_exit(uthread_t *uthread, void *arg)
   assert(parent);
   assert(child);
 
-  /* Inform the parent that the child scheduler is about to exit */
-  assert(parent->funcs->child_exit);
-  parent->funcs->child_exit(parent, child);
-
   /* Update child's hart count to 0 */
   atomic_add(&child->harts, -1);
   atomic_add(&parent->harts, 1);
@@ -481,6 +498,17 @@ void __lithe_sched_exit(uthread_t *uthread, void *arg)
   /* Set the scheduler to the parent in the context that was blocked */
   context->sched = parent;
   uthread_set_tls_var(&context->uth, current_sched, parent);
+
+  /* Inform the child. */
+  assert(child->funcs->sched_exit);
+  child->funcs->sched_exit(child);
+
+  /* Update the value of current_sched on this core. */
+  current_sched = parent;
+
+  /* Inform the parent that the child scheduler has exited. */
+  assert(parent->funcs->child_exit);
+  parent->funcs->child_exit(parent, child);
 
   /* Return to the original parent context */
   next_context = context;
