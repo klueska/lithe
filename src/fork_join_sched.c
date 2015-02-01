@@ -5,9 +5,13 @@
  */
 
 #include <sys/mman.h>
+#include <parlib/waitfreelist.h>
 #include "fork_join_sched.h"
 #include "lithe.h"
 #include "assert.h"
+
+struct wfl sched_zombie_list = WFL_INITIALIZER(sched_zombie_list);
+struct wfl context_zombie_list = WFL_INITIALIZER(context_zombie_list);
 
 const lithe_sched_funcs_t lithe_fork_join_sched_funcs = {
   .hart_request    = lithe_fork_join_sched_hart_request,
@@ -23,25 +27,31 @@ const lithe_sched_funcs_t lithe_fork_join_sched_funcs = {
 
 static lithe_fork_join_context_t *__ctx_alloc(size_t stacksize)
 {
-	int offset = rand_r(&rseed(0)) % max_vcores() * ARCH_CL_SIZE;
-	stacksize += sizeof(lithe_fork_join_context_t) + offset;
-	stacksize = ROUNDUP(stacksize, PGSIZE);
-	void *stackbot = mmap(
-		0, stacksize, PROT_READ|PROT_WRITE|PROT_EXEC,
-		MAP_PRIVATE|MAP_ANONYMOUS, -1, 0
-	);
-	if (stackbot == MAP_FAILED)
-		abort();
-	lithe_fork_join_context_t *ctx = stackbot + stacksize
-	         - sizeof(lithe_fork_join_context_t) - offset;
-	ctx->context.stack.bottom = stackbot;
-	ctx->context.stack.size = stacksize - sizeof(*ctx) - offset;
+    lithe_fork_join_context_t *ctx = wfl_remove(&context_zombie_list);
+    if (!ctx) {
+		int offset = rand_r(&rseed(0)) % max_vcores() * ARCH_CL_SIZE;
+		stacksize += sizeof(lithe_fork_join_context_t) + offset;
+		stacksize = ROUNDUP(stacksize, PGSIZE);
+		void *stackbot = mmap(
+			0, stacksize, PROT_READ|PROT_WRITE|PROT_EXEC,
+			MAP_PRIVATE|MAP_ANONYMOUS, -1, 0
+		);
+		if (stackbot == MAP_FAILED)
+			abort();
+		ctx = stackbot + stacksize - sizeof(lithe_fork_join_context_t) - offset;
+		ctx->context.stack.bottom = stackbot;
+		ctx->context.stack.size = stacksize - sizeof(*ctx) - offset;
+	}
 	return ctx;
 }
 
-static void __ctx_free(lithe_fork_join_context_t *pt)
+static void __ctx_free(lithe_fork_join_context_t *ctx)
 {
-	assert(!munmap(pt->context.stack.bottom, pt->context.stack.size));
+    if (wfl_size(&context_zombie_list) < 1000) {
+        wfl_insert(&context_zombie_list, ctx);
+    } else {
+		assert(!munmap(ctx->context.stack.bottom, ctx->context.stack.size));
+	}
 }
 
 static int __thread_enqueue(lithe_fork_join_context_t *ctx, bool athead)
@@ -133,15 +143,24 @@ static lithe_fork_join_context_t *__thread_dequeue()
 
 lithe_fork_join_sched_t *lithe_fork_join_sched_create()
 {
-  struct {
+  /* Allocate all the scheduler data together. */
+  struct sched_data {
     lithe_fork_join_sched_t sched;
     lithe_fork_join_context_t main_context;
     struct lithe_fork_join_vc_mgmt vc_mgmt[];
-  } *s = parlib_aligned_alloc(PGSIZE,
-            sizeof(*s) + sizeof(struct lithe_fork_join_vc_mgmt) * max_vcores());
+  };
 
-  s->sched.vc_mgmt = &s->vc_mgmt[0];
-  s->sched.sched.funcs = &lithe_fork_join_sched_funcs;
+  /* Use a zombie list to reuse old schedulers if available, otherwise, create
+   * a new one. */
+  struct sched_data *s = wfl_remove(&sched_zombie_list);
+  if (!s) {
+    s = parlib_aligned_alloc(PGSIZE,
+            sizeof(*s) + sizeof(struct lithe_fork_join_vc_mgmt) * max_vcores());
+    s->sched.vc_mgmt = &s->vc_mgmt[0];
+    s->sched.sched.funcs = &lithe_fork_join_sched_funcs;
+  }
+
+  /* Initialize the scheduler. */
   lithe_fork_join_sched_init(&s->sched, &s->main_context);
   return &s->sched;
 }
@@ -149,7 +168,10 @@ lithe_fork_join_sched_t *lithe_fork_join_sched_create()
 void lithe_fork_join_sched_destroy(lithe_fork_join_sched_t *sched)
 {
   lithe_fork_join_sched_cleanup(sched);
-  free(sched);
+  if (wfl_size(&sched_zombie_list) < 100)
+    wfl_insert(&sched_zombie_list, sched);
+  else
+    free(sched);
 }
 
 void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched,
