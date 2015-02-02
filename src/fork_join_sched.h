@@ -49,6 +49,7 @@ struct lithe_fork_join_vc_mgmt {
 typedef struct {
   lithe_sched_t sched;
   size_t num_contexts;
+  size_t num_active_contexts;
   size_t putative_child_hart_requests;
   size_t granting_harts;
   struct wfl child_hart_requests;
