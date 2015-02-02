@@ -56,9 +56,31 @@ static void __ctx_free(lithe_fork_join_context_t *ctx)
 	}
 }
 
+static int get_next_queue_id()
+{
+	lithe_fork_join_sched_t *sched = (void *)lithe_sched_current();
+
+	/* Find the next available core from our list of online cores. */
+	int id, next_id;
+	while (1) {
+		id = sched->next_queue_id;
+		next_id = id + 1 == max_vcores() ? 0 : id + 1;
+		while (!vconline(next_id) && next_id != id)
+			next_id = next_id + 1 == max_vcores() ? 0 : next_id + 1;
+
+		if (__sync_bool_compare_and_swap(&sched->next_queue_id, id, next_id))
+			return id;
+        cmb();
+	}
+}
+
 static int __thread_enqueue(lithe_fork_join_context_t *ctx, bool athead)
 {
+	int state = ctx->state;
 	ctx->state = FJS_CTX_RUNNABLE;
+
+	if (state == FJS_CTX_CREATED || !vconline(ctx->preferred_vcq))
+		ctx->preferred_vcq = get_next_queue_id();
 
 	int vcoreid = ctx->preferred_vcq;
 	spin_pdr_lock(&tqlock(vcoreid));
@@ -202,6 +224,7 @@ void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched,
   sched->num_harts = 1;
   sched->putative_child_hart_requests = 0;
   sched->granting_harts = 0;
+  sched->next_queue_id = -1;
   wfl_init(&sched->child_hart_requests);
 }
 
@@ -227,7 +250,7 @@ void lithe_fork_join_context_init(lithe_fork_join_sched_t *sched,
                                   void *arg)
 {
   ctx->state = FJS_CTX_CREATED;
-  ctx->preferred_vcq = vcore_id();
+  ctx->preferred_vcq = -1;
   ctx->start_routine = start_routine;
   ctx->arg = arg;
 
@@ -297,6 +320,7 @@ void lithe_fork_join_sched_sched_enter(lithe_sched_t *__this)
 	lithe_fork_join_sched_t *sched = (void *)__this;
 	vconline(vcore_id()) = true;
 	__sync_fetch_and_add(&sched->num_harts, 1);
+	sched->next_queue_id = vcore_id();
 }
 
 void lithe_fork_join_sched_sched_exit(lithe_sched_t *__this)

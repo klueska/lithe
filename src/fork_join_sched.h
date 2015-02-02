@@ -56,6 +56,7 @@ typedef struct {
   size_t num_harts;
   size_t putative_child_hart_requests;
   size_t granting_harts;
+  volatile int next_queue_id;
   struct wfl child_hart_requests;
   struct lithe_fork_join_vc_mgmt *vc_mgmt;
 } lithe_fork_join_sched_t;
