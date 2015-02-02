@@ -90,6 +90,9 @@ struct lithe_sched {
    * */
   lithe_context_t *main_context;
 
+  /* A field accessible by the parent of a scheduler to use as they see fit. */
+  void *parent_data;
+
   /* All fields below are internal state managed internally by lithe. Put here
    * so that schedulers can statically create these objects if they wish to,
    * for performance reasons.  Alternate solution (previously used in older
