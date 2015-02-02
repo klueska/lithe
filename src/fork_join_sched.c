@@ -190,6 +190,7 @@ void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched,
     spin_pdr_init(&tqlock_s(sched, i));
     tqsize_s(sched, i) = 0;
     rseed_s(sched, i) = i;
+    vconline_s(sched, i) = false;
   }
 
   memset(main_context, 0, sizeof(*main_context));
@@ -198,6 +199,7 @@ void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched,
 
   sched->num_contexts = 1;
   sched->num_active_contexts = 1;
+  sched->num_harts = 1;
   sched->putative_child_hart_requests = 0;
   sched->granting_harts = 0;
   wfl_init(&sched->child_hart_requests);
@@ -292,10 +294,16 @@ int lithe_fork_join_sched_hart_request(lithe_sched_t *__this,
 
 void lithe_fork_join_sched_sched_enter(lithe_sched_t *__this)
 {
+	lithe_fork_join_sched_t *sched = (void *)__this;
+	vconline(vcore_id()) = true;
+	__sync_fetch_and_add(&sched->num_harts, 1);
 }
 
 void lithe_fork_join_sched_sched_exit(lithe_sched_t *__this)
 {
+	lithe_fork_join_sched_t *sched = (void *)__this;
+	vconline(vcore_id()) = false;
+	__sync_fetch_and_add(&sched->num_harts, -1);
 }
 
 void lithe_fork_join_sched_child_enter(lithe_sched_t *__this,
@@ -315,6 +323,9 @@ void lithe_fork_join_sched_child_exit(lithe_sched_t *__this,
 void lithe_fork_join_sched_hart_return(lithe_sched_t *__this,
                                        lithe_sched_t *child)
 {
+	lithe_fork_join_sched_t *sched = (void *)__this;
+	vconline(vcore_id()) = true;
+	__sync_fetch_and_add(&sched->num_harts, 1);
 }
 
 static void decrement(void *gh)
@@ -325,6 +336,10 @@ static void decrement(void *gh)
 void lithe_fork_join_sched_hart_enter(lithe_sched_t *__this)
 {
   lithe_fork_join_sched_t *sched = (void *)__this;
+  if (!vconline(vcore_id())) {
+    vconline(vcore_id()) = true;
+    __sync_fetch_and_add(&sched->num_harts, 1);
+  }
 
   /* If I have any outstanding requests from my children, preferentially pass
    * this hart down to them. */
@@ -332,6 +347,8 @@ void lithe_fork_join_sched_hart_enter(lithe_sched_t *__this)
     __sync_fetch_and_add(&sched->granting_harts, 1);
     lithe_sched_t *s = (lithe_sched_t*)wfl_remove(&sched->child_hart_requests);
     if (s != NULL) {
+      vconline(vcore_id()) = false;
+      __sync_fetch_and_add(&sched->num_harts, -1);
       lithe_hart_grant(s, decrement, &sched->granting_harts);
     }
     decrement(&sched->granting_harts);
@@ -346,6 +363,8 @@ void lithe_fork_join_sched_hart_enter(lithe_sched_t *__this)
   }
 
   /* Otherwise, yield. */
+  vconline(vcore_id()) = false;
+  __sync_fetch_and_add(&sched->num_harts, -1);
   lithe_hart_yield();
 }
 
