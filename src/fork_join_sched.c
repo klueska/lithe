@@ -72,6 +72,12 @@ static int __thread_enqueue(lithe_fork_join_context_t *ctx, bool athead)
 	return vcoreid;
 }
 
+static int schedule_context(lithe_fork_join_context_t *ctx, bool athead)
+{
+	__thread_enqueue(ctx, athead);
+	return lithe_hart_request(1);
+}
+
 static lithe_fork_join_context_t *__thread_dequeue()
 {
 	inline lithe_fork_join_context_t *tdequeue(int vcoreid)
@@ -231,8 +237,7 @@ void lithe_fork_join_context_init(lithe_fork_join_sched_t *sched,
 
   lithe_context_init(&ctx->context, start_routine_wrapper, ctx);
   __sync_fetch_and_add(&sched->num_contexts, 1);
-  __thread_enqueue(ctx, false);
-  lithe_hart_request(1);
+  schedule_context(ctx, false);
 }
 
 void lithe_fork_join_context_cleanup(lithe_fork_join_context_t *context)
@@ -350,15 +355,13 @@ void lithe_fork_join_sched_context_block(lithe_sched_t *__this,
 void lithe_fork_join_sched_context_unblock(lithe_sched_t *__this,
                                            lithe_context_t *c)
 {
-  __thread_enqueue((lithe_fork_join_context_t*)c, true);
-  lithe_hart_request(1);
+  schedule_context((lithe_fork_join_context_t*)c, true);
 }
 
 void lithe_fork_join_sched_context_yield(lithe_sched_t *__this,
                                          lithe_context_t *c)
 {
-  __thread_enqueue((lithe_fork_join_context_t*)c, false);
-  lithe_hart_request(1);
+  schedule_context((lithe_fork_join_context_t*)c, false);
 }
 
 void lithe_fork_join_sched_context_exit(lithe_sched_t *__this,
