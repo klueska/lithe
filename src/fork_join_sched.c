@@ -268,20 +268,19 @@ int lithe_fork_join_sched_hart_request(lithe_sched_t *__this,
 {
   lithe_fork_join_sched_t *sched = (void *)__this;
 
-  /* Don't even bother with the request if we already have a bunch of
-   * outstanding requests for this child. */
-  if (wfl_size(&sched->child_hart_requests) + k > max_vcores())
-    return -1;
+  /* Never request more than max_harts from the system. */
+  k = k < max_harts() ? k : max_harts();
 
-  /* Otherwise, submit the request. */
-  __sync_fetch_and_add(&sched->putative_child_hart_requests, k);
-    int ret = lithe_hart_request(k);
-    if (ret == 0) {
-      for (size_t i = 0; i < k; i++)
-        wfl_insert(&sched->child_hart_requests, child);
-    }
-  __sync_fetch_and_add(&sched->putative_child_hart_requests, -k);
-  return ret;
+  /* Incrementally request harts from our parent. */
+  int count = 0;
+  __sync_fetch_and_add(&sched->putative_child_hart_requests, 1);
+  for (int i = 0; i < k; i++)
+    wfl_insert(&sched->child_hart_requests, child);
+  count += lithe_hart_request(k);
+  __sync_fetch_and_add(&sched->putative_child_hart_requests, -1);
+
+  /* Return the number of successful requests. */
+  return count;
 }
 
 void lithe_fork_join_sched_sched_enter(lithe_sched_t *__this)

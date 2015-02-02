@@ -38,11 +38,20 @@ static inline void maybe_vcore_yield()
 
 static inline int maybe_vcore_request(int k)
 {
+  /* Try and wake up one of our spinning vcores. */
+  int origk = k;
   for (int i = 0; i < max_vcores() && k > 0; i++)
     if (wake_me_up[i].vcid && __sync_lock_test_and_set(&wake_me_up[i].vcid, 0))
       k--;
 
-  return vcore_request(k);
+  /* Only bother putting in a reqeust to the system if we know there is a
+   * chance of it succeeding. */
+  if (max_harts() - num_harts()) {
+    int ret = vcore_request(k);
+    if (ret == 0)
+      return origk;
+  }
+  return origk - k;
 }
 
 #endif

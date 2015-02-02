@@ -310,19 +310,19 @@ static int base_hart_request(lithe_sched_t *__this, lithe_sched_t *sched, size_t
 {
   assert(root_sched == sched);
 
-  /* Don't even bother with the request if we already have a bunch of
-   * outstanding requests for this child. */
-  if (atomic_read(&root_sched_requests) + k > max_vcores())
-    return -1;
+  /* Never request more than max_harts from the system. */
+  k = k < max_harts() ? k : max_harts();
 
-  /* Otherwise, submit the request. */
-  atomic_add(&root_sched_putative_requests, k);
-  int ret = maybe_vcore_request(k);
-  if (!ret) {
-    atomic_add(&root_sched_requests, k);
-  }
-  atomic_add(&root_sched_putative_requests, -k);
-  return ret;
+  /* Incrementally request harts from the system. */
+  int count = 0;
+  atomic_add(&root_sched_putative_requests, 1);
+  atomic_add(&root_sched_requests, k);
+  for (int i = 0; i < k; i++)
+    count += maybe_vcore_request(1);
+  atomic_add(&root_sched_putative_requests, -1);
+
+  /* Return the number of successful requests. */
+  return count;
 }
 
 static void base_context_block(lithe_sched_t *__this, lithe_context_t *context)

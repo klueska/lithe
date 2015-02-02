@@ -44,10 +44,11 @@ void lithe_sched_exit();
 lithe_sched_t *lithe_sched_current();
 
 /**
- * Request a specified number of harts from the parent. Note that the parent
- * is free to make a request using the calling hart to their own parent if
- * necessary. These harts will trickle in over time as they are granted to the
- * requesting scheduler. Returns 0 on success and -1 on error. 
+ * Request up to a specified number of harts from the parent. Note that the
+ * parent is free to make a request using the calling hart to their own parent
+ * if necessary. These harts will trickle in over time as they are granted to
+ * the requesting scheduler. Returns the number of harts successfully
+ * requested.
  */
 int lithe_hart_request(size_t k);
  
