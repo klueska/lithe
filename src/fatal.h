@@ -24,14 +24,14 @@ extern "C" {
  * Prints the string specified by 'fmt' to standard error before
  * calling exit.
  */
-void fatal(char *fmt, ...) __attribute__((noreturn));
+void fatal(const char *fmt, ...) __attribute__((noreturn));
 
 /*
  * Prints the string specified by 'fmt' to standard error along with a
  * string containing the error number as specfied in 'errno' before
  * calling exit.
  */
-void fatalerror(char *fmt, ...) __attribute__((noreturn));
+void fatalerror(const char *fmt, ...) __attribute__((noreturn));
 
 #else
 
@@ -40,14 +40,16 @@ void fatalerror(char *fmt, ...) __attribute__((noreturn));
  * number in the output.
  */
 #define fatal(fmt...) __fatal(__FILE__, __LINE__, fmt)
-void __fatal(char *file, int line, char *fmt, ...) __attribute__((noreturn));
+void __fatal(const char *file, int line, const char *fmt, ...)
+__attribute__((noreturn));
 
 /*
  * Like the non-debug version except includes the file name and line
  * number in the output.
  */
 #define fatalerror(fmt...) __fatalerror(__FILE__, __LINE__, fmt)
-void __fatalerror(char *file, int line, char *fmt, ...) __attribute__((noreturn));
+void __fatalerror(const char *file, int line, const char *fmt, ...)
+__attribute__((noreturn));
 
 #endif // DEBUG
 

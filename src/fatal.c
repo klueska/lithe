@@ -9,7 +9,7 @@
 
 #ifndef DEBUG
 
-void fatal(char *fmt, ...)
+void fatal(const char *fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
@@ -20,7 +20,7 @@ void fatal(char *fmt, ...)
   exit(1);
 }
 
-void fatalerror(char *fmt, ...)
+void fatalerror(const char *fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
@@ -34,7 +34,7 @@ void fatalerror(char *fmt, ...)
 
 #else
 
-void __fatal(char *file, int line, char *fmt, ...)
+void __fatal(const char *file, int line, const char *fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
@@ -45,7 +45,7 @@ void __fatal(char *file, int line, char *fmt, ...)
   exit(1);
 }
 
-void __fatalerror(char *file, int line, char *fmt, ...)
+void __fatalerror(const char *file, int line, const char *fmt, ...)
 {
   va_list args;
   va_start(args, fmt);
