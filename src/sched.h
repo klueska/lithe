@@ -17,9 +17,13 @@
 extern "C" {
 #endif
 
+/* Declare types and functions for maintaining a queue of lithe scheds */
+struct lithe_sched;
+TAILQ_HEAD(lithe_sched_queue, lithe_sched);
+typedef struct lithe_sched_queue lithe_sched_queue_t;
+
 /* Lithe sched type passed around between the lithe runtime and 2nd-level
  * schedulers */
-struct lithe_sched;
 typedef struct lithe_sched lithe_sched_t;
 
 /* Lithe scheduler callbacks/entrypoints. */
@@ -83,6 +87,9 @@ struct lithe_sched {
   /* Scheduler functions. Must be set by the implementor of the second level
    * scheduler before calling lithe_sched_enter() */
   const lithe_sched_funcs_t *funcs;
+
+  /* A tailq pointer so that this sched can be inserted on a linked list */
+  TAILQ_ENTRY(lithe_sched) link;
 
   /* Main context. An UNITIALIZED lithe context sized for the scheduler specific
    * lithe context associated with the new scheduler. Must be set by the
