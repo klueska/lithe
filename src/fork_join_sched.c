@@ -29,6 +29,7 @@ const lithe_sched_funcs_t lithe_fork_join_sched_funcs = {
 
 static lithe_fork_join_context_t *__ctx_alloc(size_t stacksize)
 {
+    // TODO wfl currently assumes stacksize the same for all contexts
     lithe_fork_join_context_t *ctx = wfl_remove(&context_zombie_list);
     if (!ctx) {
 		int offset = rand_r(&rseed(0)) % max_vcores() * ARCH_CL_SIZE;
@@ -52,6 +53,7 @@ static void __ctx_free(lithe_fork_join_context_t *ctx)
     if (wfl_size(&context_zombie_list) < 1000) {
         wfl_insert(&context_zombie_list, ctx);
     } else {
+		// TODO size is wrong!  also, don't do work inside of assert()
 		assert(!munmap(ctx->context.stack.bottom, ctx->context.stack.size));
 	}
 }
