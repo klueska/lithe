@@ -42,12 +42,12 @@ struct lithe_fork_join_vc_mgmt {
 #define tqlock_s(sched, i)   (sched)->vc_mgmt[(i)].tqlock
 #define tqsize_s(sched, i)   (sched)->vc_mgmt[(i)].tqsize
 #define rseed_s(sched, i)    (sched)->vc_mgmt[(i)].rseed
-#define vconline_s(sched, i) (sched)->vc_mgmt[(i)].rseed
+#define vconline_s(sched, i) (sched)->vc_mgmt[(i)].vconline
 #define tqueue(i)   tqueue_s((lithe_fork_join_sched_t*)lithe_sched_current(), i)
 #define tqlock(i)   tqlock_s((lithe_fork_join_sched_t*)lithe_sched_current(), i)
 #define tqsize(i)   tqsize_s((lithe_fork_join_sched_t*)lithe_sched_current(), i)
 #define rseed(i)    rseed_s((lithe_fork_join_sched_t*)lithe_sched_current(), i)
-#define vconline(i) rseed_s((lithe_fork_join_sched_t*)lithe_sched_current(), i)
+#define vconline(i) vconline_s((lithe_fork_join_sched_t*)lithe_sched_current(), i)
 
 typedef struct {
   lithe_sched_t sched;
