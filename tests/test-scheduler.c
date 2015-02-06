@@ -2,12 +2,13 @@
 #include <unistd.h>
 
 #include <parlib/parlib.h>
+#include <parlib/spinlock.h>
 #include <src/lithe.h>
 #include <src/defaults.h>
 
 typedef struct test_sched {
   lithe_sched_t sched;
-  unsigned int counter;
+  spin_barrier_t barrier;
 } test_sched_t;
 
 static void hart_enter(lithe_sched_t *__this);
@@ -30,7 +31,6 @@ static void test_sched_ctor(test_sched_t *sched)
 {
   sched->sched.funcs = &funcs;
   sched->sched.main_context = malloc(sizeof(lithe_context_t));
-  sched->counter = 0;
 }
 
 static void test_sched_dtor(test_sched_t *sched)
@@ -40,10 +40,10 @@ static void test_sched_dtor(test_sched_t *sched)
 
 static void hart_enter(lithe_sched_t *__this)
 {
-  unsigned int *counter = &((test_sched_t*)__this)->counter;
+  test_sched_t *sched = (test_sched_t*)__this;
   printf("enter() on hart %d\n", hart_id());
-  __sync_fetch_and_add(counter, 1);
-  printf("counter: %d\n", *counter);
+  spin_barrier_wait(&sched->barrier);
+  spin_barrier_wait(&sched->barrier);
   lithe_hart_yield();
 }
 
@@ -51,29 +51,18 @@ static void test_run()
 {
   printf("Scheduler Started!\n");
   test_sched_t *sched = (test_sched_t*)lithe_sched_current();
-  unsigned int limit = max_harts();
-  if(limit == 1) {
-    printf("ERROR: This simple test spins on one hart.\n");
-    printf("       Therefore, it requires at least 2 harts in order to run.\n");
-    printf("       Other tests in this suite are more sophisticated and should run just fine.\n");
-    printf("       Are you running this test on a machine with only 1 CPU?\n");
-    exit(1);
-  }
+  size_t limit = max_harts();
   for(int i=0; i<100; i++) {
-    unsigned int cur;
-    do {
-      cur = num_harts();
-      cpu_relax();
-    } while(!(limit - cur));
-    sched->counter = 0;
-    printf("counter: %d\n", sched->counter);
-    printf("max_harts: %d\n", limit);
-    printf("num_harts: %d\n", cur);
+    printf("max_harts: %lu\n", limit);
+    printf("num_harts: %lu\n", num_harts());
     printf("Requesting harts\n");
-    lithe_hart_request(limit - cur);
-    printf("Waiting for counter to reach: %d\n", (limit - cur));
-    while(sched->counter < (limit - cur))
+    lithe_hart_request(limit);
+    spin_barrier_wait(&sched->barrier);
+    lithe_hart_request(1);
+    spin_barrier_wait(&sched->barrier);
+    while (num_harts() > 1)
       cpu_relax();
+    printf("Finished iteration %d\n", i);
   }
   printf("Scheduler finishing!\n");
 }
@@ -84,6 +73,7 @@ int main()
   test_sched_t test_sched;
   test_sched_ctor(&test_sched);
   lithe_sched_enter((lithe_sched_t*)&test_sched);
+  spin_barrier_init(&test_sched.barrier, max_harts());
   test_run();
   lithe_sched_exit();
   test_sched_dtor(&test_sched);
