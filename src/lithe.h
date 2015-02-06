@@ -50,7 +50,7 @@ lithe_sched_t *lithe_sched_current();
  * the requesting scheduler. Returns the number of harts successfully
  * requested.
  */
-int lithe_hart_request(size_t k);
+void lithe_hart_request(size_t h);
  
 /**
  * Grant the current hart to another scheduler.  Triggered by a previous call

@@ -94,10 +94,11 @@ static int __thread_enqueue(lithe_fork_join_context_t *ctx, bool athead)
 	return vcoreid;
 }
 
-static int schedule_context(lithe_fork_join_context_t *ctx, bool athead)
+static void schedule_context(lithe_fork_join_context_t *ctx, bool athead)
 {
+	lithe_fork_join_sched_t *sched = (void *)lithe_sched_current();
 	__thread_enqueue(ctx, athead);
-	return lithe_hart_request(1);
+	lithe_fork_join_hart_request_inc(sched, 1);
 }
 
 static lithe_fork_join_context_t *__thread_dequeue()
@@ -171,6 +172,12 @@ static lithe_fork_join_context_t *__thread_dequeue()
 	return ctx;
 }
 
+void lithe_fork_join_hart_request_inc(lithe_fork_join_sched_t *sched, int h)
+{
+	h = __sync_add_and_fetch(&sched->num_harts_needed, h);
+	lithe_hart_request(h);
+}
+
 lithe_fork_join_sched_t *lithe_fork_join_sched_create()
 {
   /* Allocate all the scheduler data together. */
@@ -220,17 +227,15 @@ void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched,
   sched->sched.main_context = &main_context->context;
 
   sched->num_contexts = 1;
-  sched->num_active_contexts = 1;
-  sched->num_harts = 1;
-  sched->putative_child_hart_requests = 0;
   sched->granting_harts = 0;
-  sched->next_queue_id = -1;
-  wfl_init(&sched->child_hart_requests);
+  sched->num_harts_needed = 1;
+  TAILQ_INIT(&sched->child_sched_list);
+  spinlock_init(&sched->child_sched_list_lock);
+  /* sched->next_queue_id initialized in sched_enter() */
 }
 
 void lithe_fork_join_sched_cleanup(lithe_fork_join_sched_t *sched)
 {
-  wfl_cleanup(&sched->child_hart_requests);
 }
 
 lithe_fork_join_context_t*
@@ -263,7 +268,6 @@ void lithe_fork_join_context_init(lithe_fork_join_sched_t *sched,
 
   lithe_context_init(&ctx->context, start_routine_wrapper, ctx);
   __sync_fetch_and_add(&sched->num_contexts, 1);
-  __sync_fetch_and_add(&sched->num_active_contexts, 1);
   schedule_context(ctx, false);
 }
 
@@ -294,62 +298,61 @@ void lithe_fork_join_sched_join_all(lithe_fork_join_sched_t *sched)
   lithe_context_block(block_main_context, sched);
 }
 
-int lithe_fork_join_sched_hart_request(lithe_sched_t *__this,
+void lithe_fork_join_sched_hart_request(lithe_sched_t *__this,
                                        lithe_sched_t *child,
-                                       size_t k)
+                                       size_t h)
 {
   lithe_fork_join_sched_t *sched = (void *)__this;
-
-  /* Never request more than max_harts from the system. */
-  k = k < max_harts() ? k : max_harts();
-
-  /* Incrementally request harts from our parent. */
-  int count = 0;
-  __sync_fetch_and_add(&sched->putative_child_hart_requests, 1);
-  for (int i = 0; i < k; i++)
-    wfl_insert(&sched->child_hart_requests, child);
-  count += lithe_hart_request(k);
-  __sync_fetch_and_add(&sched->putative_child_hart_requests, -1);
-
-  /* Return the number of successful requests. */
-  return count;
+  uint16_t *harts_needed = (uint16_t*)&child->parent_data + 1;
+  size_t old = atomic_swap_u16(harts_needed, h);
+  lithe_fork_join_hart_request_inc(sched, h - old);
 }
 
 void lithe_fork_join_sched_sched_enter(lithe_sched_t *__this)
 {
 	lithe_fork_join_sched_t *sched = (void *)__this;
 	vconline(vcore_id()) = true;
-	__sync_fetch_and_add(&sched->num_harts, 1);
 	sched->next_queue_id = vcore_id();
 }
 
 void lithe_fork_join_sched_sched_exit(lithe_sched_t *__this)
 {
-	lithe_fork_join_sched_t *sched = (void *)__this;
 	vconline(vcore_id()) = false;
-	__sync_fetch_and_add(&sched->num_harts, -1);
 }
 
 void lithe_fork_join_sched_child_enter(lithe_sched_t *__this,
                                        lithe_sched_t *child)
 {
+	lithe_fork_join_sched_t *sched = (void *)__this;
+	uint16_t *harts_granted = (uint16_t*)&child->parent_data;
+	uint16_t *harts_needed = (uint16_t*)&child->parent_data + 1;
+	*harts_granted = 1;
+	*harts_needed = 1;
+
+	spinlock_lock(&sched->child_sched_list_lock);
+	TAILQ_INSERT_TAIL(&sched->child_sched_list, child, link);
+	spinlock_unlock(&sched->child_sched_list_lock);
 }
 
 void lithe_fork_join_sched_child_exit(lithe_sched_t *__this,
                                       lithe_sched_t *child)
 {
   lithe_fork_join_sched_t *sched = (void *)__this;
-  wfl_remove_all(&sched->child_hart_requests, child);
+  spinlock_lock(&sched->child_sched_list_lock);
+  TAILQ_REMOVE(&sched->child_sched_list, child, link);
+  spinlock_unlock(&sched->child_sched_list_lock);
+
   while (sched->granting_harts)
     cpu_relax();
 }
 
+
 void lithe_fork_join_sched_hart_return(lithe_sched_t *__this,
                                        lithe_sched_t *child)
 {
-	lithe_fork_join_sched_t *sched = (void *)__this;
+	uint16_t *harts_granted = (uint16_t*)&child->parent_data;
+	atomic_add(harts_granted, -1);
 	vconline(vcore_id()) = true;
-	__sync_fetch_and_add(&sched->num_harts, 1);
 }
 
 static void decrement(void *gh)
@@ -360,23 +363,40 @@ static void decrement(void *gh)
 void lithe_fork_join_sched_hart_enter(lithe_sched_t *__this)
 {
   lithe_fork_join_sched_t *sched = (void *)__this;
-  if (!vconline(vcore_id())) {
+  if (!vconline(vcore_id()))
     vconline(vcore_id()) = true;
-    __sync_fetch_and_add(&sched->num_harts, 1);
-  }
 
   /* If I have any outstanding requests from my children, preferentially pass
    * this hart down to them. */
-  do {
+  if (!TAILQ_EMPTY(&sched->child_sched_list)) {
     __sync_fetch_and_add(&sched->granting_harts, 1);
-    lithe_sched_t *s = (lithe_sched_t*)wfl_remove(&sched->child_hart_requests);
-    if (s != NULL) {
-      vconline(vcore_id()) = false;
-      __sync_fetch_and_add(&sched->num_harts, -1);
-      lithe_hart_grant(s, decrement, &sched->granting_harts);
+    lithe_sched_t *first = NULL;
+    while (1) {
+      spinlock_lock(&sched->child_sched_list_lock);
+      lithe_sched_t *child = TAILQ_FIRST(&sched->child_sched_list);
+      if (child) {
+        TAILQ_REMOVE(&sched->child_sched_list, child, link);
+        TAILQ_INSERT_TAIL(&sched->child_sched_list, child, link);
+      }
+      spinlock_unlock(&sched->child_sched_list_lock);
+      if (!child)
+        break;
+
+      uint16_t *harts_granted = (uint16_t*)&child->parent_data;
+      uint16_t *harts_needed = (uint16_t*)&child->parent_data + 1;
+      if (atomic_add(harts_granted, 1) + 1 <= *harts_needed) {
+        vconline(vcore_id()) = false;
+        lithe_hart_grant(child, decrement, &sched->granting_harts);
+      }
+      atomic_add(harts_granted, -1);
+
+      if (first == NULL)
+        first = child;
+      else if (first == child)
+        break;
     }
     decrement(&sched->granting_harts);
-  } while (sched->putative_child_hart_requests) ;
+  }
 
   /* Otherwise, if I have any contexts to run, grab one and run it. */
   lithe_fork_join_context_t *ctx = __thread_dequeue();
@@ -388,37 +408,45 @@ void lithe_fork_join_sched_hart_enter(lithe_sched_t *__this)
 
   /* Otherwise, yield. */
   vconline(vcore_id()) = false;
-  __sync_fetch_and_add(&sched->num_harts, -1);
   lithe_hart_yield();
 }
 
 void lithe_fork_join_sched_context_block(lithe_sched_t *__this,
                                          lithe_context_t *c)
 {
-  lithe_fork_join_sched_t *sched = (void *)__this;
-  __sync_fetch_and_add(&sched->num_active_contexts, -1);
+	lithe_fork_join_sched_t *sched = (void *)__this;
+	lithe_fork_join_context_t *ctx = (void*)c;
+	assert(ctx->state == FJS_CTX_RUNNING);
+	ctx->state = FJS_CTX_BLOCKED;
+	lithe_fork_join_hart_request_inc(sched, -1);
 }
 
 void lithe_fork_join_sched_context_unblock(lithe_sched_t *__this,
                                            lithe_context_t *c)
 {
-  lithe_fork_join_sched_t *sched = (void *)__this;
-  __sync_fetch_and_add(&sched->num_active_contexts, 1);
-  schedule_context((lithe_fork_join_context_t*)c, true);
+	lithe_fork_join_context_t *ctx = (void*)c;
+	assert(ctx->state == FJS_CTX_BLOCKED);
+	ctx->state = FJS_CTX_RUNNABLE;
+	schedule_context(ctx, false);
 }
 
 void lithe_fork_join_sched_context_yield(lithe_sched_t *__this,
                                          lithe_context_t *c)
 {
-  schedule_context((lithe_fork_join_context_t*)c, false);
+	lithe_fork_join_context_t *ctx = (void*)c;
+	assert(ctx->state == FJS_CTX_RUNNING);
+	ctx->state = FJS_CTX_RUNNABLE;
+	__thread_enqueue(ctx, false);
 }
 
 void lithe_fork_join_sched_context_exit(lithe_sched_t *__this,
                                         lithe_context_t *c)
 {
   lithe_fork_join_sched_t *sched = (void *)__this;
+  lithe_fork_join_context_t *ctx = (void*)c;
   if (c != sched->sched.main_context) {
-    lithe_fork_join_context_destroy((lithe_fork_join_context_t *)c);
+    lithe_fork_join_hart_request_inc(sched, -1);
+    lithe_fork_join_context_destroy(ctx);
     lithe_fork_join_sched_join_one(sched);
   }
 }

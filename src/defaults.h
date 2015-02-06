@@ -20,7 +20,7 @@ lithe_context_t* __lithe_context_create_default(bool stack);
 void __lithe_context_destroy_default(lithe_context_t *context, bool stack);
 
 /* Helpful defaults for the lithe callback functions */
-int __hart_request_default(lithe_sched_t *__this, lithe_sched_t *child, size_t k);
+void __hart_request_default(lithe_sched_t *__this, lithe_sched_t *child, size_t h);
 void __hart_entry_default(lithe_sched_t *__this);
 void __hart_return_default(lithe_sched_t *__this, lithe_sched_t *child);
 void __sched_enter_default(lithe_sched_t *__this);

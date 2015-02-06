@@ -30,6 +30,7 @@ extern const lithe_sched_funcs_t lithe_fork_join_sched_funcs;
 #define FJS_CTX_CREATED			1
 #define FJS_CTX_RUNNABLE		2
 #define FJS_CTX_RUNNING			3
+#define FJS_CTX_BLOCKED			4
 
 struct lithe_fork_join_vc_mgmt {
 	struct lithe_context_queue tqueue;
@@ -52,46 +53,55 @@ struct lithe_fork_join_vc_mgmt {
 typedef struct {
   lithe_sched_t sched;
   size_t num_contexts;
-  size_t num_active_contexts;
-  size_t num_harts;
-  size_t putative_child_hart_requests;
   size_t granting_harts;
+  size_t num_harts_needed;
   volatile int next_queue_id;
-  struct wfl child_hart_requests;
+  struct lithe_sched_queue child_sched_list;
+  spinlock_t child_sched_list_lock;
   struct lithe_fork_join_vc_mgmt *vc_mgmt;
 } lithe_fork_join_sched_t;
 
 typedef struct {
   lithe_context_t context;
-  int state;
+  uint32_t state;
   int preferred_vcq;
   void (*start_routine)(void*);
   void *arg;
 } lithe_fork_join_context_t;
 
 
+/* API to request harts and make sure they are tracked properly when
+ * "inheriting" from the lithe_fork_join_sched.  You should call this instead
+ * of calling lithe_hart_request() directly. */
+void lithe_fork_join_hart_request_inc(lithe_fork_join_sched_t *sched, int h);
+
+/* Scheduler creation, initialization, etc. for the lithe_fork_join_sched. */
+lithe_fork_join_sched_t *lithe_fork_join_sched_create();
 void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched,
                                 lithe_fork_join_context_t *main_context);
 void lithe_fork_join_sched_cleanup(lithe_fork_join_sched_t *sched);
-lithe_fork_join_sched_t *lithe_fork_join_sched_create();
 void lithe_fork_join_sched_destroy(lithe_fork_join_sched_t *sched);
-void lithe_fork_join_context_init(lithe_fork_join_sched_t *sched,
-                                  lithe_fork_join_context_t *ctx,
-                                  void (*start_routine)(void*),
-                                  void *arg);
-void lithe_fork_join_context_cleanup(lithe_fork_join_context_t *context);
+
+/* Context creation, initialization, etc. for the lithe_fork_join_sched. */
 lithe_fork_join_context_t*
   lithe_fork_join_context_create(lithe_fork_join_sched_t *sched,
                                  size_t stack_size,
                                  void (*start_routine)(void*),
                                  void *arg);
+void lithe_fork_join_context_init(lithe_fork_join_sched_t *sched,
+                                  lithe_fork_join_context_t *ctx,
+                                  void (*start_routine)(void*),
+                                  void *arg);
+void lithe_fork_join_context_cleanup(lithe_fork_join_context_t *context);
 void lithe_fork_join_context_destroy(lithe_fork_join_context_t *context);
 void lithe_fork_join_sched_join_one(lithe_fork_join_sched_t *sched);
 void lithe_fork_join_sched_join_all(lithe_fork_join_sched_t *sched);
 
-int lithe_fork_join_sched_hart_request(lithe_sched_t *__this,
-                                       lithe_sched_t *child,
-                                       size_t k);
+/* Callback implementations that can be used by schedulers that "inherit" from
+ * the lithe_fork_join_sched. */
+void lithe_fork_join_sched_hart_request(lithe_sched_t *__this,
+                                        lithe_sched_t *child,
+                                        size_t h);
 void lithe_fork_join_sched_sched_enter(lithe_sched_t *__this);
 void lithe_fork_join_sched_sched_exit(lithe_sched_t *__this);
 void lithe_fork_join_sched_child_enter(lithe_sched_t *__this,

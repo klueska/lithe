@@ -58,7 +58,7 @@ static lithe_context_t lithe_main_context;
 static size_t next_context_id = 0;
 
 /* Lithe's base scheduler functions */
-static int base_hart_request(lithe_sched_t *this, lithe_sched_t *child, size_t k);
+static void base_hart_request(lithe_sched_t *this, lithe_sched_t *child, size_t h);
 static void base_hart_enter(lithe_sched_t *this);
 static void base_hart_return(lithe_sched_t *this, lithe_sched_t *child);
 static void base_sched_entered(lithe_sched_t *this);
@@ -95,15 +95,12 @@ static lithe_sched_t base_sched = {
 static struct {
   lithe_sched_t CACHE_LINE_ALIGNED *sched;
   atomic_t CACHE_LINE_ALIGNED ref_count;
-  atomic_t CACHE_LINE_ALIGNED requests;
-  atomic_t CACHE_LINE_ALIGNED putative_requests;
-} __root_sched = {NULL, ATOMIC_INITIALIZER(0), ATOMIC_INITIALIZER(0),
-                  ATOMIC_INITIALIZER(0)};
+  atomic_t CACHE_LINE_ALIGNED harts_needed;
+} __root_sched = {NULL, ATOMIC_INITIALIZER(0), ATOMIC_INITIALIZER(0)};
 
 #define root_sched (__root_sched.sched)
 #define root_sched_ref_count (__root_sched.ref_count)
-#define root_sched_requests (__root_sched.requests)
-#define root_sched_putative_requests (__root_sched.putative_requests)
+#define root_sched_harts_needed (__root_sched.harts_needed)
 
 static __thread struct {
   /* The next context to run on this vcore when lithe_vcore_entry is called again
@@ -214,68 +211,41 @@ static void base_hart_enter(lithe_sched_t *__this)
   // This function will never return.  Either we eventually yield the vcore
   // back to the system, or we grant it to a child scheduler.  When one of
   // these two things happens, we will break out of this infinite loop...
-  bool grant = false;
   while (1) {
     // We need to do a bunch of refcounting here to make sure that we are able
     // to access the root_sched before passing a hart to it.  Only if we can
     // access it and are able to up its hart count, do we even attempt to
     // transfer control to it.
+    // We down the refcount only after the hart returns to the base sched in
+    // base_hart_return (or just below, if we didn't actually grant the hart).
     if (atomic_add_not_zero(&root_sched_ref_count, 1)) {
       rmb(); // order operations below with the atomic_add() above
 
-      // Only if there are outstanding requests by the root scheduler, do we
-      // event attempt and grant this hart to him.
-      // If there aren't currently any outstanding requests, but we are in
-      // the process of requesting more vcores from the system, then spin,
-      // waiting for a request to become available.
-      grant = false;
-      do {
-        if (atomic_add_not_zero(&root_sched_requests, -1)) {
-          grant = true;
-          break;
-        }
-        cmb();
-      } while (root_sched_putative_requests);
-
-      // If we've decided to grant it, then go for it
-      if (grant) {
-        // Force load of local copy of root_sched.
-        // This is necessary because, while the atomic_add_not_zero() to the
-        // child->harts below guarantees that we won't free the root scheduler
-        // if we decide to grant this hart to him, we may still NULL out the
-        // root_sched variable in base_child_exited after we down its
-        // refcount.
-        lithe_sched_t *child = root_sched;
-
-        // If this succeeds, we exit this loop via __lithe_hart_grant()
-        if (atomic_add_not_zero(&child->harts, 1)) {
-          rwmb(); // order operations with the atomic_add() above
-
-          // Release the root_sched ref (now protected from freeing by
-          // child->harts >= 1)
-          atomic_add(&root_sched_ref_count, -1);
-          // Finish up our accounting
-          atomic_add(&__this->harts, -1);
-          // Reset the hart tls to its original state
-          memset(&lithe_tls, 0, sizeof(lithe_tls));
-          // And grant the hart down
-          __lithe_hart_grant(child, NULL, NULL);
-        }
+      assert(root_sched);
+      size_t old_harts_granted = atomic_add(&root_sched->harts, 1);
+      if (old_harts_granted + 1 <= atomic_read(&root_sched_harts_needed)) {
+        // Finish up our accounting
+        atomic_add(&__this->harts, -1);
+        // Reset the hart tls to its original state
+        memset(&lithe_tls, 0, sizeof(lithe_tls));
+        // And grant the hart down
+        __lithe_hart_grant(root_sched, NULL, NULL);
       }
+      atomic_add(&root_sched->harts, -1);
       // Release the root_sched ref (we decided not to grant a hart down)
       atomic_add(&root_sched_ref_count, -1);
     }
     // If this returns, we go back to the top of the loop and attempt to grant
     // to the root scheduler again
-    atomic_add(&base_sched.harts, -1);
+    atomic_add(&__this->harts, -1);
     maybe_vcore_yield();
-    atomic_add(&base_sched.harts, 1);
+    atomic_add(&__this->harts, 1);
   }
 }
 
-static void base_hart_return(lithe_sched_t *__this, lithe_sched_t *sched)
+static void base_hart_return(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  /* Do nothing, we don't need any bookkeeping in the base scheduler */
+  atomic_add(&root_sched_ref_count, -1);
 }
 
 static void base_sched_entered(lithe_sched_t *__this)
@@ -288,41 +258,31 @@ static void base_sched_exited(lithe_sched_t *__this)
   /* Do nothing, we don't need any bookkeeping in the base scheduler */
 }
 
-static void base_child_entered(lithe_sched_t *__this, lithe_sched_t *sched)
+static void base_child_entered(lithe_sched_t *__this, lithe_sched_t *child)
 {
   assert(root_sched == NULL);
   root_sched_ref_count = ATOMIC_INITIALIZER(1);
-  root_sched_requests = ATOMIC_INITIALIZER(0);
-  root_sched = sched;
+  root_sched_harts_needed = ATOMIC_INITIALIZER(1);
+  root_sched = child;
 }
 
-static void base_child_exited(lithe_sched_t *__this, lithe_sched_t *sched)
+static void base_child_exited(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  assert(root_sched == sched);
+  assert(root_sched == child);
   atomic_add(&root_sched_ref_count, -1);
   while (root_sched_ref_count)
     cpu_relax();
-  atomic_set(&root_sched_requests, 0);
   root_sched = NULL;
+  //printf("just set root_sched to null!\n");
 }
 
-static int base_hart_request(lithe_sched_t *__this, lithe_sched_t *sched, size_t k)
+static void base_hart_request(lithe_sched_t *__this, lithe_sched_t *child, size_t h)
 {
-  assert(root_sched == sched);
+  assert(root_sched == child);
 
-  /* Never request more than max_harts from the system. */
-  k = k < max_harts() ? k : max_harts();
-
-  /* Incrementally request harts from the system. */
-  int count = 0;
-  atomic_add(&root_sched_putative_requests, 1);
-  atomic_add(&root_sched_requests, k);
-  for (int i = 0; i < k; i++)
-    count += maybe_vcore_request(1);
-  atomic_add(&root_sched_putative_requests, -1);
-
-  /* Return the number of successful requests. */
-  return count;
+  size_t old = atomic_swap(&root_sched_harts_needed, h);
+  if (h > old)
+    maybe_vcore_request(h - old);
 }
 
 static void base_context_block(lithe_sched_t *__this, lithe_context_t *context)
@@ -549,7 +509,7 @@ void lithe_sched_exit()
   }
 }
 
-int lithe_hart_request(size_t k)
+void lithe_hart_request(size_t h)
 {
   assert(current_sched);
   lithe_sched_t *parent = current_sched->parent;
@@ -557,9 +517,8 @@ int lithe_hart_request(size_t k)
 
   current_sched = parent;
   assert(parent->funcs->hart_request);
-  int ret = parent->funcs->hart_request(parent, child, k);
+  parent->funcs->hart_request(parent, child, h);
   current_sched = child;
-  return ret;
 }
 
 static void __lithe_context_yield(uthread_t *uthread, void *arg)

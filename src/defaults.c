@@ -34,14 +34,14 @@ void __lithe_context_destroy_default(lithe_context_t *context, bool stack)
 }
 
 /* Helpful defaults for the lithe callback functions */
-int __hart_request_default(lithe_sched_t *__this, lithe_sched_t *child, size_t k)
+void __hart_request_default(lithe_sched_t *__this, lithe_sched_t *child, size_t h)
 {
-  return lithe_hart_request(k);
+  fatal("You need to define the hart_request callback yourself!");
 }
 
 void __hart_entry_default(lithe_sched_t *__this)
 {
-  fatal((char*)"Should not be calling hart_entry()");
+  fatal("Should not be calling hart_entry()");
 }
 
 void __hart_return_default(lithe_sched_t *__this, lithe_sched_t *child)

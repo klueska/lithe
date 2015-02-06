@@ -33,7 +33,7 @@ typedef struct lithe_sched_funcs {
    * lithe_hart_request() from within it's current scheduler. It has the same
    * semantics as the lithe_hart_request() library call.  It returns the number
    * of harts successfully requested. */
-  int (*hart_request) (lithe_sched_t *__this, lithe_sched_t *child, size_t k);
+  void (*hart_request) (lithe_sched_t *__this, lithe_sched_t *child, size_t h);
 
   /* Entry point for hart granted to this scheduler by a call to
    * lithe_hart_request(). */
