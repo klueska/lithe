@@ -704,13 +704,17 @@ void __lithe_context_block(uthread_t *uthread, void *__arg)
     void *arg;
     atomic_t safe_to_unblock;
   } *arg = __arg;
-  if (arg->func)
-    arg->func((lithe_context_t*)uthread, arg->arg);
 
+  /* Inform the scheduler of the block first. */
   assert(current_sched);
   assert(current_sched->funcs);
   assert(current_sched->funcs->context_block);
   current_sched->funcs->context_block(current_sched, (lithe_context_t*)uthread);
+
+  /* Then carry out the call-site specific callback to do the blocking. */
+  if (arg->func)
+    arg->func((lithe_context_t*)uthread, arg->arg);
+
   atomic_set(&arg->safe_to_unblock, 1);
 }
  
