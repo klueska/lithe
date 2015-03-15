@@ -80,10 +80,9 @@ static int get_next_queue_id()
 
 static int __thread_enqueue(lithe_fork_join_context_t *ctx, bool athead)
 {
-	int state = ctx->state;
 	ctx->state = FJS_CTX_RUNNABLE;
 
-	if (state == FJS_CTX_CREATED || !vconline(ctx->preferred_vcq))
+	if (ctx->preferred_vcq == -1 || !vconline(ctx->preferred_vcq))
 		ctx->preferred_vcq = get_next_queue_id();
 
 	int vcoreid = ctx->preferred_vcq;
@@ -228,6 +227,7 @@ void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched,
 
   memset(main_context, 0, sizeof(*main_context));
   main_context->state = FJS_CTX_RUNNING;
+  main_context->preferred_vcq = vcore_id();
   sched->sched.main_context = &main_context->context;
 
   sched->num_contexts = 1;
