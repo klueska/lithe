@@ -8,7 +8,7 @@
 #include <parlib/waitfreelist.h>
 #include "fork_join_sched.h"
 #include "lithe.h"
-#include "assert.h"
+#include "internal/assert.h"
 
 struct wfl sched_zombie_list = WFL_INITIALIZER(sched_zombie_list);
 struct wfl context_zombie_list = WFL_INITIALIZER(context_zombie_list);
