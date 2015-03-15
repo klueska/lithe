@@ -430,7 +430,6 @@ void lithe_fork_join_sched_context_unblock(lithe_sched_t *__this,
 {
 	lithe_fork_join_context_t *ctx = (void*)c;
 	assert(ctx->state == FJS_CTX_BLOCKED);
-	ctx->state = FJS_CTX_RUNNABLE;
 	schedule_context(ctx, false);
 }
 
@@ -439,7 +438,6 @@ void lithe_fork_join_sched_context_yield(lithe_sched_t *__this,
 {
 	lithe_fork_join_context_t *ctx = (void*)c;
 	assert(ctx->state == FJS_CTX_RUNNING);
-	ctx->state = FJS_CTX_RUNNABLE;
 	__thread_enqueue(ctx, false);
 }
 
@@ -448,6 +446,7 @@ void lithe_fork_join_sched_context_exit(lithe_sched_t *__this,
 {
   lithe_fork_join_sched_t *sched = (void *)__this;
   lithe_fork_join_context_t *ctx = (void*)c;
+  assert(ctx->state == FJS_CTX_RUNNING);
   if (c != sched->sched.main_context) {
     lithe_fork_join_hart_request_inc(sched, -1);
     lithe_fork_join_context_destroy(ctx);
