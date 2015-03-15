@@ -67,6 +67,7 @@ typedef struct {
   int preferred_vcq;
   void (*start_routine)(void*);
   void *arg;
+  int stack_offset;
 } lithe_fork_join_context_t;
 
 

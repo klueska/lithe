@@ -32,18 +32,19 @@ static lithe_fork_join_context_t *__ctx_alloc(size_t stacksize)
     // TODO wfl currently assumes stacksize the same for all contexts
     lithe_fork_join_context_t *ctx = wfl_remove(&context_zombie_list);
     if (!ctx) {
-		int offset = rand_r(&rseed(0)) % max_vcores() * ARCH_CL_SIZE;
-		stacksize += sizeof(lithe_fork_join_context_t) + offset;
-		stacksize = ROUNDUP(stacksize, PGSIZE);
+		int offset = sizeof(lithe_fork_join_context_t);
+		offset += rand_r(&rseed(0)) % max_vcores() * ARCH_CL_SIZE;
+		stacksize = ROUNDUP(stacksize + offset, PGSIZE);
 		void *stackbot = mmap(
 			0, stacksize, PROT_READ|PROT_WRITE|PROT_EXEC,
 			MAP_PRIVATE|MAP_ANONYMOUS, -1, 0
 		);
 		if (stackbot == MAP_FAILED)
 			abort();
-		ctx = stackbot + stacksize - sizeof(lithe_fork_join_context_t) - offset;
+		ctx = stackbot + stacksize - offset;
+		ctx->stack_offset = offset;
 		ctx->context.stack.bottom = stackbot;
-		ctx->context.stack.size = stacksize - sizeof(*ctx) - offset;
+		ctx->context.stack.size = stacksize - offset;
 	}
 	return ctx;
 }
@@ -53,8 +54,9 @@ static void __ctx_free(lithe_fork_join_context_t *ctx)
     if (wfl_size(&context_zombie_list) < 1000) {
         wfl_insert(&context_zombie_list, ctx);
     } else {
-		// TODO size is wrong!  also, don't do work inside of assert()
-		assert(!munmap(ctx->context.stack.bottom, ctx->context.stack.size));
+		int stacksize = ctx->context.stack.size + ctx->stack_offset;
+		int ret = munmap(ctx->context.stack.bottom, stacksize);
+		assert(!ret);
 	}
 }
 
