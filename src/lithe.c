@@ -47,8 +47,6 @@ struct schedule_ops lithe_sched_ops = {
   .preempt_pending  = NULL, /* lithe_preempt_pending, */
   .spawn_thread     = NULL, /* lithe_spawn_thread, */
 };
-/* Publish these schedule_ops, overriding the weak defaults setup in uthread */
-struct schedule_ops *sched_ops = &lithe_sched_ops;
 
 /* A statically defined global to store the main context */
 static lithe_context_t lithe_main_context;
@@ -130,6 +128,9 @@ void __attribute__((constructor)) lithe_lib_init()
 
   /* Set the scheduler associated with the context to be the base scheduler */
   context->sched = &base_sched;
+
+  /* Publish our sched_ops, overriding the defaults */
+  sched_ops = &lithe_sched_ops;
 
   /* Once we have set things up for the main context, initialize the uthread
    * library with that main context */
