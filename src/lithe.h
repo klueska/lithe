@@ -22,6 +22,13 @@ extern "C" {
 #endif
 
 /**
+ * Initialize lithe. This is a constructor function so will be called by
+ * default if not called manually.  It is portected to ensure taht it only runs
+ * once, no matter how many times it is called.
+ */
+void __attribute__((constructor)) lithe_lib_init();
+
+/**
  * Passes control to a new child scheduler. The 'funcs' field and
  * 'main_context' field of the child scheduler must already be set up properly
  * or the call will fail. It hands the current hart over to this scheduler and
