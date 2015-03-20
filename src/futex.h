@@ -1,5 +1,5 @@
 #ifndef LITHE_FUTEX_H
-#define LITHE__FUTEX_H
+#define LITHE_FUTEX_H
 
 #include <sys/time.h>
 
@@ -36,4 +36,4 @@ int futex_wake_some(int *uaddr, int count);
 }
 #endif
 
-#endif	/* _FUTEX_H */
+#endif	/* LITHE_FUTEX_H */
