@@ -32,7 +32,7 @@ static lithe_fork_join_context_t *__ctx_alloc(size_t stacksize)
     // TODO wfl currently assumes stacksize the same for all contexts
     lithe_fork_join_context_t *ctx = wfl_remove(&context_zombie_list);
     if (!ctx) {
-		int offset = sizeof(lithe_fork_join_context_t);
+		int offset = ROUNDUP(sizeof(lithe_fork_join_context_t), ARCH_CL_SIZE);
 		offset += rand_r(&rseed(0)) % max_vcores() * ARCH_CL_SIZE;
 		stacksize = ROUNDUP(stacksize + offset, PGSIZE);
 		void *stackbot = mmap(
