@@ -36,16 +36,25 @@ typedef struct lithe_vcore_func {
   void *arg;
 } lithe_vcore_func_t;
 
+/* Linux Specific! (handle async syscall events) */
+static void lithe_handle_syscall(struct event_msg *ev_msg, unsigned int ev_type);
+
 /* Hooks from uthread code into lithe */
 static void lithe_vcore_entry(void);
 static void lithe_thread_runnable(uthread_t *uthread);
+static void lithe_thread_paused(struct uthread *uthread);
+static void lithe_thread_has_blocked(struct uthread *uthread, int flags);
+static void lithe_blockon_sysc(struct uthread *uthread, void *sysc);
 
 /* Unique function pointer table required by uthread code */
 struct schedule_ops lithe_sched_ops = {
-  .sched_entry      = lithe_vcore_entry,
-  .thread_runnable  = lithe_thread_runnable,
-  .preempt_pending  = NULL, /* lithe_preempt_pending, */
-  .spawn_thread     = NULL, /* lithe_spawn_thread, */
+  .sched_entry         = lithe_vcore_entry,
+  .thread_runnable     = lithe_thread_runnable,
+  .thread_paused       = lithe_thread_paused,
+  .thread_has_blocked  = lithe_thread_has_blocked,
+  .thread_blockon_sysc = lithe_blockon_sysc,
+  .preempt_pending     = NULL,
+  .spawn_thread        = NULL,
 };
 
 /* A statically defined global to store the main context */
@@ -132,6 +141,10 @@ void __attribute__((constructor)) lithe_lib_init()
   /* Publish our sched_ops, overriding the defaults */
   sched_ops = &lithe_sched_ops;
 
+  /* Handle syscall events. */
+  /* These functions are declared in parlib for simulating async syscalls on linux */
+  ev_handlers[EV_SYSCALL] = lithe_handle_syscall;
+
   /* Once we have set things up for the main context, initialize the uthread
    * library with that main context */
   uthread_lib_init(&context->uth);
@@ -204,6 +217,48 @@ static void lithe_thread_runnable(uthread_t *uthread)
 
   lithe_context_t *context = (lithe_context_t*)uthread;
   current_sched->funcs->context_unblock(current_sched, context);
+}
+
+static void lithe_thread_paused(struct uthread *uthread)
+{
+  uthread_runnable(uthread);
+}
+
+static void lithe_thread_has_blocked(struct uthread *uthread, int flags)
+{
+}
+
+static void lithe_blockon_sysc(struct uthread* uthread, void *sysc)
+{
+  /* Set things up so we can wake this context up later */
+  ((struct syscall*)sysc)->u_data = uthread;
+
+  /* Inform the scheduler of the block. */
+  assert(current_sched);
+  assert(current_sched->funcs);
+  assert(current_sched->funcs->context_block);
+  current_sched->funcs->context_block(current_sched, (lithe_context_t*)uthread);
+}
+
+static void lithe_handle_syscall(struct event_msg *ev_msg, unsigned int ev_type)
+{
+  struct syscall *sysc;
+  assert(in_vcore_context());
+  assert(ev_msg);
+
+  /* Get the sysc from the message. */
+  sysc = ev_msg->ev_arg3;
+  assert(sysc);
+
+  /* Extract the uthread from it. */
+  struct uthread *uthread = (struct uthread*)sysc->u_data;
+  assert(uthread);
+  assert(uthread->sysc == sysc); /* set in uthread.c */
+  uthread->sysc = 0; /* so we don't 'reblock' on this later */
+
+  /* Make it runnable again. It will become schedulable in the proper scheduler
+   * after this. */
+  uthread_runnable(uthread);
 }
 
 static void __lithe_hart_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *lock);
