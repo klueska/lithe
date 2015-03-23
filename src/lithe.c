@@ -258,7 +258,11 @@ static void lithe_handle_syscall(struct event_msg *ev_msg, unsigned int ev_type)
 
   /* Make it runnable again. It will become schedulable in the proper scheduler
    * after this. */
+  lithe_context_t *ctx = (lithe_context_t*)uthread;
+  lithe_sched_t *sched = current_sched;
+  current_sched = ctx->sched;
   uthread_runnable(uthread);
+  current_sched = sched;
 }
 
 static void __lithe_hart_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *lock);
@@ -317,7 +321,7 @@ static void base_sched_exited(lithe_sched_t *__this)
 static void base_child_entered(lithe_sched_t *__this, lithe_sched_t *child)
 {
   assert(root_sched == NULL);
-  root_sched_ref_count = ATOMIC_INITIALIZER(1);
+  root_sched_ref_count = ATOMIC_INITIALIZER(2);
   root_sched_harts_needed = ATOMIC_INITIALIZER(1);
   root_sched = child;
 }
@@ -325,11 +329,10 @@ static void base_child_entered(lithe_sched_t *__this, lithe_sched_t *child)
 static void base_child_exited(lithe_sched_t *__this, lithe_sched_t *child)
 {
   assert(root_sched == child);
-  atomic_add(&root_sched_ref_count, -1);
+  atomic_add(&root_sched_ref_count, -2);
   while (root_sched_ref_count)
     cpu_relax();
   root_sched = NULL;
-  //printf("just set root_sched to null!\n");
 }
 
 static void base_hart_request(lithe_sched_t *__this, lithe_sched_t *child, size_t h)
