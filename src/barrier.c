@@ -22,8 +22,8 @@ void lithe_barrier_init(lithe_barrier_t *barrier, int N)
   barrier->blocked[1].len = 0;
   barrier->blocked[0].maxlen = N;
   barrier->blocked[1].maxlen = N;
-  mcs_lock_init(&barrier->blocked[0].mtx);
-  mcs_lock_init(&barrier->blocked[1].mtx);
+  mcs_pdr_init(&barrier->blocked[0].mtx);
+  mcs_pdr_init(&barrier->blocked[1].mtx);
 }
 
 
@@ -43,7 +43,7 @@ void __lithe_barrier_block(lithe_context_t *context, void *__blocked)
   assert(blocked->len < blocked->maxlen);
   blocked->queue[blocked->len] = context;
   blocked->len += 1;
-  mcs_lock_unlock(&blocked->mtx, blocked->qnode);
+  mcs_pdr_unlock(&blocked->mtx, blocked->qnode);
 }
 
 
@@ -74,12 +74,12 @@ void lithe_barrier_wait(lithe_barrier_t *barrier)
     /* unblock those that are no longer running */
     contextq_t *blocked = &barrier->blocked[wait];
     mcs_lock_qnode_t qnode = {0};
-    mcs_lock_lock(&blocked->mtx, &qnode);
+    mcs_pdr_lock(&blocked->mtx, &qnode);
     for (i = 0; i < blocked->len; i++) {
       lithe_context_unblock(blocked->queue[i]);
     }
     blocked->len = 0;
-    mcs_lock_unlock(&blocked->mtx, &qnode);
+    mcs_pdr_unlock(&blocked->mtx, &qnode);
   } 
   
   /* wait for remaining to arrive */
@@ -93,12 +93,12 @@ void lithe_barrier_wait(lithe_barrier_t *barrier)
       if (nstalls >= MAXSTALLS) {
         contextq_t *blocked = &barrier->blocked[wait];
         mcs_lock_qnode_t qnode = {0};
-        mcs_lock_lock(&blocked->mtx, &qnode);
+        mcs_pdr_lock(&blocked->mtx, &qnode);
         if (barrier->signals[id].val == wait) {
           blocked->qnode = &qnode;
           lithe_context_block(__lithe_barrier_block, (void *)blocked);
         } else {
-          mcs_lock_unlock(&blocked->mtx, &qnode);
+          mcs_pdr_unlock(&blocked->mtx, &qnode);
         }
       }
       cpu_relax();

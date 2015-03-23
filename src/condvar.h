@@ -19,13 +19,13 @@ extern "C" {
 #endif
 
 typedef struct lithe_condvar {
-  mcs_lock_t lock;
+  mcs_pdr_lock_t lock;
   mcs_lock_qnode_t *waiting_qnode;
   lithe_mutex_t *waiting_mutex;
   struct lithe_context_queue queue;
 } lithe_condvar_t;
 #define LITHE_CONDVAR_INITIALIZER(condvar) { \
-  .lock = MCS_LOCK_INIT, \
+  .lock = MCS_PDRLOCK_INIT, \
   .waiting_qnode = NULL, \
   .waiting_mutex = NULL, \
   .queue = TAILQ_HEAD_INITIALIZER((condvar).queue) \

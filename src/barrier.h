@@ -35,7 +35,7 @@ typedef union {
 typedef struct {
   lithe_context_t **queue;
   int len;
-  mcs_lock_t mtx;
+  mcs_pdr_lock_t mtx;
   mcs_lock_qnode_t *qnode;
   int maxlen;
 } contextq_t;  

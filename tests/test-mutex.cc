@@ -20,7 +20,7 @@ class RootScheduler : public Scheduler {
  public:
   unsigned int context_count;
   lithe_mutex_t mutex;
-  mcs_lock_t qlock;
+  mcs_pdr_lock_t qlock;
   struct lithe_context_queue contextq;
 
   RootScheduler();
@@ -32,7 +32,7 @@ RootScheduler::RootScheduler()
   this->context_count = 0;
   this->main_context = new lithe_context_t();
   lithe_mutex_init(&this->mutex, NULL);
-  mcs_lock_init(&this->qlock);
+  mcs_pdr_init(&this->qlock);
   TAILQ_INIT(&this->contextq);
 }
 
@@ -46,11 +46,11 @@ void RootScheduler::hart_enter()
   lithe_context_t *context = NULL;
 
   mcs_lock_qnode_t qnode = {0};
-  mcs_lock_lock(&this->qlock, &qnode);
+  mcs_pdr_lock(&this->qlock, &qnode);
     context = TAILQ_FIRST(&this->contextq);
     if(context)
       TAILQ_REMOVE(&this->contextq, context, link);
-  mcs_lock_unlock(&this->qlock, &qnode);
+  mcs_pdr_unlock(&this->qlock, &qnode);
 
   if(context == NULL)
     lithe_hart_yield();
@@ -61,10 +61,10 @@ void RootScheduler::hart_enter()
 void enqueue_task(RootScheduler *sched, lithe_context_t *context)
 {
   mcs_lock_qnode_t qnode = {0};
-  mcs_lock_lock(&sched->qlock, &qnode);
+  mcs_pdr_lock(&sched->qlock, &qnode);
     TAILQ_INSERT_TAIL(&sched->contextq, context, link);
     lithe_hart_request(max_harts()-num_harts());
-  mcs_lock_unlock(&sched->qlock, &qnode);
+  mcs_pdr_unlock(&sched->qlock, &qnode);
 }
 
 void RootScheduler::context_unblock(lithe_context_t *context)

@@ -22,7 +22,7 @@ int lithe_condvar_init(lithe_condvar_t* c) {
   if(c == NULL)
     return EINVAL;
 
-  mcs_lock_init(&c->lock);
+  mcs_pdr_init(&c->lock);
   TAILQ_INIT(&c->queue);
   return 0;
 }
@@ -33,7 +33,7 @@ static void block(lithe_context_t *context, void *arg)
   assert(condvar);
   TAILQ_INSERT_TAIL(&condvar->queue, context, link);
   lithe_mutex_unlock(condvar->waiting_mutex);
-  mcs_lock_unlock(&condvar->lock, condvar->waiting_qnode);
+  mcs_pdr_unlock(&condvar->lock, condvar->waiting_qnode);
 }
 
 /* Wait on a condition variable */
@@ -44,7 +44,7 @@ int lithe_condvar_wait(lithe_condvar_t* c, lithe_mutex_t* m) {
     return EINVAL;
 
   mcs_lock_qnode_t qnode = {0};
-  mcs_lock_lock(&c->lock, &qnode);
+  mcs_pdr_lock(&c->lock, &qnode);
   c->waiting_mutex = m;
   c->waiting_qnode = &qnode;
   lithe_context_block(block, c);
@@ -57,11 +57,11 @@ int lithe_condvar_signal(lithe_condvar_t* c) {
     return EINVAL;
 
   mcs_lock_qnode_t qnode = {0};
-  mcs_lock_lock(&c->lock, &qnode);
+  mcs_pdr_lock(&c->lock, &qnode);
   lithe_context_t *context = TAILQ_FIRST(&c->queue);
   if(context)
     TAILQ_REMOVE(&c->queue, context, link);
-  mcs_lock_unlock(&c->lock, &qnode);
+  mcs_pdr_unlock(&c->lock, &qnode);
 
   if (context != NULL) {
     lithe_context_unblock(context);
@@ -76,16 +76,16 @@ int lithe_condvar_broadcast(lithe_condvar_t* c) {
 
   mcs_lock_qnode_t qnode = {0};
   while(1) {
-    mcs_lock_lock(&c->lock, &qnode);
+    mcs_pdr_lock(&c->lock, &qnode);
     lithe_context_t *context = TAILQ_FIRST(&c->queue);
     if(context)
       TAILQ_REMOVE(&c->queue, context, link);
     else break;
-    mcs_lock_unlock(&c->lock, &qnode);
+    mcs_pdr_unlock(&c->lock, &qnode);
     lithe_context_unblock(context);
     memset(&qnode, 0, sizeof(mcs_lock_qnode_t));
   }
-  mcs_lock_unlock(&c->lock, &qnode);
+  mcs_pdr_unlock(&c->lock, &qnode);
   return 0;
 }
 

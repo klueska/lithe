@@ -42,7 +42,7 @@ int lithe_mutexattr_gettype(lithe_mutexattr_t *attr, int *type);
 typedef struct lithe_mutex {
   lithe_mutexattr_t attr;
   struct lithe_context_queue queue;
-  mcs_lock_t lock;
+  mcs_pdr_lock_t lock;
   mcs_lock_qnode_t *qnode;
   int locked;
   lithe_context_t *owner;
@@ -50,7 +50,7 @@ typedef struct lithe_mutex {
 #define LITHE_MUTEX_INITIALIZER(mutex) { \
   .attr = {0}, \
   .queue = TAILQ_HEAD_INITIALIZER((mutex).queue), \
-  .lock = MCS_LOCK_INIT, \
+  .lock = MCS_PDRLOCK_INIT, \
   .qnode = NULL, \
   .locked = 0, \
   .owner = NULL \

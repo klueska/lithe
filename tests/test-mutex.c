@@ -14,7 +14,7 @@ typedef struct root_sched {
 
   int context_count;
   lithe_mutex_t mutex;
-  mcs_lock_t qlock;
+  mcs_pdr_lock_t qlock;
   struct lithe_context_queue contextq;
 } root_sched_t;
 
@@ -43,7 +43,7 @@ static void root_sched_ctor(root_sched_t* sched)
   sched->sched.main_context = malloc(sizeof(lithe_context_t));
   sched->context_count = 0;
   lithe_mutex_init(&sched->mutex, NULL);
-  mcs_lock_init(&sched->qlock);
+  mcs_pdr_init(&sched->qlock);
   TAILQ_INIT(&sched->contextq);
 }
 
@@ -58,11 +58,11 @@ static void root_hart_enter(lithe_sched_t *__this)
   lithe_context_t *context = NULL;
 
   mcs_lock_qnode_t qnode = {0};
-  mcs_lock_lock(&sched->qlock, &qnode);
+  mcs_pdr_lock(&sched->qlock, &qnode);
     context = TAILQ_FIRST(&sched->contextq);
     if(context)
       TAILQ_REMOVE(&sched->contextq, context, link);
-  mcs_lock_unlock(&sched->qlock, &qnode);
+  mcs_pdr_unlock(&sched->qlock, &qnode);
 
   if(context == NULL)
     lithe_hart_yield();
@@ -74,10 +74,10 @@ static void root_enqueue_task(lithe_sched_t *__this, lithe_context_t *context)
 {
   root_sched_t *sched = (root_sched_t *)__this;
   mcs_lock_qnode_t qnode = {0};
-  mcs_lock_lock(&sched->qlock, &qnode);
+  mcs_pdr_lock(&sched->qlock, &qnode);
     TAILQ_INSERT_TAIL(&sched->contextq, context, link);
     lithe_hart_request(max_harts()-num_harts());
-  mcs_lock_unlock(&sched->qlock, &qnode);
+  mcs_pdr_unlock(&sched->qlock, &qnode);
 }
 
 static void root_context_exit(lithe_sched_t *__this, lithe_context_t *context)

@@ -32,7 +32,7 @@ class ContextFactory {
 public:
   ContextFactory(size_t max_size = size_t(0)-1)
   {
-    mcs_lock_init(&queue_lock);
+    mcs_pdr_init(&queue_lock);
     TAILQ_INIT(&queue);
   }
 
@@ -49,13 +49,13 @@ public:
 
     /* Try and pull a context from the queue and recycle it */
     mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
-    mcs_lock_lock(&queue_lock, &qnode);
+    mcs_pdr_lock(&queue_lock, &qnode);
       if((c = (Context*)TAILQ_FIRST(&queue)) != NULL)
       {
         TAILQ_REMOVE(&queue, c, link);
         queue_size--;
       }
-    mcs_lock_unlock(&queue_lock, &qnode);
+    mcs_pdr_unlock(&queue_lock, &qnode);
 
     if (c == NULL)
       c = new Context(stack_size, start_routine, arg);
@@ -73,10 +73,10 @@ public:
     }
     else {
       mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
-      mcs_lock_lock(&queue_lock, &qnode);
+      mcs_pdr_lock(&queue_lock, &qnode);
         TAILQ_INSERT_TAIL(&queue, c, link);
         queue_size++;
-      mcs_lock_unlock(&queue_lock, &qnode);
+      mcs_pdr_unlock(&queue_lock, &qnode);
     }
   }
 
@@ -84,7 +84,7 @@ private:
   size_t max_size;
   size_t queue_size;
 
-  mcs_lock_t queue_lock;
+  mcs_pdr_lock_t queue_lock;
   lithe_context_queue_t queue;
 };
 

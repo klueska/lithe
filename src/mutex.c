@@ -55,7 +55,7 @@ int lithe_mutex_init(lithe_mutex_t *mutex, lithe_mutexattr_t *attr)
 
   /* Do initialization. */
   TAILQ_INIT(&mutex->queue);
-  mcs_lock_init(&mutex->lock);
+  mcs_pdr_init(&mutex->lock);
   mutex->qnode = NULL;
   mutex->locked = 0;
   mutex->owner = NULL;
@@ -67,7 +67,7 @@ static void block(lithe_context_t *context, void *arg)
   lithe_mutex_t *mutex = (lithe_mutex_t *) arg;
   assert(mutex);
   TAILQ_INSERT_TAIL(&mutex->queue, context, link);
-  mcs_lock_unlock(&mutex->lock, mutex->qnode);
+  mcs_pdr_unlock(&mutex->lock, mutex->qnode);
 }
 
 int lithe_mutex_trylock(lithe_mutex_t *mutex)
@@ -77,7 +77,7 @@ int lithe_mutex_trylock(lithe_mutex_t *mutex)
 
   int retval = 0;
   mcs_lock_qnode_t qnode = {0};
-  mcs_lock_lock(&mutex->lock, &qnode);
+  mcs_pdr_lock(&mutex->lock, &qnode);
   if(mutex->attr.type == LITHE_MUTEX_RECURSIVE &&
      mutex->owner == lithe_context_self()) {
     mutex->locked++;
@@ -89,7 +89,7 @@ int lithe_mutex_trylock(lithe_mutex_t *mutex)
     mutex->owner = lithe_context_self();
     mutex->locked++;
   }
-  mcs_lock_unlock(&mutex->lock, &qnode);
+  mcs_pdr_unlock(&mutex->lock, &qnode);
   return retval;
 }
 
@@ -99,7 +99,7 @@ int lithe_mutex_lock(lithe_mutex_t *mutex)
     return EINVAL;
 
   mcs_lock_qnode_t qnode = {0};
-  mcs_lock_lock(&mutex->lock, &qnode);
+  mcs_pdr_lock(&mutex->lock, &qnode);
   if(mutex->attr.type == LITHE_MUTEX_RECURSIVE &&
      mutex->owner == lithe_context_self()) {
     mutex->locked++;
@@ -110,12 +110,12 @@ int lithe_mutex_lock(lithe_mutex_t *mutex)
       lithe_context_block(block, mutex);
 
       memset(&qnode, 0, sizeof(mcs_lock_qnode_t));
-      mcs_lock_lock(&mutex->lock, &qnode);
+      mcs_pdr_lock(&mutex->lock, &qnode);
     }
     mutex->owner = lithe_context_self();
     mutex->locked++;
   }
-  mcs_lock_unlock(&mutex->lock, &qnode);
+  mcs_pdr_unlock(&mutex->lock, &qnode);
   return 0;
 }
 
@@ -125,21 +125,21 @@ int lithe_mutex_unlock(lithe_mutex_t *mutex)
     return EINVAL;
 
   mcs_lock_qnode_t qnode = {0};
-  mcs_lock_lock(&mutex->lock, &qnode);
+  mcs_pdr_lock(&mutex->lock, &qnode);
   mutex->locked--;
   if(mutex->locked == 0) {
     lithe_context_t *context = TAILQ_FIRST(&mutex->queue);
     if(context)
       TAILQ_REMOVE(&mutex->queue, context, link);
     mutex->owner = NULL;
-    mcs_lock_unlock(&mutex->lock, &qnode);
+    mcs_pdr_unlock(&mutex->lock, &qnode);
 
     if(context != NULL) {
       lithe_context_unblock(context);
     }
   }
   else {
-    mcs_lock_unlock(&mutex->lock, &qnode);
+    mcs_pdr_unlock(&mutex->lock, &qnode);
   }
   return 0;
 }
