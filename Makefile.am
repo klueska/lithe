@@ -43,6 +43,7 @@ LIB_HHFILES = \
 TEST_EXECS = \
   test_cls        \
   test_mutex        \
+  test_syscalls        \
   test_recursive_mutex        \
   test_condvar        \
   test_parent       \
@@ -77,6 +78,11 @@ test_cls_SOURCES = @TESTSDIR@/test-cls.c
 test_cls_CFLAGS = $(AM_CFLAGS)
 test_cls_CFLAGS += -I$(srcdir)
 test_cls_LDADD = -lithe $(LPARLIB)
+
+test_syscalls_SOURCES = @TESTSDIR@/test-syscalls.c
+test_syscalls_CFLAGS = $(AM_CFLAGS)
+test_syscalls_CFLAGS += -I$(srcdir)
+test_syscalls_LDADD = -lithe $(LPARLIB)
 
 test_mutex_SOURCES = @TESTSDIR@/test-mutex.c
 test_mutex_CFLAGS = $(AM_CFLAGS)
