@@ -47,7 +47,14 @@ typedef struct lithe_mutex {
   int locked;
   lithe_context_t *owner;
 } lithe_mutex_t;
-#define LITHE_MUTEX_INITIALIZER {{0}, {0}, {0}, NULL, 0, NULL}
+#define LITHE_MUTEX_INITIALIZER(mutex) { \
+  .attr = {0}, \
+  .queue = TAILQ_HEAD_INITIALIZER((mutex).queue), \
+  .lock = MCS_LOCK_INIT, \
+  .qnode = NULL, \
+  .locked = 0, \
+  .owner = NULL \
+}
 
 /* Initialize a mutex. */
 int lithe_mutex_init(lithe_mutex_t *mutex, lithe_mutexattr_t *attr);

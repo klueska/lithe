@@ -24,7 +24,12 @@ typedef struct lithe_condvar {
   lithe_mutex_t *waiting_mutex;
   struct lithe_context_queue queue;
 } lithe_condvar_t;
-#define LITHE_CONDVAR_INITIALIZER {{0}, NULL, NULL, {0}}
+#define LITHE_CONDVAR_INITIALIZER(condvar) { \
+  .lock = MCS_LOCK_INIT, \
+  .waiting_qnode = NULL, \
+  .waiting_mutex = NULL, \
+  .queue = TAILQ_HEAD_INITIALIZER((condvar).queue) \
+}
 
 /* Initialize a condition variable. */
 int lithe_condvar_init(lithe_condvar_t* c);
