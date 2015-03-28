@@ -177,8 +177,10 @@ static lithe_fork_join_context_t *__thread_dequeue()
 
 void lithe_fork_join_hart_request_inc(lithe_fork_join_sched_t *sched, int h)
 {
-	h = __sync_add_and_fetch(&sched->num_harts_needed, h);
-	lithe_hart_request(h);
+	spin_pdr_lock(&sched->hart_request_lock);
+	sched->num_harts_needed += h;
+	lithe_hart_request(sched->num_harts_needed);
+	spin_pdr_unlock(&sched->hart_request_lock);
 }
 
 lithe_fork_join_sched_t *lithe_fork_join_sched_create()
@@ -233,6 +235,7 @@ void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched,
   sched->num_contexts = 1;
   sched->granting_harts = 0;
   sched->num_harts_needed = 1;
+  spin_pdr_init(&sched->hart_request_lock);
   TAILQ_INIT(&sched->child_sched_list);
   spin_pdr_init(&sched->child_sched_list_lock);
   /* sched->next_queue_id initialized in sched_enter() */

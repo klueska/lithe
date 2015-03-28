@@ -55,6 +55,7 @@ typedef struct {
   size_t num_contexts;
   size_t granting_harts;
   size_t num_harts_needed;
+  spin_pdr_lock_t hart_request_lock;
   volatile int next_queue_id;
   struct lithe_sched_queue child_sched_list;
   spin_pdr_lock_t child_sched_list_lock;
