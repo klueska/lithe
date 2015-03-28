@@ -57,7 +57,7 @@ typedef struct {
   size_t num_harts_needed;
   volatile int next_queue_id;
   struct lithe_sched_queue child_sched_list;
-  spinlock_t child_sched_list_lock;
+  spin_pdr_lock_t child_sched_list_lock;
   struct lithe_fork_join_vc_mgmt *vc_mgmt;
 } lithe_fork_join_sched_t;
 

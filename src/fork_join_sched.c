@@ -234,7 +234,7 @@ void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched,
   sched->granting_harts = 0;
   sched->num_harts_needed = 1;
   TAILQ_INIT(&sched->child_sched_list);
-  spinlock_init(&sched->child_sched_list_lock);
+  spin_pdr_init(&sched->child_sched_list_lock);
   /* sched->next_queue_id initialized in sched_enter() */
 }
 
@@ -333,18 +333,18 @@ void lithe_fork_join_sched_child_enter(lithe_sched_t *__this,
 	*harts_granted = 1;
 	*harts_needed = 1;
 
-	spinlock_lock(&sched->child_sched_list_lock);
+	spin_pdr_lock(&sched->child_sched_list_lock);
 	TAILQ_INSERT_TAIL(&sched->child_sched_list, child, link);
-	spinlock_unlock(&sched->child_sched_list_lock);
+	spin_pdr_unlock(&sched->child_sched_list_lock);
 }
 
 void lithe_fork_join_sched_child_exit(lithe_sched_t *__this,
                                       lithe_sched_t *child)
 {
   lithe_fork_join_sched_t *sched = (void *)__this;
-  spinlock_lock(&sched->child_sched_list_lock);
+  spin_pdr_lock(&sched->child_sched_list_lock);
   TAILQ_REMOVE(&sched->child_sched_list, child, link);
-  spinlock_unlock(&sched->child_sched_list_lock);
+  spin_pdr_unlock(&sched->child_sched_list_lock);
 
   while (sched->granting_harts)
     cpu_relax();
@@ -376,13 +376,13 @@ void lithe_fork_join_sched_hart_enter(lithe_sched_t *__this)
     __sync_fetch_and_add(&sched->granting_harts, 1);
     lithe_sched_t *first = NULL;
     while (1) {
-      spinlock_lock(&sched->child_sched_list_lock);
+      spin_pdr_lock(&sched->child_sched_list_lock);
       lithe_sched_t *child = TAILQ_FIRST(&sched->child_sched_list);
       if (child) {
         TAILQ_REMOVE(&sched->child_sched_list, child, link);
         TAILQ_INSERT_TAIL(&sched->child_sched_list, child, link);
       }
-      spinlock_unlock(&sched->child_sched_list_lock);
+      spin_pdr_unlock(&sched->child_sched_list_lock);
       if (!child)
         break;
 
