@@ -65,7 +65,7 @@ static lithe_context_t lithe_main_context;
 static size_t next_context_id = 0;
 
 /* Lithe's base scheduler functions */
-static void base_hart_request(lithe_sched_t *this, lithe_sched_t *child, size_t h);
+static void base_hart_request(lithe_sched_t *this, lithe_sched_t *child, int h);
 static void base_hart_enter(lithe_sched_t *this);
 static void base_hart_return(lithe_sched_t *this, lithe_sched_t *child);
 static void base_sched_entered(lithe_sched_t *this);
@@ -335,13 +335,13 @@ static void base_child_exited(lithe_sched_t *__this, lithe_sched_t *child)
   root_sched = NULL;
 }
 
-static void base_hart_request(lithe_sched_t *__this, lithe_sched_t *child, size_t h)
+static void base_hart_request(lithe_sched_t *__this, lithe_sched_t *child, int h)
 {
   assert(root_sched == child);
 
-  size_t old = atomic_swap(&root_sched_harts_needed, h);
-  if (h > old)
-    maybe_vcore_request(h - old);
+  __sync_fetch_and_add(&root_sched_harts_needed, h);
+  if (h > 0)
+    maybe_vcore_request(h);
 }
 
 static void base_context_block(lithe_sched_t *__this, lithe_context_t *context)
@@ -568,7 +568,7 @@ void lithe_sched_exit()
   }
 }
 
-void lithe_hart_request(size_t h)
+void lithe_hart_request(int h)
 {
   assert(current_sched);
   lithe_sched_t *parent = current_sched->parent;

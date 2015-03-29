@@ -99,9 +99,8 @@ static int __thread_enqueue(lithe_fork_join_context_t *ctx, bool athead)
 
 static void schedule_context(lithe_fork_join_context_t *ctx, bool athead)
 {
-	lithe_fork_join_sched_t *sched = (void *)lithe_sched_current();
 	__thread_enqueue(ctx, athead);
-	lithe_fork_join_hart_request_inc(sched, 1);
+	lithe_hart_request(1);
 }
 
 static lithe_fork_join_context_t *__thread_dequeue()
@@ -175,14 +174,6 @@ static lithe_fork_join_context_t *__thread_dequeue()
 	return ctx;
 }
 
-void lithe_fork_join_hart_request_inc(lithe_fork_join_sched_t *sched, int h)
-{
-	spin_pdr_lock(&sched->hart_request_lock);
-	sched->num_harts_needed += h;
-	lithe_hart_request(sched->num_harts_needed);
-	spin_pdr_unlock(&sched->hart_request_lock);
-}
-
 lithe_fork_join_sched_t *lithe_fork_join_sched_create()
 {
   /* Allocate all the scheduler data together. */
@@ -235,7 +226,6 @@ void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched,
   sched->num_contexts = 1;
   sched->granting_harts = 0;
   sched->num_harts_needed = 1;
-  spin_pdr_init(&sched->hart_request_lock);
   TAILQ_INIT(&sched->child_sched_list);
   spin_pdr_init(&sched->child_sched_list_lock);
   /* sched->next_queue_id initialized in sched_enter() */
@@ -307,12 +297,11 @@ void lithe_fork_join_sched_join_all(lithe_fork_join_sched_t *sched)
 
 void lithe_fork_join_sched_hart_request(lithe_sched_t *__this,
                                        lithe_sched_t *child,
-                                       size_t h)
+                                       int h)
 {
-  lithe_fork_join_sched_t *sched = (void *)__this;
   uint16_t *harts_needed = (uint16_t*)&child->parent_data + 1;
-  size_t old = atomic_swap_u16(harts_needed, h);
-  lithe_fork_join_hart_request_inc(sched, h - old);
+  __sync_fetch_and_add(harts_needed, h);
+  lithe_hart_request(h);
 }
 
 void lithe_fork_join_sched_sched_enter(lithe_sched_t *__this)
@@ -421,11 +410,10 @@ void lithe_fork_join_sched_hart_enter(lithe_sched_t *__this)
 void lithe_fork_join_sched_context_block(lithe_sched_t *__this,
                                          lithe_context_t *c)
 {
-	lithe_fork_join_sched_t *sched = (void *)__this;
 	lithe_fork_join_context_t *ctx = (void*)c;
 	assert(ctx->state == FJS_CTX_RUNNING);
 	ctx->state = FJS_CTX_BLOCKED;
-	lithe_fork_join_hart_request_inc(sched, -1);
+	lithe_hart_request(-1);
 }
 
 void lithe_fork_join_sched_context_unblock(lithe_sched_t *__this,
@@ -451,7 +439,7 @@ void lithe_fork_join_sched_context_exit(lithe_sched_t *__this,
   lithe_fork_join_context_t *ctx = (void*)c;
   assert(ctx->state == FJS_CTX_RUNNING);
   if (c != sched->sched.main_context) {
-    lithe_fork_join_hart_request_inc(sched, -1);
+    lithe_hart_request(-1);
     lithe_fork_join_context_destroy(ctx);
     lithe_fork_join_sched_join_one(sched);
   }

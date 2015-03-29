@@ -55,7 +55,6 @@ typedef struct {
   size_t num_contexts;
   size_t granting_harts;
   size_t num_harts_needed;
-  spin_pdr_lock_t hart_request_lock;
   volatile int next_queue_id;
   struct lithe_sched_queue child_sched_list;
   spin_pdr_lock_t child_sched_list_lock;
@@ -103,7 +102,7 @@ void lithe_fork_join_sched_join_all(lithe_fork_join_sched_t *sched);
  * the lithe_fork_join_sched. */
 void lithe_fork_join_sched_hart_request(lithe_sched_t *__this,
                                         lithe_sched_t *child,
-                                        size_t h);
+                                        int h);
 void lithe_fork_join_sched_sched_enter(lithe_sched_t *__this);
 void lithe_fork_join_sched_sched_exit(lithe_sched_t *__this);
 void lithe_fork_join_sched_child_enter(lithe_sched_t *__this,
