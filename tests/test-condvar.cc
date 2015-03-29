@@ -14,6 +14,7 @@ using namespace lithe;
 class RootScheduler : public Scheduler {
  protected:
   void hart_enter();
+  void context_block(lithe_context_t *context);
   void context_unblock(lithe_context_t *context);
   void context_yield(lithe_context_t *context);
   void context_exit(lithe_context_t *context);
@@ -66,13 +67,18 @@ void enqueue_task(RootScheduler *sched, lithe_context_t *context)
   mcs_lock_qnode_t qnode = {0};
   mcs_pdr_lock(&sched->qlock, &qnode);
     TAILQ_INSERT_TAIL(&sched->contextq, context, link);
-    lithe_hart_request(max_harts()-num_harts());
   mcs_pdr_unlock(&sched->qlock, &qnode);
+}
+
+void RootScheduler::context_block(lithe_context_t *context)
+{
+  lithe_hart_request(-1);
 }
 
 void RootScheduler::context_unblock(lithe_context_t *context)
 {
   enqueue_task(this, context);
+  lithe_hart_request(1);
 }
 
 void RootScheduler::context_yield(lithe_context_t *context)
@@ -85,6 +91,7 @@ void RootScheduler::context_exit(lithe_context_t *context)
   assert(context);
   lithe_context_cleanup(context);
   __lithe_context_destroy_default(context, true);
+  lithe_hart_request(-1);
 }
 
 void work(void *arg)
@@ -115,7 +122,7 @@ void root_run(unsigned int context_count)
   }
 
   /* Start up some more harts to do our work for us */
-  lithe_hart_request(max_harts()-num_harts());
+  lithe_hart_request(context_count);
 
   /* Wait for all the workers to hit their condition variable */
   while(1) {

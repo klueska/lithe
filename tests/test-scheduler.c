@@ -8,7 +8,6 @@
 
 typedef struct test_sched {
   lithe_sched_t sched;
-  spin_barrier_t barrier;
 } test_sched_t;
 
 static void hart_enter(lithe_sched_t *__this);
@@ -40,26 +39,20 @@ static void test_sched_dtor(test_sched_t *sched)
 
 static void hart_enter(lithe_sched_t *__this)
 {
-  test_sched_t *sched = (test_sched_t*)__this;
   printf("enter() on hart %d\n", hart_id());
-  spin_barrier_wait(&sched->barrier);
-  spin_barrier_wait(&sched->barrier);
+  lithe_hart_request(-1);
   lithe_hart_yield();
 }
 
 static void test_run()
 {
   printf("Scheduler Started!\n");
-  test_sched_t *sched = (test_sched_t*)lithe_sched_current();
   size_t limit = max_harts();
   for(int i=0; i<100; i++) {
     printf("max_harts: %lu\n", limit);
     printf("num_harts: %lu\n", num_harts());
     printf("Requesting harts\n");
-    lithe_hart_request(limit);
-    spin_barrier_wait(&sched->barrier);
-    lithe_hart_request(1);
-    spin_barrier_wait(&sched->barrier);
+    lithe_hart_request(limit - 1);
     while (num_harts() > 1)
       cpu_relax();
     printf("Finished iteration %d\n", i);
@@ -73,7 +66,6 @@ int main()
   test_sched_t test_sched;
   test_sched_ctor(&test_sched);
   lithe_sched_enter((lithe_sched_t*)&test_sched);
-  spin_barrier_init(&test_sched.barrier, max_harts());
   test_run();
   lithe_sched_exit();
   test_sched_dtor(&test_sched);

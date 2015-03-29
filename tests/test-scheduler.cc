@@ -12,14 +12,12 @@ class TestScheduler : public Scheduler {
   void hart_enter();
 
  public:
-  spin_barrier_t barrier;
   TestScheduler();
   ~TestScheduler();
 };
 
 TestScheduler::TestScheduler()
 {
-  spin_barrier_init(&this->barrier, max_harts());
   this->main_context = new lithe_context_t();
 }
 
@@ -31,24 +29,19 @@ TestScheduler::~TestScheduler()
 void TestScheduler::hart_enter()
 {
   printf("enter() on hart %d\n", hart_id());
-  spin_barrier_wait(&this->barrier);
-  spin_barrier_wait(&this->barrier);
+  lithe_hart_request(-1);
   lithe_hart_yield();
 }
 
 static void test_run()
 {
   printf("TestScheduler Started!\n");
-  TestScheduler *sched = (TestScheduler*)lithe_sched_current();
   size_t limit = max_harts();
   for(int i=0; i<100; i++) {
     printf("max_harts: %lu\n", limit);
     printf("num_harts: %lu\n", num_harts());
     printf("Requesting harts\n");
-    lithe_hart_request(limit);
-    spin_barrier_wait(&sched->barrier);
-    lithe_hart_request(1);
-    spin_barrier_wait(&sched->barrier);
+    lithe_hart_request(limit - 1);
     while (num_harts() > 1)
       cpu_relax();
     printf("Finished iteration %d\n", i);

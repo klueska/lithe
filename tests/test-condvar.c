@@ -23,6 +23,9 @@ typedef struct root_sched {
 /* Scheduler functions */
 static void root_hart_enter(lithe_sched_t *__this);
 static void root_enqueue_task(lithe_sched_t *__this, lithe_context_t *context);
+static void root_context_block(lithe_sched_t *__this, lithe_context_t *context);
+static void root_context_yield(lithe_sched_t *__this, lithe_context_t *context);
+static void root_context_unblock(lithe_sched_t *__this, lithe_context_t *context);
 static void root_context_exit(lithe_sched_t *__this, lithe_context_t *context);
 
 static const lithe_sched_funcs_t root_sched_funcs = {
@@ -33,9 +36,9 @@ static const lithe_sched_funcs_t root_sched_funcs = {
   .sched_exit           = __sched_exit_default,
   .child_enter          = __child_enter_default,
   .child_exit           = __child_exit_default,
-  .context_block        = __context_block_default,
-  .context_unblock      = root_enqueue_task,
-  .context_yield        = root_enqueue_task,
+  .context_block        = root_context_block,
+  .context_unblock      = root_context_unblock,
+  .context_yield        = root_context_yield,
   .context_exit         = root_context_exit
 };
 
@@ -79,8 +82,23 @@ static void root_enqueue_task(lithe_sched_t *__this, lithe_context_t *context)
   mcs_lock_qnode_t qnode = {0};
   mcs_pdr_lock(&sched->qlock, &qnode);
     TAILQ_INSERT_TAIL(&sched->contextq, context, link);
-    lithe_hart_request(max_harts()-num_harts());
   mcs_pdr_unlock(&sched->qlock, &qnode);
+}
+
+static void root_context_block(lithe_sched_t *__this, lithe_context_t *context)
+{
+  lithe_hart_request(-1);
+}
+
+static void root_context_unblock(lithe_sched_t *__this, lithe_context_t *context)
+{
+  root_enqueue_task(__this, context);
+  lithe_hart_request(1);
+}
+
+static void root_context_yield(lithe_sched_t *__this, lithe_context_t *context)
+{
+  root_enqueue_task(__this, context);
 }
 
 static void root_context_exit(lithe_sched_t *__this, lithe_context_t *context)
@@ -88,6 +106,7 @@ static void root_context_exit(lithe_sched_t *__this, lithe_context_t *context)
   assert(context);
   lithe_context_cleanup(context);
   __lithe_context_destroy_default(context, true);
+  lithe_hart_request(-1);
 }
 
 void work(void *arg)
