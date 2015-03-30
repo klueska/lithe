@@ -10,8 +10,8 @@
 #include "lithe.h"
 #include "internal/assert.h"
 
-struct wfl sched_zombie_list = WFL_INITIALIZER(sched_zombie_list);
-struct wfl context_zombie_list = WFL_INITIALIZER(context_zombie_list);
+static struct wfl sched_zombie_list = WFL_INITIALIZER(sched_zombie_list);
+static struct wfl context_zombie_list = WFL_INITIALIZER(context_zombie_list);
 
 const lithe_sched_funcs_t lithe_fork_join_sched_funcs = {
   .hart_request    = lithe_fork_join_sched_hart_request,
