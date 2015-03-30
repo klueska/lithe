@@ -300,6 +300,8 @@ static void base_hart_enter(lithe_sched_t *__this)
     atomic_add(&__this->harts, -1);
     maybe_vcore_yield();
     atomic_add(&__this->harts, 1);
+    handle_events();
+    cpu_relax();
   }
 }
 
