@@ -24,8 +24,8 @@ struct futex_list {
 };
 
 /* A list of futex blocking queues, one per uaddr. */
-struct wfl futex_lists = WFL_INITIALIZER(futex_lists);
-spinlock_t futex_lists_lock = SPINLOCK_INITIALIZER;
+static struct wfl futex_lists = WFL_INITIALIZER(futex_lists);
+static spinlock_t futex_lists_lock = SPINLOCK_INITIALIZER;
 
 /* Find or create the blocking queue that corresponds to the uaddr. */
 static struct futex_list *get_futex_list(int *uaddr)
