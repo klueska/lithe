@@ -80,6 +80,7 @@ static int get_next_queue_id()
 
 static int __thread_enqueue(lithe_fork_join_context_t *ctx, bool athead)
 {
+	assert(lithe_sched_current() == ctx->context.sched);
 	ctx->state = FJS_CTX_RUNNABLE;
 
 	if (ctx->preferred_vcq == -1 || !vconline(ctx->preferred_vcq))

@@ -256,13 +256,7 @@ static void lithe_handle_syscall(struct event_msg *ev_msg, unsigned int ev_type)
   assert(uthread->sysc == sysc); /* set in uthread.c */
   uthread->sysc = 0; /* so we don't 'reblock' on this later */
 
-  /* Make it runnable again. It will become schedulable in the proper scheduler
-   * after this. */
-  lithe_context_t *ctx = (lithe_context_t*)uthread;
-  lithe_sched_t *sched = current_sched;
-  current_sched = ctx->sched;
-  uthread_runnable(uthread);
-  current_sched = sched;
+  lithe_context_unblock((lithe_context_t *)uthread);
 }
 
 static void __lithe_hart_grant(lithe_sched_t *child, void (*unlock_func) (void *), void *lock);
@@ -755,7 +749,10 @@ void lithe_context_block(void (*func)(lithe_context_t *, void *), void *arg)
 void lithe_context_unblock(lithe_context_t *context)
 {
   assert(context);
+  lithe_sched_t *sched = current_sched;
+  current_sched = context->sched;
   uthread_runnable(&context->uth);
+  current_sched = sched;
 }
 
 void lithe_context_yield()
