@@ -54,7 +54,6 @@ typedef struct {
   lithe_sched_t sched;
   size_t num_contexts;
   size_t granting_harts;
-  size_t num_harts_needed;
   volatile int next_queue_id;
   struct lithe_sched_queue child_sched_list;
   spin_pdr_lock_t child_sched_list_lock;

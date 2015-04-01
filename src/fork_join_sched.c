@@ -225,7 +225,6 @@ void lithe_fork_join_sched_init(lithe_fork_join_sched_t *sched,
 
   sched->num_contexts = 1;
   sched->granting_harts = 0;
-  sched->num_harts_needed = 1;
   TAILQ_INIT(&sched->child_sched_list);
   spin_pdr_init(&sched->child_sched_list_lock);
   /* sched->next_queue_id initialized in sched_enter() */
