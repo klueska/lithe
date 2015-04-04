@@ -29,7 +29,8 @@ static inline void maybe_vcore_yield()
 
   *flag = 1;
   // make a local copy of max_spin_count to avoid reloading it due to cpu_relax
-  for (int spins = 0, max = max_spin_count; spins < max && *flag; spins++)
+  int spins, max;
+  for (spins = 0, max = max_spin_count; spins < (unsigned)max && *flag; spins++)
     cpu_relax();
 
   if (*flag && __sync_lock_test_and_set(flag, 0))
