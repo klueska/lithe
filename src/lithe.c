@@ -292,8 +292,11 @@ static void base_hart_enter(lithe_sched_t *__this)
     // If this returns, we go back to the top of the loop and attempt to grant
     // to the root scheduler again
     atomic_add(&__this->harts, -1);
+    current_sched = NULL;
     maybe_vcore_yield();
+    current_sched = &base_sched;
     atomic_add(&__this->harts, 1);
+
     handle_events();
     cpu_relax();
   }
