@@ -9,7 +9,7 @@
 static struct {
   int vcid;
 } __attribute__((aligned(ARCH_CL_SIZE))) *wake_me_up;
-static int max_spin_count = 300000;
+static int max_spin_count = 3000000;
 
 static inline void lithe_vcore_init()
 {
