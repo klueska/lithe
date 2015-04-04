@@ -320,9 +320,9 @@ static void base_sched_exited(lithe_sched_t *__this)
 static void base_child_entered(lithe_sched_t *__this, lithe_sched_t *child)
 {
   assert(root_sched == NULL);
+  root_sched = child;
   root_sched_ref_count = ATOMIC_INITIALIZER(2);
   root_sched_harts_needed = ATOMIC_INITIALIZER(1);
-  root_sched = child;
 }
 
 static void base_child_exited(lithe_sched_t *__this, lithe_sched_t *child)
