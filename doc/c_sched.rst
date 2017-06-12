@@ -87,8 +87,8 @@ Types
   
   .. c:function:: void lithe_sched_funcs_t.context_exit(lithe_sched_t *__this, lithe_context_t *context)
   
-    Callback notifying a scheduler that a context has run past the end of it's
-    start function and completed it's work.  At this point it should either be
+    Callback notifying a scheduler that a context has run past the end of its
+    start function and completed its work.  At this point it should either be
     reinitialized via a call to lithe_context_reinit() (and friends) or cleaned
     up via lithe_context_cleanup().
   
