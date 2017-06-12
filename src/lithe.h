@@ -23,7 +23,7 @@ extern "C" {
 
 /**
  * Initialize lithe. This is a constructor function so will be called by
- * default if not called manually.  It is portected to ensure taht it only runs
+ * default if not called manually.  It is portected to ensure that it only runs
  * once, no matter how many times it is called.
  */
 void __attribute__((constructor)) lithe_lib_init();
